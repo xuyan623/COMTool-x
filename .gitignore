@@ -1,0 +1,16 @@
+.venv/
+.python/
+.cache/
+.sessions/
+build/
+dist/
+verification/
+__pycache__/
+*.pyc
+*.egg-info/
+*.log
+
+# Local user projects and their private plugin sources are not public examples.
+/project/
+/templates/
+/plugins/

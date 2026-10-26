@@ -1,0 +1,9 @@
+* text=auto
+*.py text eol=lf
+*.spec text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.lock text eol=lf
+*.ps1 text eol=crlf
+*.comtoolx binary
+*.ico binary
