@@ -132,8 +132,10 @@ QVector<Port> Catalog::ports(const QString &id, const QVariantMap &config) const
             named(i.key(), "out");
         }
     } else if (id == "data.fork") {
+        const auto outputs = config.value("outputs").toList();
+        if (outputs.size() < 2 || outputs.size() > 8) throw Error("数据分发需要 2～8 个输出端口");
         named("in", "in", config.value("data_type").toString());
-        for (const auto &name : config.value("outputs").toList()) named(name.toString(), "out", config.value("data_type").toString());
+        for (const auto &name : outputs) named(name.toString(), "out", config.value("data_type").toString());
     } else if (id == "data.gate" || id == "data.select") {
         const auto type = config.value("data_type").toString();
         if (id == "data.gate") named("in", "in", type);
@@ -161,7 +163,7 @@ QVector<Port> Catalog::ports(const QString &id, const QVariantMap &config) const
         for (const auto &name : config.value("inputs").toList()) named(name.toString(), "in");
     }
     static const QRegularExpression identifier("^[A-Za-z_][A-Za-z0-9_.-]*$");
-    static const QSet<QString> types{"number","bytes","string","boolean","object","samples","trigger","any"};
+    static const QSet<QString> types{"number","bytes","string","boolean","object","samples","any"};
     QSet<QString> seen;
     if (result.size() > 128) throw Error("一个节点最多支持 128 个端口");
     for (const auto &port : result) {

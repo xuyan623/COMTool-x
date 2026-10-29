@@ -25,6 +25,8 @@ if(CX_BUILD_APP)
         src/core/series.cpp src/core/series.h src/core/mesh.cpp src/core/mesh.h
         src/core/python_host.cpp src/core/python_host.h
         src/plugins/math_node.cpp src/plugins/math_node.h
+        src/plugins/logic_node.cpp src/plugins/logic_node.h
+        src/plugins/timer_node.cpp src/plugins/timer_node.h
         src/plugins/data_node.cpp src/plugins/data_node.h
         src/plugins/protocol_node.cpp src/plugins/protocol_node.h
         src/plugins/instrument_node.cpp src/plugins/instrument_node.h
@@ -92,6 +94,9 @@ if(CX_BUILD_APP)
     qt_add_executable(cx_execution_test tests/native/execution_test.cpp)
     target_link_libraries(cx_execution_test PRIVATE cx_core Qt6::Test)
     add_test(NAME execution COMMAND cx_execution_test)
+    qt_add_executable(cx_control_test tests/native/control_test.cpp)
+    target_link_libraries(cx_control_test PRIVATE cx_core Qt6::Test)
+    add_test(NAME control COMMAND cx_control_test)
     qt_add_executable(cx_io_test tests/native/io_test.cpp)
     target_link_libraries(cx_io_test PRIVATE cx_io Qt6::Test)
     add_test(NAME io COMMAND cx_io_test)

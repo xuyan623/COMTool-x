@@ -10,6 +10,7 @@ namespace cx {
 
 Engine::Engine(NodeHost host, QObject *parent) : QThread(parent), host_(std::move(host))
 {
+    host_.time = [this] { return elapsed(Clock::now()); };
     published_.store(std::make_shared<const QVariantMap>(QVariantMap{{"active",false},{"running",false},{"processed",0},{"failed",0}}));
     setObjectName("graph-batches"); start();
 }
@@ -232,6 +233,11 @@ void Engine::beginBatch(const Event &event, bool stepping)
 
 void Engine::route(const QString &source, const NodeResult &result)
 {
+    if (result.rescheduleSource) {
+        const auto delay = nodes_.at(source)->sourceInterval();
+        if (delay > 0.) deadlines_[source] = Clock::now() + std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(delay));
+        else deadlines_.remove(source);
+    }
     if (result.separateFrames) {
         for (const auto &outputs : result.emissions) {
             if (pendingFrames_.size() >= 65536) throw Error("完整采样帧超过队列容量，已暂停");
@@ -414,6 +420,7 @@ QVariant Engine::dispatch(const Request &request)
         if (contract.value("requires_running",true).toBool() && !active_) throw Error("请先建立运行会话");
         if (contract.value("requires_paused",false).toBool() && running_) throw Error("请先暂停运行");
         auto arguments = fromJsonValue(args.value("args")).toMap();
+        if (contract.value("requires_active").toBool() && !active_) throw Error("请先启动引擎，再操作此插件");
         const auto schema = contract.value("args").toMap();
         for (auto i = schema.cbegin(); i != schema.cend(); ++i) if (i.value().toMap().value("required").toBool() && !arguments.contains(i.key())) throw Error("动作缺少参数：" + i.key());
         arguments = checkedProperties(schema,arguments,{});
@@ -424,7 +431,7 @@ QVariant Engine::dispatch(const Request &request)
         QVariant result;
         const BatchContext context{batchSequence_,elapsed(Clock::now()),!running_,false};
         const auto emission = nodes_.at(id)->action(action,arguments,context,result);
-        if (!emission.emissions.isEmpty() || !emission.disconnected.isEmpty()) {
+        if (!emission.emissions.isEmpty() || !emission.disconnected.isEmpty() || emission.rescheduleSource) {
             if (batch_) { record("info","节点动作中止了未完成的单步批次",id); batch_.reset(); }
             beginBatch({id,{},false},!running_);
             nodes_.at(id)->retainEmission(emission.emissions.isEmpty() ? Values{} : emission.emissions.back());

@@ -168,7 +168,7 @@ NodeResult DataNode::action(const QString &name, const QVariantMap &args, const 
         if (kind_ == "control.button") {
             state_["clicks"] = state_.value("clicks").toULongLong() + 1;
             Values output;
-            for (const auto &port : ports_) if (port.direction == "out") output.insert(port.id, config_.value("payload","hello"));
+            for (const auto &port : ports_) if (port.direction == "out") output.insert(port.id,true);
             result = state_; return NodeResult::output(output);
         }
         const auto value = controlValue(args.value("value")); state_["value"] = value; result = state_;

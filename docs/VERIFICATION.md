@@ -4,9 +4,11 @@
 
 ## 原生测试
 
-`tools/build_native.ps1 -Test` 验证 core、editor、workbench_ui、execution、io。本地 Python 扩展检查通过 COMTOOLX_TEST_PYTHON 指定真实解释器。
+`tools/build_native.ps1 -Test` 验证 core、editor、workbench_ui、execution、control、io。本地 Python 扩展检查通过 COMTOOLX_TEST_PYTHON 指定真实解释器。
 
 覆盖类型化工程、单源批次传播、暂停与单步、界面编辑、通信、曲线原始数据与 FFT、三维姿态、ANSI 终端和独立 Python 执行。
+
+控制回归覆盖七种逻辑门、边沿触发、布尔按钮、2～8 路分发、倒计时重新开始，以及引擎暂停、停止和重置。
 
 ## 部署与实际设备
 

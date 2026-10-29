@@ -81,7 +81,7 @@ QVariant defaultValue(const QString &type)
 
 bool valueMatches(const QVariant &value, const QString &type)
 {
-    if (!value.isValid() || type == "any" || type == "trigger") return true;
+    if (!value.isValid() || type == "any") return true;
     const int id = value.metaType().id();
     if (type == "bytes") return id == QMetaType::QByteArray;
     if (type == "string") return id == QMetaType::QString;

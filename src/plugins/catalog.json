@@ -1005,14 +1005,14 @@
     "id": "control.button",
     "name": "按钮",
     "category": "控件",
-    "description": "按下或通过 API 触发事件",
+    "description": "每次点击发布一条布尔 true；复杂操作由下游插件完成",
     "version": "3.0",
     "ports": [
       {
         "id": "trigger",
         "label": "触发",
         "direction": "out",
-        "data_type": "trigger",
+        "data_type": "boolean",
         "unit": ""
       }
     ],
@@ -1020,10 +1020,6 @@
       "label": {
         "type": "string",
         "default": "执行"
-      },
-      "payload": {
-        "default": "hello",
-        "type": "json"
       }
     },
     "views": [
@@ -1032,7 +1028,8 @@
     "actions": {
       "click": {
         "description": "触发按钮事件",
-        "args": {}
+        "args": {},
+        "requires_active": true
       }
     },
     "breaks_cycle": false,
@@ -1317,14 +1314,28 @@
     "id": "source.timer",
     "name": "定时触发",
     "category": "信号源",
-    "description": "显式启停的周期事件源，打开工程不会自动启动",
+    "description": "周期触发或单次倒计时；外部开始信号重新计时，引擎暂停冻结计时",
     "version": "3.0",
     "ports": [
       {
+        "id": "start",
+        "label": "重新开始",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      },
+      {
+        "id": "stop",
+        "label": "停止",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      },
+      {
         "id": "tick",
-        "label": "触发",
+        "label": "到时",
         "direction": "out",
-        "data_type": "trigger",
+        "data_type": "boolean",
         "unit": ""
       }
     ],
@@ -1333,7 +1344,17 @@
         "type": "integer",
         "default": 1000,
         "min": 1,
-        "max": 3600000
+        "max": 3600000,
+        "label": "周期／倒计时时长 / ms"
+      },
+      "mode": {
+        "type": "string",
+        "default": "periodic",
+        "choices": [
+          "periodic",
+          "countdown"
+        ],
+        "label": "计时模式"
       }
     },
     "views": [
@@ -1348,7 +1369,8 @@
             "min": 1,
             "max": 3600000
           }
-        }
+        },
+        "requires_active": true
       },
       "stop": {
         "description": "停止定时器",
@@ -1495,8 +1517,7 @@
           "samples",
           "bytes",
           "string",
-          "object",
-          "trigger"
+          "object"
         ],
         "label": "数据类型"
       },
@@ -1506,7 +1527,10 @@
           "a",
           "b"
         ],
-        "label": "输出端口"
+        "label": "分发数量",
+        "format": "port_count",
+        "min_items": 2,
+        "max_items": 8
       }
     },
     "views": [],
@@ -1544,8 +1568,7 @@
           "samples",
           "bytes",
           "string",
-          "object",
-          "trigger"
+          "object"
         ],
         "label": "数据类型"
       }
@@ -1585,8 +1608,7 @@
           "samples",
           "bytes",
           "string",
-          "object",
-          "trigger"
+          "object"
         ],
         "label": "数据类型"
       }
@@ -4123,6 +4145,365 @@
     "batch_boundary": false,
     "category_path": [],
     "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "logic.and",
+    "name": "与门",
+    "category": "逻辑",
+    "description": "所有输入为真时为真",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "a",
+        "label": "a",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      },
+      {
+        "id": "b",
+        "label": "b",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "boolean",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [
+      "逻辑"
+    ],
+    "keywords": [
+      "and",
+      "boolean"
+    ],
+    "implementation": "native"
+  },
+  {
+    "id": "logic.or",
+    "name": "或门",
+    "category": "逻辑",
+    "description": "至少一个输入为真时为真",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "a",
+        "label": "a",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      },
+      {
+        "id": "b",
+        "label": "b",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "boolean",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [
+      "逻辑"
+    ],
+    "keywords": [
+      "or",
+      "boolean"
+    ],
+    "implementation": "native"
+  },
+  {
+    "id": "logic.not",
+    "name": "非门",
+    "category": "逻辑",
+    "description": "对输入取反",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "a",
+        "label": "a",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "boolean",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [
+      "逻辑"
+    ],
+    "keywords": [
+      "not",
+      "boolean"
+    ],
+    "implementation": "native"
+  },
+  {
+    "id": "logic.nand",
+    "name": "与非门",
+    "category": "逻辑",
+    "description": "与门结果取反",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "a",
+        "label": "a",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      },
+      {
+        "id": "b",
+        "label": "b",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "boolean",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [
+      "逻辑"
+    ],
+    "keywords": [
+      "nand",
+      "boolean"
+    ],
+    "implementation": "native"
+  },
+  {
+    "id": "logic.nor",
+    "name": "或非门",
+    "category": "逻辑",
+    "description": "或门结果取反",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "a",
+        "label": "a",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      },
+      {
+        "id": "b",
+        "label": "b",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "boolean",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [
+      "逻辑"
+    ],
+    "keywords": [
+      "nor",
+      "boolean"
+    ],
+    "implementation": "native"
+  },
+  {
+    "id": "logic.xor",
+    "name": "异或门",
+    "category": "逻辑",
+    "description": "两个输入不同时为真",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "a",
+        "label": "a",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      },
+      {
+        "id": "b",
+        "label": "b",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "boolean",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [
+      "逻辑"
+    ],
+    "keywords": [
+      "xor",
+      "boolean"
+    ],
+    "implementation": "native"
+  },
+  {
+    "id": "logic.xnor",
+    "name": "同或门",
+    "category": "逻辑",
+    "description": "两个输入相同时为真",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "a",
+        "label": "a",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      },
+      {
+        "id": "b",
+        "label": "b",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "boolean",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [
+      "逻辑"
+    ],
+    "keywords": [
+      "xnor",
+      "boolean"
+    ],
+    "implementation": "native"
+  },
+  {
+    "id": "logic.edge",
+    "name": "边沿触发",
+    "category": "逻辑",
+    "description": "选定布尔变化发生时发布一条 true；初始状态为 false",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "in",
+        "label": "输入",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "触发",
+        "direction": "out",
+        "data_type": "boolean",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "edge": {
+        "type": "string",
+        "default": "rising",
+        "choices": [
+          "rising",
+          "falling",
+          "both"
+        ],
+        "label": "检测边沿"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [
+      "逻辑"
+    ],
+    "keywords": [
+      "edge",
+      "rising",
+      "falling",
+      "边沿"
+    ],
     "implementation": "native"
   }
 ]

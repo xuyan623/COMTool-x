@@ -59,7 +59,6 @@ double MathNode::sourceInterval() const
 {
     if (kind_ == "source.constant") return 0.;
     if (kind_ == "source.time") return config_.value("period_ms").toDouble() / 1000.;
-    if (kind_ == "source.timer") return timerEnabled_ ? config_.value("interval_ms").toDouble() / 1000. : -1.;
     return -1.;
 }
 
@@ -101,11 +100,6 @@ NodeResult MathNode::process(const Values &changes, const BatchContext &context,
         state_["elapsed_seconds"] = context.time; state_["system_seconds"] = system;
         state_["ticks"] = state_.value("ticks").toULongLong() + 1;
         return NodeResult::output(values);
-    }
-    if (kind_ == "source.timer") {
-        state_["ticks"] = state_.value("ticks").toULongLong() + 1;
-        state_["enabled"] = timerEnabled_;
-        return NodeResult::output({{"tick",QVariantMap{{"value",state_.value("ticks")},{"time",context.time}}}});
     }
     if (kind_ == "function.expression") {
         QJSValueList args;
@@ -215,11 +209,6 @@ NodeResult MathNode::process(const Values &changes, const BatchContext &context,
 NodeResult MathNode::action(const QString &name, const QVariantMap &args, const BatchContext &context, QVariant &result)
 {
     if (name == "reset_state") { resetHistory(); random_.seed(config_.value("seed",0).toULongLong()); result = snapshot(true); return {}; }
-    if (kind_ == "source.timer" && (name == "start" || name == "stop")) {
-        timerEnabled_ = name == "start";
-        if (args.contains("interval_ms")) config_["interval_ms"] = args.value("interval_ms");
-        state_["enabled"] = timerEnabled_; result = state_; return {};
-    }
     return Node::action(name,args,context,result);
 }
 

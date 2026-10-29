@@ -64,7 +64,7 @@ def main():
     try:
         c = launch()
         check(c.call('app.state')['python'] == '', 'deployed application starts without a Python interpreter')
-        check(len(c.call('registry')) == 68, 'all 68 official plugin declarations are available in deployment')
+        check(len(c.call('registry')) == 76, 'all 76 official plugin declarations are available in deployment')
         for name in ('SerialPlot', 'FunctionLab'):
             c.call('project.open', {'path': str(deployment / 'examples' / (name + '.comtoolx'))})
             check(c.call('project.validate')['valid'], name + ' opens as a native v3 project')

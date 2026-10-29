@@ -19,6 +19,8 @@ struct NodeResult {
     QVector<Values> emissions;
     QSet<QString> disconnected;
     bool separateFrames = false;
+    // Stateful sources request a new deadline after input-driven transitions.
+    bool rescheduleSource = false;
     static NodeResult output(const Values &values);
 };
 
@@ -31,6 +33,8 @@ struct NodeHost {
     std::function<void(const QString &, const QString &)> log;
     std::function<void(const QString &, const Values &, const BatchContext &)> publish;
     std::function<bool(const QString &)> cancelled;
+    // Engine experiment time freezes during global pause and resets with it.
+    std::function<double()> time;
     std::function<void()> stopExtensions;
 };
 

@@ -31,7 +31,7 @@ private:
     std::mt19937_64 random_;
     std::deque<double> window_;
     double previousTime_ = 0., previousX_ = 0., value_ = 0.;
-    bool anchored_ = false, timerEnabled_ = false;
+    bool anchored_ = false;
 };
 
 } // namespace cx
