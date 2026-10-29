@@ -1,0 +1,579 @@
+{
+  "api_version": 3,
+  "async": "A job is complete only after its operation succeeds; poll job.get",
+  "commands": {
+    "app.quit": {
+      "arguments": [
+        "discard"
+      ]
+    },
+    "app.state": {
+      "arguments": []
+    },
+    "batch": {
+      "arguments": [
+        "commands"
+      ]
+    },
+    "capture": {
+      "arguments": [
+        "target",
+        "path",
+        "width",
+        "height"
+      ]
+    },
+    "clipboard.read": {
+      "arguments": []
+    },
+    "controls.click": {
+      "arguments": [
+        "id",
+        "page"
+      ]
+    },
+    "controls.commit": {
+      "arguments": [
+        "id",
+        "page"
+      ]
+    },
+    "controls.focus": {
+      "arguments": [
+        "id",
+        "page"
+      ]
+    },
+    "controls.get": {
+      "arguments": [
+        "id",
+        "page"
+      ]
+    },
+    "controls.key": {
+      "arguments": [
+        "id",
+        "page",
+        "key",
+        "text",
+        "modifiers"
+      ]
+    },
+    "controls.list": {
+      "arguments": [
+        "page"
+      ]
+    },
+    "controls.pointer": {
+      "arguments": [
+        "id",
+        "page",
+        "type",
+        "x",
+        "y",
+        "button",
+        "buttons",
+        "delta_x",
+        "delta_y",
+        "modifiers"
+      ]
+    },
+    "controls.set": {
+      "arguments": [
+        "id",
+        "page",
+        "property",
+        "value"
+      ]
+    },
+    "editor.add": {
+      "arguments": [
+        "id",
+        "page",
+        "plugin"
+      ]
+    },
+    "editor.configure": {
+      "arguments": [
+        "page",
+        "zoom",
+        "pan_x",
+        "pan_y",
+        "left_width",
+        "right_width",
+        "fit",
+        "animation"
+      ]
+    },
+    "editor.copy": {
+      "arguments": [
+        "page",
+        "ids"
+      ]
+    },
+    "editor.paste": {
+      "arguments": [
+        "page",
+        "payload"
+      ]
+    },
+    "editor.place": {
+      "arguments": [
+        "page",
+        "id",
+        "ids",
+        "position",
+        "parent",
+        "index"
+      ]
+    },
+    "editor.plan": {
+      "arguments": [
+        "page",
+        "ids",
+        "operation",
+        "plugin"
+      ]
+    },
+    "editor.remove": {
+      "arguments": [
+        "page",
+        "id",
+        "ids",
+        "confirmed",
+        "revision"
+      ]
+    },
+    "editor.reorder": {
+      "arguments": [
+        "page",
+        "id",
+        "index"
+      ]
+    },
+    "editor.replace": {
+      "arguments": [
+        "page",
+        "id",
+        "ids",
+        "plugin",
+        "confirmed",
+        "revision"
+      ]
+    },
+    "editor.state": {
+      "arguments": [
+        "page"
+      ]
+    },
+    "editor.withdraw": {
+      "arguments": [
+        "page",
+        "id",
+        "ids"
+      ]
+    },
+    "graph.activity": {
+      "arguments": []
+    },
+    "graph.connection.options": {
+      "arguments": [
+        "node",
+        "port"
+      ]
+    },
+    "graph.fit": {
+      "arguments": []
+    },
+    "graph.node.add": {
+      "arguments": [
+        "id",
+        "plugin",
+        "title",
+        "config",
+        "position",
+        "orientation",
+        "placed"
+      ]
+    },
+    "graph.node.move": {
+      "arguments": [
+        "id",
+        "position"
+      ]
+    },
+    "graph.node.patch": {
+      "arguments": [
+        "id",
+        "changes"
+      ]
+    },
+    "graph.node.remove": {
+      "arguments": [
+        "id",
+        "ids"
+      ]
+    },
+    "graph.node.rotate": {
+      "arguments": [
+        "id",
+        "degrees"
+      ]
+    },
+    "graph.overlaps": {
+      "arguments": []
+    },
+    "graph.select": {
+      "arguments": [
+        "id",
+        "kind",
+        "ids"
+      ]
+    },
+    "graph.wire.add": {
+      "arguments": [
+        "id",
+        "source",
+        "target",
+        "routing",
+        "color",
+        "width",
+        "points"
+      ]
+    },
+    "graph.wire.handles": {
+      "arguments": [
+        "id",
+        "x",
+        "y"
+      ]
+    },
+    "graph.wire.patch": {
+      "arguments": [
+        "id",
+        "changes"
+      ]
+    },
+    "graph.wire.remove": {
+      "arguments": [
+        "id"
+      ]
+    },
+    "history.redo": {
+      "arguments": []
+    },
+    "history.undo": {
+      "arguments": []
+    },
+    "io.ports": {
+      "arguments": []
+    },
+    "job.get": {
+      "arguments": [
+        "id"
+      ]
+    },
+    "library.configure": {
+      "arguments": [
+        "view",
+        "size"
+      ]
+    },
+    "library.favorite": {
+      "arguments": [
+        "plugin",
+        "enabled"
+      ]
+    },
+    "library.preview": {
+      "arguments": [
+        "plugin"
+      ]
+    },
+    "library.search": {
+      "arguments": [
+        "query",
+        "category",
+        "scope"
+      ]
+    },
+    "library.state": {
+      "arguments": []
+    },
+    "log.clear": {
+      "arguments": []
+    },
+    "log.configure": {
+      "arguments": [
+        "detail"
+      ]
+    },
+    "log.export": {
+      "arguments": [
+        "path",
+        "node",
+        "level",
+        "text",
+        "batch"
+      ]
+    },
+    "log.query": {
+      "arguments": [
+        "after",
+        "limit",
+        "node",
+        "level",
+        "text",
+        "batch"
+      ]
+    },
+    "node.action": {
+      "arguments": [
+        "node",
+        "action",
+        "args"
+      ]
+    },
+    "node.configure": {
+      "arguments": [
+        "node",
+        "changes",
+        "persist"
+      ]
+    },
+    "node.state": {
+      "arguments": [
+        "node",
+        "detailed"
+      ]
+    },
+    "plugin.import": {
+      "arguments": [
+        "path",
+        "manifest"
+      ]
+    },
+    "plugin.remove": {
+      "arguments": [
+        "plugin"
+      ]
+    },
+    "preferences.set": {
+      "arguments": [
+        "theme",
+        "python",
+        "read_only"
+      ]
+    },
+    "project.get": {
+      "arguments": []
+    },
+    "project.new": {
+      "arguments": [
+        "name",
+        "discard"
+      ]
+    },
+    "project.open": {
+      "arguments": [
+        "path",
+        "discard"
+      ]
+    },
+    "project.rename": {
+      "arguments": [
+        "name"
+      ]
+    },
+    "project.save": {
+      "arguments": [
+        "path"
+      ]
+    },
+    "project.validate": {
+      "arguments": []
+    },
+    "python.probe": {
+      "arguments": [
+        "dependencies"
+      ]
+    },
+    "registry": {
+      "arguments": []
+    },
+    "runtime.debug": {
+      "arguments": [
+        "enabled"
+      ]
+    },
+    "runtime.emit": {
+      "arguments": [
+        "node",
+        "outputs"
+      ]
+    },
+    "runtime.pause": {
+      "arguments": []
+    },
+    "runtime.reset": {
+      "arguments": []
+    },
+    "runtime.start": {
+      "arguments": [
+        "debug"
+      ]
+    },
+    "runtime.state": {
+      "arguments": []
+    },
+    "runtime.step": {
+      "arguments": [
+        "mode",
+        "source"
+      ]
+    },
+    "runtime.stop": {
+      "arguments": []
+    },
+    "schema": {
+      "arguments": []
+    },
+    "sync.apply": {
+      "arguments": [
+        "direction",
+        "keys",
+        "revision"
+      ]
+    },
+    "sync.plan": {
+      "arguments": [
+        "direction"
+      ]
+    },
+    "ui.container.add": {
+      "arguments": [
+        "id",
+        "parent",
+        "plugin",
+        "properties"
+      ]
+    },
+    "ui.item.move": {
+      "arguments": [
+        "id",
+        "parent",
+        "index"
+      ]
+    },
+    "ui.item.patch": {
+      "arguments": [
+        "id",
+        "properties"
+      ]
+    },
+    "ui.item.remove": {
+      "arguments": [
+        "id"
+      ]
+    },
+    "ui.item.schema": {
+      "arguments": [
+        "id"
+      ]
+    },
+    "ui.update": {
+      "arguments": []
+    },
+    "ui.view.add": {
+      "arguments": [
+        "id",
+        "parent",
+        "node",
+        "view",
+        "properties"
+      ]
+    },
+    "ui.view.bind": {
+      "arguments": [
+        "id",
+        "node",
+        "view"
+      ]
+    },
+    "view.actions": {
+      "arguments": [
+        "node",
+        "view"
+      ]
+    },
+    "view.call": {
+      "arguments": [
+        "node",
+        "view",
+        "action",
+        "args"
+      ]
+    },
+    "view.read": {
+      "arguments": [
+        "node",
+        "view",
+        "args"
+      ]
+    },
+    "window.close": {
+      "arguments": [
+        "window",
+        "discard"
+      ]
+    },
+    "window.configure": {
+      "arguments": [
+        "window",
+        "x",
+        "y",
+        "width",
+        "height",
+        "state",
+        "focus"
+      ]
+    },
+    "window.pin": {
+      "arguments": [
+        "window",
+        "enabled"
+      ]
+    },
+    "workspace.close": {
+      "arguments": [
+        "page",
+        "discard"
+      ]
+    },
+    "workspace.detach": {
+      "arguments": [
+        "page",
+        "x",
+        "y"
+      ]
+    },
+    "workspace.move": {
+      "arguments": [
+        "page",
+        "window",
+        "index"
+      ]
+    },
+    "workspace.open": {
+      "arguments": [
+        "page",
+        "window"
+      ]
+    }
+  },
+  "values": {
+    "bytes": "{type:bytes,base64:...,length:N}",
+    "samples": "{time:seconds,values:{name:number}}"
+  },
+  "version": "0.3.0"
+}

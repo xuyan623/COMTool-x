@@ -1,0 +1,11 @@
+{
+  "plugin_api": 3,
+  "id": "user.example.gain",
+  "name": "数值增益",
+  "category": "用户插件",
+  "code_file": "gain.py",
+  "resource_files": ["Gain.qml"],
+  "ports": [{"id":"x","direction":"in","data_type":"number"},{"id":"out","direction":"out","data_type":"number"}],
+  "properties": {"gain":{"type":"number","default":2}},
+  "views": {"result":{"qml":"Gain.qml"}}
+}

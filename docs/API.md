@@ -1,122 +1,172 @@
-# 本地 API
+# 本地 API v3
 
-## 连接与发现
+GUI 与 API 共用原生命令入口。运行实例的 `schema` 和 `registry` 是准确契约；命令完整字段也随包保存在 [COMMAND_SCHEMA.json](COMMAND_SCHEMA.json)。旧 v2 端点和旧插件接口不提供兼容。
 
-启动软件后读取 `<data-dir>/api.json`。默认 data-dir 是程序目录下 `.sessions`；可用 `--data-dir` 指定独立实例。
+## 连接
 
-默认文件指向最近启动且仍可连接的窗口。每个窗口另在 `<data-dir>/instances/api-<pid>-<port>.json` 保留独立记录；“帮助 → 本地 API 与 Skill”中的 `discovery` 是该窗口的独立路径，`default_discovery` 是默认路径。关闭任一窗口不会移除其它窗口的记录，默认窗口退出后自动切换到存活窗口。
+默认数据目录是可执行文件目录，也可用 GUI 的 `--data-dir` 指定。读取 `<data-dir>/.sessions/api.json`，其中包含 url、token、pid、discovery 和 api_version。每个进程还在 `.sessions/instances/` 保存独立记录；一个工程拖出的子窗口共用该进程接口。
 
-文件包含 `url`、`token`、`pid`、`version`、`started_at`。连接信息以原子方式写入；窗口每两秒检查并恢复丢失或损坏的记录。CLI 在默认记录失效时也会查找仍可认证的实例，忽略异常退出留下的记录。token 每次启动变化，不写入工程，不应粘贴到共享文档。所有设计和数据接口均需要 `Authorization: Bearer <token>`，`/v1/health` 除外。
+全部请求要求 `Authorization: Bearer <token>`，包括 `GET /v3/schema`。token 每次启动变化，仅供本机调用，不应写进工程、报告或共享文档。接口只监听 127.0.0.1。
 
-可以直接使用无需 Python 的 `COMTool-x-cli.exe api <op> --json '<JSON>'`；复杂请求使用 `--json-file <path>`。使用自定义数据目录时同时传 `--data-dir`。
-
-多个窗口共用同一个数据目录时，先用 `app.state` 的工程名和路径确认目标。需要控制特定窗口时，读取其独立记录并使用其中的地址和认证信息发送 HTTP 请求。没有可连接窗口时，CLI 返回 `ok=false` 的 JSON 和退出码 1。
-
-HTTP 命令统一为：
-
-~~~http
-POST /v1/command
+```http
+POST /v3/command
 Authorization: Bearer <token>
 Content-Type: application/json
 
-{"op":"graph.node.add","args":{"id":"serial","plugin":"io.serial","config":{"port":"COM3","baudrate":115200}}}
-~~~
+{"op":"graph.node.add","args":{"id":"number","plugin":"control.number","config":{"value":2}}}
+```
 
-返回 `{"ok":true,"result":...}`，失败返回 `{"ok":false,"error":"原因"}` 与 4xx/5xx 状态码。请求体最大 16 MiB。bytes 使用 `{"type":"bytes","base64":"...","length":123}` 表示。
+返回 `{ok:true,result:...}`；失败为 `{ok:false,error:'原因'}`。请求体最大 8 MiB。设计操作、文件任务、引擎/节点动作可能返回 `{job:'ID'}`；控件操作还可能返回 `jobs:[ID,...]`，表示回调启动的节点动作。用 `job.get` 等待全部任务 state=complete 并读取 result，或读取 state=failed 的 error。拿到 job ID 或控件 updated=true 不代表后台操作已经执行。原生 CLI 的 `--wait` 会等待单个 job 或全部 jobs；多任务返回 jobs_complete 和 job_results。
 
-只读入口：`GET /v1/state`、`/v1/project`、`/v1/plugins`、`/v1/schema`、`/v1/jobs/<id>`。以运行中的 `/v1/schema` 和 `registry` 为命令与插件契约的准确来源。
+## 原生命令行
 
-## 设计命令
+```powershell
+.\COMTool-x-cli.exe api app.state --data-dir D:\COMToolData
+.\COMTool-x-cli.exe api schema
+.\COMTool-x-cli.exe api runtime.start --json '{"debug":false}' --wait
+.\COMTool-x-cli.exe api graph.node.add --json-file D:\request.json --wait
+```
+
+CLI 不依赖 Python；默认记录失效或缺失时会探测仍可认证的进程记录。`--discovery` 可指定某一记录；`--timeout` 为毫秒。无窗口或命令失败时返回 ok=false 和退出码 1。多实例先检查 app.state 的 project/path，避免操作错工程。
+
+## 数据、运行与界面
+
+bytes 使用 `{type:'bytes',base64:'...',length:N}`；采样帧为 `{time:秒,values:{通道名:数值}}`。端口、属性、动作由 registry 声明，先读取真实 ID 和默认配置。
+
+功能设计是实际执行来源。`editor.add` 接收 page=graph 或 layout，新增对象先待放置；`editor.place` 单击落位，`editor.withdraw` 撤下并保留配置。未放置的功能节点不参与计算。`graph.node.add` 是显式建图接口，默认直接放置，也可指定 placed=false。结构修改前暂停；未保存修改不能直接丢弃。project.save 未指定路径时默认写入 `<data-dir>/project/<工程名>.comtoolx`。
+
+双向同步先调用 `sync.plan`，direction 为 graph_to_ui 或 ui_to_graph。返回 changes、revision；显示变更清单后，将用户选中的 key 和同一个 revision 交给 `sync.apply`。目标页多余对象会列入删除项，取消勾选即可保留；新增对象进入待放置区，已有摆放、层序和 ID 不变。旧 `ui.update` 仅补充缺失视图，新增仍待放置；完整双向同步使用清单接口。
+
+`editor.plan` 描述 remove/replace/withdraw 的影响，page 和 ids 指定对象。`editor.remove`、`editor.replace` 要求 confirmed=true，可携带清单的 revision 防止过时确认。独立复制使用 `editor.copy` / `editor.paste`，继承配置和外观，只继承所选子图内部连线。`editor.reorder` 的 index 越小，图层越靠前；界面对象在同一父容器内排序。
+
+界面根是 layout.canvas，root.properties 的 width、height 是设计尺寸，grid_size 是 1～128 px 的网格粒度。`ui.item.patch` 只接受外观／布局字段；x、y、width、height 会按网格对齐，容器内部排列遵守相同网格。运行界面整体等比缩放并留白。
+
+`ui.item.schema` 查询指定界面对象可用的外观／布局参数。`ui.view.bind` 使用 id、node、view 重新绑定已有视图，保留界面对象 ID、外观、位置和容器归属。`graph.connection.options` 使用 node、port 查询同 GUI 一致的兼容目标及拒绝原因。
+
+`editor.state` 查询 graph 或 layout 的实时 zoom、pan_x、pan_y、left_width、right_width 与视口尺寸；`editor.configure` 修改这些字段，fit=true 适应画布。zoom 范围为 0.1～3，侧栏宽度为 0～420，0 表示完全收起；仅 graph 支持 animation。它们改变显示状态，不修改工程，也可在只读和运行状态使用。侧栏实际宽度在下一次 Qt 布局后稳定，再查询 state 可确认结果。
+
+runtime.pause 保留实验状态；runtime.stop 释放连接但保留当前参数；runtime.reset 恢复工程初值并清除临时覆盖。runtime.debug 控制详细调试；runtime.step 的 mode 为 batch 或 node，source 可选择数据源，开始的批次须沿原游标完成。
+
+只读模式用 preferences.set 的 read_only；node.configure 的 persist=false 仅改变当前实验，工程不会变脏。运行与设备发送仍须有用户授权。发送动作成功仅表示本机层接受/写入，设备实际执行需要独立反馈。
+
+```json
+{"op":"node.action","args":{"node":"serial","action":"connect","args":{}}}
+{"op":"node.action","args":{"node":"console","action":"send","args":{"text":"1,2,3"}}}
+{"op":"view.read","args":{"node":"plot","view":"plot","args":{"width":1200,"follow":true}}}
+{"op":"node.action","args":{"node":"plot","action":"read_data","args":{}}}
+```
+
+view.read 省略 args 时使用界面当前范围；原始曲线用 read_data，频谱用 view.read 的 fft=true。view.actions 列出公开视图动作，view.call 支持范围、FFT、相机和图片导出。姿态 geometry 动作可分页读取真实顶点/面；不以截图推断数值。
+
+`controls.list` 可按 page 筛选，发现已加载的具名及未命名 Qt Quick 对象。记录包含 id、handle、path、name、page、node、view、ui_item、visible、enabled、bounds、writable、actions 和可读值。显式 objectName 仍可用；每个实际对象还有自动 handle，在该对象存活期间保持不变，移动或兄弟排序不会将它指向另一对象。path 描述当前视觉层级，含页、QML id／类型及同级序号。视图重建或工程切换后重新发现；不要持久保存自动 handle。相同显式名称优先选择可见可用对象，使用 handle 可精确区分多份视图。
+
+`controls.get` 读取指定对象。`controls.set` 只接受其 writable 中的 text、editText、value、checked、currentIndex；滑块、SpinBox、下拉框和勾选框会触发实际用户操作回调。文本赋值后使用 `controls.commit` 按 Qt 的 Enter 提交规则执行校验与 accepted／editingFinished；`controls.focus`、`controls.click` 操作实际对象。公共引擎控件仍使用 execution.run/pause/debug/batch/node/reset/end/source/status。
+
+自绘或非标准 QML 控件可以使用 `controls.key` 和 `controls.pointer`，事件直接送入应用自身 Qt 窗口，不移动系统鼠标，也不发送操作系统键盘输入。key 使用 Qt 名称，如 Return、A；modifiers 可为 ControlModifier 或以 | 分隔的组合。text 支持 Unicode。pointer 的 type 为 click、press、move、release、double_click 或 wheel；x、y 是控件局部坐标，省略时使用中心；button／buttons 使用 LeftButton、RightButton、NoButton 等 Qt 名称，滚轮用 delta_x／delta_y。拖动通过 press、move、release 完成。对象需可见、启用且有所属窗口；业务操作优先使用已声明的 node.action。
+
+capture 的 target 可为 window、graph、layout、runtime、logs、library 或 `view.<node>.<view>`。目标窗口需已显示且未最小化，完成的 job 返回本地 PNG 路径。graph.activity 返回实际绘图层采样频率、亮条位置、速度和间距，不修改计算调度。
+
+workspace.open 定位已有页面。插件库始终以唯一精简子窗口打开；workspace.detach/move 保持共享会话，window.pin 控制置顶。标签栏位于顶部，公共引擎位于底部。功能设计和界面设计的对象栏、属性栏可用分隔条拖到 0 宽度隐藏，再拖回或用图标展开。插件库不能移入工作区标签。
+
+`window.configure` 按窗口 ID 设置 x、y、width、height、state 和 focus；state 为 normal、minimized、maximized 或 fullscreen。可将最小化窗口恢复为 normal，再内部截图。app.state 的 workspaces.windows 同时返回实际窗口位置、尺寸、state、focused 和 native_owned。分离页面为无原生 owner 的普通窗口，可与主窗口交替聚焦；始终置顶只由 window.pin 控制。
+
+## 命令字段
+
+以下表格由本次原生实例的 schema 生成；节点/视图动作内层 args 以 registry 或 view.actions 为准。
 
 | 命令 | 参数 |
 |---|---|
-| `app.state` / `registry` / `project.get` | 无 |
-| `project.new` | `name` |
-| `project.open` | `path`（`.comtoolx` 工程包）, `read_only=false` |
-| `project.save` | `path?`，初次默认保存到 `project/<工程名>.comtoolx`；随后可省略 |
-| `project.close` | 无，停止运行、关闭工程并卸载工程插件 |
-| `project.patch` | `name?`, `metadata?` |
-| `project.validate` | 无，返回 `valid` 和 `issues` |
-| `mode.set` | `mode=edit` 或 `runtime` |
-| `graph.node.add` | `plugin`, `id?`, `name?`, `position=[x,y]?`, `rotation?`, `config?` |
-| `graph.node.patch` | `id`, `name?`, `position?`, `rotation?`, `config?` |
-| `graph.node.move` | `id`, `position=[x,y]` |
-| `graph.node.remove` | `id` |
-| `graph.wire.add` | `plugin?`, `id?`, `source={node,port}`, `target={node,port}`, `properties?` |
-| `graph.wire.patch` / `graph.wire.remove` | `id`，修改时附 `properties` |
-| `ui.update` | 无，显式生成新增视图并报告失效绑定 |
-| `ui.item.add` | `id?`, `plugin` 或 `node/view`, `parent?`, `title?`, `stretch?`, `properties?` |
-| `ui.item.patch` | `id`, `title?`, `node?`, `view?`, `stretch?`, `properties?` |
-| `ui.item.move` | `id`, `parent`, `index?` |
-| `ui.item.remove` | `id`，删除容器同时删除后代视图 |
-| `history.undo` / `history.redo` | 无 |
-| `batch` | `commands=[{op,args},...]`，最多 1000 条设计命令，整体提交或回滚 |
-| `plugin.load` | `path`，向当前工程加载可信本地 Python 插件 |
-| `theme.set` | `theme=dark` 或 `light` |
-| `workspace.set` | `view=graph`、`layout` 或 `runtime` |
-| `graph.fit` | 无 |
-| `graph.overlaps` | 无，返回节点 ID 对和实际占位交叠区域 |
-| `library.preview` | `plugin`，显示模块预览，返回可截图的 `target=library.preview` |
-
-UI 布局容器由 `registry.containers` 发现。内置 `layout.row`、`layout.column`、`layout.grid`、`layout.tabs`。`parent` 必须指向容器，`stretch` 控制拉伸比例，移动同级元素时 `index` 指定顺序。
-
-`project.save` 保存插件实现、配置、布局和资源为单个工程包。`project.open` 加载包内实现，不需要先调用 `plugin.load`，也不自动运行或连接。`project.close/new/open` 替换当前工程时卸载旧工程插件。`app.state.project_dir` 返回默认工程目录；旧 JSON 工程不兼容。
-
-通用 UI 属性见 `registry.ui_properties`：最小/最大宽高、网格单元 `row/column/rowspan/colspan`、`font_size/font_family/color/background`、`label/text`。容器还声明间距、边距、列数；外部插件可以通过 `view_properties` 声明视图专用属性。属性更新为合并，不替换其他属性。
-
-只读模式拒绝设计更改。功能图运行期间拒绝节点和连线变更。UI 编辑只调整显示，不创建新功能实例。移除视图会记录为隐藏，后续“更新 UI”不会重复创建它。
-
-## 运行与异步操作
-
-节点的 `rotation` 使用 0、90、180、270 度，缺省为 0。它属于设计数据，保存、重开、撤销和重做均保留方向；改变方向时导线同步更新。
-
-功能图模块和端口按 `rotation` 旋转，所有文字保持水平正向。竖向模块调整宽度与标签排布，并保持旋转中心及保存坐标稳定。占位重叠属于显示提示，可通过 `graph.overlaps` 查询。
-
-基础导线的 `properties.points` 是按路径顺序排列的画布坐标，例如 `[[300,200],[500,200]]`。用 `graph.wire.patch` 修改它即可直接调整走线，空列表恢复自动路径。`style=curve` 为穿过路径点的平滑曲线，`style=straight` 为经过各点的折线。所有点必须是有限的二维数值。
-
-`runtime.start` 校验后运行功能图；`runtime.stop` 停止并释放设备。
-
-`node.action` 接受 `id`、`action`、`args`，返回 `job_id`。轮询 `job.get`，状态为 `running`、`complete` 或 `failed`；完成结果在 `result`，失败原因在 `error`。CLI 添加 `--wait` 可等待完成并返回适当退出码。
-
-常见操作：
-
-~~~json
-{"op":"node.action","args":{"id":"serial","action":"connect","args":{"port":"COM3","baudrate":115200}}}
-{"op":"node.action","args":{"id":"console","action":"send","args":{"text":"hello","newline":"CRLF"}}}
-{"op":"node.action","args":{"id":"plot","action":"set_visible","args":{"channel":"signal","visible":true}}}
-{"op":"node.action","args":{"id":"plot","action":"data","args":{"channel":"signal","limit":100}}}
-{"op":"node.action","args":{"id":"input","action":"set_value","args":{"value":10}}}
-~~~
-
-节点的准确 actions 及 `requires_running` 约束由 `registry` 提供。通信发送的成功结果表示底层写入完成，不表示对端解析、执行或应答完成。失败发送不会覆盖此前实际发送记录。
-
-## 控件与内部截图
-
-- `controls.list {root?}`：读取 Qt 对象 ID、类型、值、启用状态与可用操作。
-- `controls.set {id,value,submit?}`：编辑标准输入控件。
-- `controls.click {id}`：触发按钮或菜单动作。
-- `view.actions {}`：发现当前插件视图的专用操作。
-- `view.call {id,action,args}`：调用专用操作，例如图表范围、导出图片。
-- `capture {target,width?,height?,full?}`：内部渲染截图。target 可以是 `window`、`graph`、`layout`、`runtime` 或对象 ID。
-
-优先使用设计命令和 `node.action`；标准控件接口用于确实需要操纵某个控件的操作。设计和运行视图 ID 分别使用 `layout/<item-id>` 与 `runtime/<item-id>` 前缀。
-
-截图返回绝对 `path`、尺寸和鉴权下载路径 `url`，可用 `GET /v1/screenshots/<id>.png` 读取。截图前同步一次已声明的视图刷新，不需要鼠标、屏幕坐标或桌面截图。
-
-图表专用操作示例：
-
-~~~json
-{"op":"view.call","args":{"id":"runtime/plot_view","action":"set_range","args":{"x":[0,10],"y":[-1,1]}}}
-{"op":"view.call","args":{"id":"runtime/plot_view","action":"export_image","args":{"path":"D:/plot.svg"}}}
-~~~
-
-`app.quit {discard:false}` 有未保存设计时拒绝关闭；先保存，或者用户明确希望丢弃时使用 `discard:true`。
-
-## PowerShell 直接调用
-
-~~~powershell
-$info = Get-Content -LiteralPath '.\.sessions\api.json' -Raw | ConvertFrom-Json
-$headers = @{ Authorization = "Bearer $($info.token)" }
-$body = @{ op = 'capture'; args = @{ target = 'graph'; width = 1800 } } | ConvertTo-Json -Depth 20
-Invoke-RestMethod -Uri "$($info.url)/v1/command" -Method Post -Headers $headers -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body))
-~~~
+| `app.quit` | `discard` |
+| `app.state` |  |
+| `batch` | `commands` |
+| `capture` | `target`, `path`, `width`, `height` |
+| `clipboard.read` |  |
+| `controls.click` | `id`, `page` |
+| `controls.commit` | `id`, `page` |
+| `controls.focus` | `id`, `page` |
+| `controls.get` | `id`, `page` |
+| `controls.key` | `id`, `page`, `key`, `text`, `modifiers` |
+| `controls.list` | `page` |
+| `controls.pointer` | `id`, `page`, `type`, `x`, `y`, `button`, `buttons`, `delta_x`, `delta_y`, `modifiers` |
+| `controls.set` | `id`, `page`, `property`, `value` |
+| `editor.add` | `id`, `page`, `plugin` |
+| `editor.configure` | `page`, `zoom`, `pan_x`, `pan_y`, `left_width`, `right_width`, `fit`, `animation` |
+| `editor.copy` | `page`, `ids` |
+| `editor.paste` | `page`, `payload` |
+| `editor.place` | `page`, `id`, `ids`, `position`, `parent`, `index` |
+| `editor.plan` | `page`, `ids`, `operation`, `plugin` |
+| `editor.remove` | `page`, `id`, `ids`, `confirmed`, `revision` |
+| `editor.reorder` | `page`, `id`, `index` |
+| `editor.replace` | `page`, `id`, `ids`, `plugin`, `confirmed`, `revision` |
+| `editor.state` | `page` |
+| `editor.withdraw` | `page`, `id`, `ids` |
+| `graph.activity` |  |
+| `graph.connection.options` | `node`, `port` |
+| `graph.fit` |  |
+| `graph.node.add` | `id`, `plugin`, `title`, `config`, `position`, `orientation`, `placed` |
+| `graph.node.move` | `id`, `position` |
+| `graph.node.patch` | `id`, `changes` |
+| `graph.node.remove` | `id`, `ids` |
+| `graph.node.rotate` | `id`, `degrees` |
+| `graph.overlaps` |  |
+| `graph.select` | `id`, `kind`, `ids` |
+| `graph.wire.add` | `id`, `source`, `target`, `routing`, `color`, `width`, `points` |
+| `graph.wire.handles` | `id`, `x`, `y` |
+| `graph.wire.patch` | `id`, `changes` |
+| `graph.wire.remove` | `id` |
+| `history.redo` |  |
+| `history.undo` |  |
+| `io.ports` |  |
+| `job.get` | `id` |
+| `library.configure` | `view`, `size` |
+| `library.favorite` | `plugin`, `enabled` |
+| `library.preview` | `plugin` |
+| `library.search` | `query`, `category`, `scope` |
+| `library.state` |  |
+| `log.clear` |  |
+| `log.configure` | `detail` |
+| `log.export` | `path`, `node`, `level`, `text`, `batch` |
+| `log.query` | `after`, `limit`, `node`, `level`, `text`, `batch` |
+| `node.action` | `node`, `action`, `args` |
+| `node.configure` | `node`, `changes`, `persist` |
+| `node.state` | `node`, `detailed` |
+| `plugin.import` | `path`, `manifest` |
+| `plugin.remove` | `plugin` |
+| `preferences.set` | `theme`, `python`, `read_only` |
+| `project.get` |  |
+| `project.new` | `name`, `discard` |
+| `project.open` | `path`, `discard` |
+| `project.rename` | `name` |
+| `project.save` | `path` |
+| `project.validate` |  |
+| `python.probe` | `dependencies` |
+| `registry` |  |
+| `runtime.debug` | `enabled` |
+| `runtime.emit` | `node`, `outputs` |
+| `runtime.pause` |  |
+| `runtime.reset` |  |
+| `runtime.start` | `debug` |
+| `runtime.state` |  |
+| `runtime.step` | `mode`, `source` |
+| `runtime.stop` |  |
+| `schema` |  |
+| `sync.apply` | `direction`, `keys`, `revision` |
+| `sync.plan` | `direction` |
+| `ui.container.add` | `id`, `parent`, `plugin`, `properties` |
+| `ui.item.move` | `id`, `parent`, `index` |
+| `ui.item.patch` | `id`, `properties` |
+| `ui.item.remove` | `id` |
+| `ui.item.schema` | `id` |
+| `ui.update` |  |
+| `ui.view.add` | `id`, `parent`, `node`, `view`, `properties` |
+| `ui.view.bind` | `id`, `node`, `view` |
+| `view.actions` | `node`, `view` |
+| `view.call` | `node`, `view`, `action`, `args` |
+| `view.read` | `node`, `view`, `args` |
+| `window.close` | `window`, `discard` |
+| `window.configure` | `window`, `x`, `y`, `width`, `height`, `state`, `focus` |
+| `window.pin` | `window`, `enabled` |
+| `workspace.close` | `page`, `discard` |
+| `workspace.detach` | `page`, `x`, `y` |
+| `workspace.move` | `page`, `window`, `index` |
+| `workspace.open` | `page`, `window` |

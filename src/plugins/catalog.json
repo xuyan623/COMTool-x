@@ -1,0 +1,4128 @@
+[
+  {
+    "id": "io.serial",
+    "name": "串口",
+    "category": "通信",
+    "description": "串口收发、流控、RTS/DTR、断线重连",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "tx",
+        "label": "发送",
+        "direction": "in",
+        "data_type": "bytes",
+        "unit": ""
+      },
+      {
+        "id": "rx",
+        "label": "接收",
+        "direction": "out",
+        "data_type": "bytes",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "port": {
+        "type": "string",
+        "default": "",
+        "runtime_editable": true
+      },
+      "baudrate": {
+        "type": "integer",
+        "default": 115200,
+        "min": 50,
+        "max": 12000000,
+        "runtime_editable": true
+      },
+      "bytesize": {
+        "type": "integer",
+        "default": 8,
+        "choices": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "runtime_editable": true
+      },
+      "parity": {
+        "type": "string",
+        "default": "N",
+        "choices": [
+          "N",
+          "E",
+          "O",
+          "M",
+          "S"
+        ],
+        "runtime_editable": true
+      },
+      "stopbits": {
+        "type": "number",
+        "default": 1,
+        "choices": [
+          1,
+          1.5,
+          2
+        ],
+        "runtime_editable": true
+      },
+      "flow_control": {
+        "type": "string",
+        "default": "None",
+        "choices": [
+          "None",
+          "RTS/CTS",
+          "XON/XOFF",
+          "DSR/DTR"
+        ],
+        "runtime_editable": true
+      },
+      "rts": {
+        "type": "boolean",
+        "default": false,
+        "runtime_editable": true
+      },
+      "dtr": {
+        "type": "boolean",
+        "default": false,
+        "runtime_editable": true
+      },
+      "auto_reconnect": {
+        "type": "boolean",
+        "default": false,
+        "runtime_editable": true
+      },
+      "reconnect_interval": {
+        "type": "number",
+        "default": 1,
+        "min": 0.1,
+        "max": 300,
+        "runtime_editable": true
+      }
+    },
+    "views": [
+      "connection"
+    ],
+    "actions": {
+      "connect": {
+        "description": "按共享配置打开连接",
+        "args": {}
+      },
+      "disconnect": {
+        "description": "断开连接并停止自动重连",
+        "args": {}
+      },
+      "send": {
+        "description": "发送 text/encoding 或 hex，任务完成后返回实际发送字节数",
+        "args": {
+          "text": {
+            "type": "string"
+          },
+          "encoding": {
+            "type": "string"
+          },
+          "hex": {
+            "type": "string"
+          }
+        }
+      },
+      "clear_counts": {
+        "description": "清空收发计数",
+        "args": {}
+      },
+      "list_ports": {
+        "description": "枚举实际串口",
+        "requires_running": false,
+        "args": {}
+      },
+      "rts": {
+        "description": "设置 RTS",
+        "args": {
+          "value": {
+            "type": "boolean",
+            "required": true
+          }
+        }
+      },
+      "dtr": {
+        "description": "设置 DTR",
+        "args": {
+          "value": {
+            "type": "boolean",
+            "required": true
+          }
+        }
+      }
+    },
+    "breaks_cycle": true,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "io.network",
+    "name": "TCP / UDP",
+    "category": "通信",
+    "description": "TCP 客户端/多客户端服务端、UDP 收发",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "tx",
+        "label": "发送",
+        "direction": "in",
+        "data_type": "bytes",
+        "unit": ""
+      },
+      {
+        "id": "rx",
+        "label": "接收",
+        "direction": "out",
+        "data_type": "bytes",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "protocol": {
+        "type": "string",
+        "default": "tcp",
+        "choices": [
+          "tcp",
+          "udp"
+        ],
+        "runtime_editable": true
+      },
+      "mode": {
+        "type": "string",
+        "default": "client",
+        "choices": [
+          "client",
+          "server"
+        ],
+        "runtime_editable": true
+      },
+      "host": {
+        "type": "string",
+        "default": "127.0.0.1",
+        "runtime_editable": true
+      },
+      "port": {
+        "type": "integer",
+        "default": 2345,
+        "min": 1,
+        "max": 65535,
+        "runtime_editable": true
+      },
+      "bind_port": {
+        "type": "integer",
+        "default": 0,
+        "min": 0,
+        "max": 65535,
+        "runtime_editable": true
+      },
+      "target_client": {
+        "type": "string",
+        "default": "",
+        "runtime_editable": true
+      },
+      "auto_reconnect": {
+        "type": "boolean",
+        "default": false,
+        "runtime_editable": true
+      },
+      "reconnect_interval": {
+        "type": "number",
+        "default": 1,
+        "min": 0.1,
+        "max": 300,
+        "runtime_editable": true
+      }
+    },
+    "views": [
+      "connection"
+    ],
+    "actions": {
+      "connect": {
+        "description": "按共享配置打开连接",
+        "args": {}
+      },
+      "disconnect": {
+        "description": "断开连接并停止自动重连",
+        "args": {}
+      },
+      "send": {
+        "description": "发送 text/encoding 或 hex，任务完成后返回实际发送字节数",
+        "args": {
+          "text": {
+            "type": "string"
+          },
+          "encoding": {
+            "type": "string"
+          },
+          "hex": {
+            "type": "string"
+          }
+        }
+      },
+      "clear_counts": {
+        "description": "清空收发计数",
+        "args": {}
+      }
+    },
+    "breaks_cycle": true,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "io.ssh",
+    "name": "SSH",
+    "category": "通信",
+    "description": "密码/密钥登录、交互式终端、窗口尺寸传递",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "tx",
+        "label": "发送",
+        "direction": "in",
+        "data_type": "bytes",
+        "unit": ""
+      },
+      {
+        "id": "rx",
+        "label": "接收",
+        "direction": "out",
+        "data_type": "bytes",
+        "unit": ""
+      },
+      {
+        "id": "resize",
+        "label": "终端尺寸",
+        "direction": "in",
+        "data_type": "object",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "host": {
+        "type": "string",
+        "default": "127.0.0.1",
+        "runtime_editable": true
+      },
+      "port": {
+        "type": "integer",
+        "default": 22,
+        "min": 1,
+        "max": 65535,
+        "runtime_editable": true
+      },
+      "user": {
+        "type": "string",
+        "default": "root",
+        "runtime_editable": true
+      },
+      "password": {
+        "type": "string",
+        "default": "",
+        "secret": true,
+        "runtime_editable": true
+      },
+      "key_file": {
+        "type": "string",
+        "default": "",
+        "format": "file",
+        "runtime_editable": true
+      },
+      "allow_unknown_host": {
+        "type": "boolean",
+        "default": false,
+        "runtime_editable": true
+      },
+      "auto_reconnect": {
+        "type": "boolean",
+        "default": false,
+        "runtime_editable": true
+      },
+      "reconnect_interval": {
+        "type": "number",
+        "default": 1,
+        "min": 0.1,
+        "max": 300,
+        "runtime_editable": true
+      }
+    },
+    "views": [
+      "connection"
+    ],
+    "actions": {
+      "connect": {
+        "description": "按共享配置打开连接",
+        "args": {}
+      },
+      "disconnect": {
+        "description": "断开连接并停止自动重连",
+        "args": {}
+      },
+      "send": {
+        "description": "发送 text/encoding 或 hex，任务完成后返回实际发送字节数",
+        "args": {
+          "text": {
+            "type": "string"
+          },
+          "encoding": {
+            "type": "string"
+          },
+          "hex": {
+            "type": "string"
+          }
+        }
+      },
+      "clear_counts": {
+        "description": "清空收发计数",
+        "args": {}
+      }
+    },
+    "breaks_cycle": true,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "protocol.decode",
+    "name": "数据解码器",
+    "category": "协议",
+    "description": "选择 COMTool ASCII/二进制、FireWater 或 JustFloat；每个完整数值帧形成一个采样批次",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "bytes",
+        "label": "字节流",
+        "direction": "in",
+        "data_type": "bytes",
+        "unit": ""
+      },
+      {
+        "id": "samples",
+        "label": "采样帧",
+        "direction": "out",
+        "data_type": "samples",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "format": {
+        "type": "string",
+        "default": "firewater",
+        "choices": [
+          "firewater",
+          "justfloat",
+          "comtool_ascii",
+          "comtool_binary"
+        ],
+        "label": "数据格式"
+      },
+      "header": {
+        "type": "string",
+        "default": "AA CC EE BB",
+        "label": "COMTool 二进制帧头",
+        "visible_if": {
+          "format": [
+            "comtool_binary"
+          ]
+        }
+      },
+      "channel_count": {
+        "type": "integer",
+        "default": 0,
+        "min": 0,
+        "max": 128,
+        "label": "数值字段数（0=首帧确定）",
+        "visible_if": {
+          "format": [
+            "firewater",
+            "justfloat"
+          ]
+        }
+      },
+      "channels": {
+        "type": "json",
+        "default": [],
+        "label": "通道名（空=CH0、CH1…）",
+        "visible_if": {
+          "format": [
+            "firewater",
+            "justfloat"
+          ]
+        }
+      },
+      "time_mode": {
+        "type": "string",
+        "default": "sample_rate",
+        "choices": [
+          "sample_rate",
+          "arrival"
+        ],
+        "label": "无时间字段时",
+        "visible_if": {
+          "format": [
+            "firewater",
+            "justfloat"
+          ]
+        }
+      },
+      "sample_rate_hz": {
+        "type": "number",
+        "default": 100,
+        "min": 0.001,
+        "max": 1000000,
+        "label": "实际采样率 / Hz",
+        "visible_if": {
+          "format": [
+            "firewater",
+            "justfloat"
+          ]
+        }
+      },
+      "timestamp_index": {
+        "type": "integer",
+        "default": -1,
+        "min": -1,
+        "max": 127,
+        "label": "时间字段索引（-1=没有）",
+        "visible_if": {
+          "format": [
+            "firewater",
+            "justfloat"
+          ]
+        }
+      },
+      "timestamp_unit": {
+        "type": "string",
+        "default": "s",
+        "choices": [
+          "s",
+          "ms",
+          "us",
+          "ns",
+          "min",
+          "h"
+        ],
+        "label": "发送端时间单位"
+      }
+    },
+    "views": [],
+    "actions": {
+      "clear": {
+        "description": "手动重置解码缓冲、时间索引和统计",
+        "requires_running": false,
+        "requires_paused": true,
+        "immediate": true,
+        "args": {}
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": true,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "protocol.python",
+    "name": "Python 协议",
+    "category": "协议",
+    "description": "decode/encode(inputs,state)：inputs 包含 data/time/discontinuity；返回 bytes、采样帧或帧列表",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "in",
+        "label": "输入字节",
+        "direction": "in",
+        "data_type": "bytes",
+        "unit": ""
+      },
+      {
+        "id": "bytes",
+        "label": "编码字节",
+        "direction": "out",
+        "data_type": "bytes",
+        "unit": ""
+      },
+      {
+        "id": "samples",
+        "label": "采样帧",
+        "direction": "out",
+        "data_type": "samples",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "operation": {
+        "type": "string",
+        "default": "decode",
+        "choices": [
+          "encode",
+          "decode"
+        ]
+      },
+      "timeout_ms": {
+        "type": "integer",
+        "default": 1000,
+        "min": 10,
+        "max": 60000,
+        "label": "执行时限 / ms"
+      },
+      "code": {
+        "type": "string",
+        "multiline": true,
+        "default": "def decode(inputs, state):\n    return inputs['data']\n"
+      }
+    },
+    "views": [],
+    "actions": {
+      "reset_state": {
+        "description": "手动清空脚本状态",
+        "requires_running": false,
+        "requires_paused": true,
+        "immediate": true,
+        "args": {}
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": true,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "protocol.encode",
+    "name": "数据编码",
+    "category": "协议",
+    "description": "将输入编码为文本、HEX 或 JSON",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "value",
+        "label": "输入值",
+        "direction": "in",
+        "data_type": "any",
+        "unit": ""
+      },
+      {
+        "id": "bytes",
+        "label": "编码字节",
+        "direction": "out",
+        "data_type": "bytes",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "format": {
+        "type": "string",
+        "default": "text",
+        "choices": [
+          "text",
+          "hex",
+          "json"
+        ]
+      },
+      "template": {
+        "type": "string",
+        "default": "{value}",
+        "multiline": true
+      },
+      "encoding": {
+        "type": "string",
+        "default": "utf-8"
+      },
+      "escape": {
+        "type": "boolean",
+        "default": true
+      },
+      "newline": {
+        "type": "string",
+        "default": "LF",
+        "choices": [
+          "None",
+          "LF",
+          "CRLF"
+        ]
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "protocol.text",
+    "name": "文本解码",
+    "category": "协议",
+    "description": "增量字符解码",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "bytes",
+        "label": "字节",
+        "direction": "in",
+        "data_type": "bytes",
+        "unit": ""
+      },
+      {
+        "id": "text",
+        "label": "文本",
+        "direction": "out",
+        "data_type": "string",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "encoding": {
+        "type": "string",
+        "default": "utf-8"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "control.number",
+    "name": "数值输入",
+    "category": "控件",
+    "description": "可编辑数值，按范围校验后发布数值事件",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "value",
+        "label": "数值",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "label": {
+        "type": "string",
+        "default": "数值"
+      },
+      "value": {
+        "type": "number",
+        "default": 0
+      },
+      "minimum": {
+        "type": "number",
+        "default": -100
+      },
+      "maximum": {
+        "type": "number",
+        "default": 100
+      },
+      "step": {
+        "type": "number",
+        "default": 0.1,
+        "min": 1e-06
+      },
+      "decimals": {
+        "type": "integer",
+        "default": 3,
+        "min": 0,
+        "max": 12
+      },
+      "unit": {
+        "type": "string",
+        "default": ""
+      }
+    },
+    "views": [
+      "control"
+    ],
+    "actions": {
+      "set_value": {
+        "description": "设置并发布 value",
+        "args": {
+          "value": {
+            "type": "number",
+            "required": true
+          }
+        }
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "control.slider",
+    "name": "滑块",
+    "category": "控件",
+    "description": "可编辑数值，按范围校验后发布数值事件",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "value",
+        "label": "数值",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "label": {
+        "type": "string",
+        "default": "数值"
+      },
+      "value": {
+        "type": "number",
+        "default": 0
+      },
+      "minimum": {
+        "type": "number",
+        "default": -100
+      },
+      "maximum": {
+        "type": "number",
+        "default": 100
+      },
+      "step": {
+        "type": "number",
+        "default": 0.1,
+        "min": 1e-06
+      },
+      "decimals": {
+        "type": "integer",
+        "default": 3,
+        "min": 0,
+        "max": 12
+      },
+      "unit": {
+        "type": "string",
+        "default": ""
+      }
+    },
+    "views": [
+      "control"
+    ],
+    "actions": {
+      "set_value": {
+        "description": "设置并发布 value",
+        "args": {
+          "value": {
+            "type": "number",
+            "required": true
+          }
+        }
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "control.text",
+    "name": "文本输入",
+    "category": "控件",
+    "description": "用户与 API 共用同一控件操作",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "value",
+        "label": "值",
+        "direction": "out",
+        "data_type": "string",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "label": {
+        "type": "string",
+        "default": "文本"
+      },
+      "value": {
+        "type": "string",
+        "default": ""
+      },
+      "placeholder": {
+        "type": "string",
+        "default": "输入后按 Enter 应用"
+      }
+    },
+    "views": [
+      "control"
+    ],
+    "actions": {
+      "set_value": {
+        "description": "设置并发布 value",
+        "args": {
+          "value": {
+            "type": "string",
+            "required": true
+          }
+        }
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "control.checkbox",
+    "name": "开关值",
+    "category": "控件",
+    "description": "用户与 API 共用同一控件操作",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "value",
+        "label": "值",
+        "direction": "out",
+        "data_type": "boolean",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "label": {
+        "type": "string",
+        "default": "开关"
+      },
+      "value": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "views": [
+      "control"
+    ],
+    "actions": {
+      "set_value": {
+        "description": "设置并发布 value",
+        "args": {
+          "value": {
+            "type": "boolean",
+            "required": true
+          }
+        }
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "control.select",
+    "name": "下拉选项",
+    "category": "控件",
+    "description": "用户与 API 共用同一控件操作",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "value",
+        "label": "值",
+        "direction": "out",
+        "data_type": "string",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "label": {
+        "type": "string",
+        "default": "选项"
+      },
+      "choices": {
+        "type": "json",
+        "default": [
+          "A",
+          "B"
+        ]
+      },
+      "value": {
+        "type": "string",
+        "default": "A"
+      }
+    },
+    "views": [
+      "control"
+    ],
+    "actions": {
+      "set_value": {
+        "description": "设置并发布 value",
+        "args": {
+          "value": {
+            "type": "string",
+            "required": true
+          }
+        }
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "control.button",
+    "name": "按钮",
+    "category": "控件",
+    "description": "按下或通过 API 触发事件",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "trigger",
+        "label": "触发",
+        "direction": "out",
+        "data_type": "trigger",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "label": {
+        "type": "string",
+        "default": "执行"
+      },
+      "payload": {
+        "default": "hello",
+        "type": "json"
+      }
+    },
+    "views": [
+      "control"
+    ],
+    "actions": {
+      "click": {
+        "description": "触发按钮事件",
+        "args": {}
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "display.value",
+    "name": "数值 / 文本显示",
+    "category": "控件",
+    "description": "显示输入的最新值",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "value",
+        "label": "值",
+        "direction": "in",
+        "data_type": "any",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "label": {
+        "type": "string",
+        "default": "当前值"
+      },
+      "format": {
+        "type": "string",
+        "default": "{value}"
+      }
+    },
+    "views": [
+      "control"
+    ],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "debug.console",
+    "name": "收发调试",
+    "category": "调试",
+    "description": "文本/HEX、编码、时间戳、历史、快捷指令、定时发送和文件收发",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "rx",
+        "label": "接收",
+        "direction": "in",
+        "data_type": "bytes",
+        "unit": ""
+      },
+      {
+        "id": "send",
+        "label": "发送请求",
+        "direction": "in",
+        "data_type": "bytes",
+        "unit": ""
+      },
+      {
+        "id": "through",
+        "label": "原样继续",
+        "direction": "out",
+        "data_type": "bytes",
+        "unit": ""
+      },
+      {
+        "id": "tx",
+        "label": "发送",
+        "direction": "out",
+        "data_type": "bytes",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "encoding": {
+        "type": "string",
+        "default": "utf-8"
+      },
+      "newline": {
+        "type": "string",
+        "default": "None",
+        "choices": [
+          "None",
+          "LF",
+          "CRLF"
+        ]
+      },
+      "history_bytes": {
+        "type": "integer",
+        "default": 1048576,
+        "min": 1024,
+        "max": 67108864
+      },
+      "history": {
+        "type": "json",
+        "default": []
+      },
+      "quick_commands": {
+        "type": "json",
+        "default": []
+      }
+    },
+    "views": [
+      "console"
+    ],
+    "actions": {
+      "send": {
+        "description": "发送 text/encoding/hex/escape/newline",
+        "args": {
+          "text": {
+            "type": "string"
+          },
+          "encoding": {
+            "type": "string"
+          },
+          "hex": {
+            "type": "boolean"
+          },
+          "escape": {
+            "type": "boolean"
+          },
+          "newline": {
+            "type": "string",
+            "choices": [
+              "None",
+              "LF",
+              "CRLF"
+            ]
+          }
+        }
+      },
+      "read": {
+        "description": "读取 cursor 之后的保留数据",
+        "args": {
+          "cursor": {
+            "type": "integer",
+            "min": 0
+          },
+          "limit": {
+            "type": "integer",
+            "min": 1,
+            "max": 1048576
+          }
+        }
+      },
+      "clear": {
+        "description": "清空收发显示和计数",
+        "immediate": true,
+        "args": {}
+      },
+      "save_receive": {
+        "description": "将保留数据保存为真实文件",
+        "args": {
+          "path": {
+            "type": "string",
+            "required": true
+          },
+          "binary": {
+            "type": "boolean"
+          }
+        }
+      },
+      "send_file": {
+        "description": "分块发送文件并等待下游完成",
+        "args": {
+          "path": {
+            "type": "string",
+            "required": true
+          }
+        }
+      },
+      "cancel_file": {
+        "description": "取消文件发送",
+        "immediate": true,
+        "args": {}
+      },
+      "periodic_start": {
+        "description": "启动定时发送",
+        "args": {
+          "text": {
+            "type": "string"
+          },
+          "encoding": {
+            "type": "string"
+          },
+          "hex": {
+            "type": "boolean"
+          },
+          "escape": {
+            "type": "boolean"
+          },
+          "newline": {
+            "type": "string",
+            "choices": [
+              "None",
+              "LF",
+              "CRLF"
+            ]
+          },
+          "interval_ms": {
+            "type": "number",
+            "min": 1,
+            "max": 3600000
+          }
+        }
+      },
+      "periodic_stop": {
+        "description": "停止定时发送",
+        "immediate": true,
+        "args": {}
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "data.recorder",
+    "name": "数据记录",
+    "category": "调试",
+    "description": "记录原始字节或带时间戳的 HEX；原样继续传递",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "bytes",
+        "label": "输入字节",
+        "direction": "in",
+        "data_type": "bytes",
+        "unit": ""
+      },
+      {
+        "id": "through",
+        "label": "原样继续",
+        "direction": "out",
+        "data_type": "bytes",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "path": {
+        "type": "string",
+        "default": "records/receive.bin"
+      },
+      "append": {
+        "type": "boolean",
+        "default": true
+      },
+      "format": {
+        "type": "string",
+        "default": "binary",
+        "choices": [
+          "binary",
+          "hex"
+        ]
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "source.timer",
+    "name": "定时触发",
+    "category": "信号源",
+    "description": "显式启停的周期事件源，打开工程不会自动启动",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "tick",
+        "label": "触发",
+        "direction": "out",
+        "data_type": "trigger",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "interval_ms": {
+        "type": "integer",
+        "default": 1000,
+        "min": 1,
+        "max": 3600000
+      }
+    },
+    "views": [
+      "timer"
+    ],
+    "actions": {
+      "start": {
+        "description": "启动定时器",
+        "args": {
+          "interval_ms": {
+            "type": "integer",
+            "min": 1,
+            "max": 3600000
+          }
+        }
+      },
+      "stop": {
+        "description": "停止定时器",
+        "immediate": true,
+        "args": {}
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "source.time",
+    "name": "时间",
+    "category": "信号源",
+    "description": "自主推进运行时间或读取系统时间；输出名称、时钟和单位分别配置，暂停不累计运行时间",
+    "version": "3.0",
+    "ports": [],
+    "properties": {
+      "period_ms": {
+        "type": "number",
+        "default": 10,
+        "min": 0.1,
+        "max": 60000,
+        "label": "输出周期 / ms"
+      },
+      "outputs": {
+        "type": "json",
+        "default": [
+          {
+            "clock": "elapsed",
+            "name": "t",
+            "unit": "s"
+          },
+          {
+            "clock": "system",
+            "name": "system_ms",
+            "unit": "ms"
+          }
+        ],
+        "label": "输出变量"
+      }
+    },
+    "views": [
+      "values"
+    ],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "source.constant",
+    "name": "常量",
+    "category": "信号源",
+    "description": "持续输出固定数值，可配置多个命名输出；无固定周期，按调度速度驱动下游",
+    "version": "3.0",
+    "ports": [],
+    "properties": {
+      "values": {
+        "type": "json",
+        "default": {
+          "value": 0
+        },
+        "label": "命名常量",
+        "runtime_editable": true
+      }
+    },
+    "views": [
+      "values"
+    ],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "data.extract",
+    "name": "通道提取",
+    "category": "数据处理",
+    "description": "从一组采样中提取多个独立数值，并输出以秒表示的采样时间；缺少通道不覆盖其此前值",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "samples",
+        "label": "采样帧",
+        "direction": "in",
+        "data_type": "samples",
+        "unit": ""
+      },
+      {
+        "id": "time",
+        "label": "采样时间 / s",
+        "direction": "out",
+        "data_type": "number",
+        "unit": "s"
+      }
+    ],
+    "properties": {
+      "channels": {
+        "type": "json",
+        "default": {
+          "value": "CH0"
+        },
+        "label": "输出端口 → 来源通道"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "data.fork",
+    "name": "数据分发",
+    "category": "数据处理",
+    "description": "把同一份数据交给多个下游，不修改数据",
+    "version": "3.0",
+    "ports": [],
+    "properties": {
+      "data_type": {
+        "type": "string",
+        "default": "samples",
+        "choices": [
+          "number",
+          "boolean",
+          "samples",
+          "bytes",
+          "string",
+          "object",
+          "trigger"
+        ],
+        "label": "数据类型"
+      },
+      "outputs": {
+        "type": "json",
+        "default": [
+          "a",
+          "b"
+        ],
+        "label": "输出端口"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "data.gate",
+    "name": "通断开关",
+    "category": "数据处理",
+    "description": "enabled 为真时连接数据，为假时等同删除输出导线；不会清空下游处理历史",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "enabled",
+        "label": "连接开关",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "data_type": {
+        "type": "string",
+        "default": "number",
+        "choices": [
+          "number",
+          "boolean",
+          "samples",
+          "bytes",
+          "string",
+          "object",
+          "trigger"
+        ],
+        "label": "数据类型"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "data.select",
+    "name": "二选一开关",
+    "category": "数据处理",
+    "description": "select 为真选择 A，为假选择 B；未连接的数值输入为零",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "select",
+        "label": "选择 A",
+        "direction": "in",
+        "data_type": "boolean",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "data_type": {
+        "type": "string",
+        "default": "number",
+        "choices": [
+          "number",
+          "boolean",
+          "samples",
+          "bytes",
+          "string",
+          "object",
+          "trigger"
+        ],
+        "label": "数据类型"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.sin",
+    "name": "正弦",
+    "category": "三角函数",
+    "description": "计算 sin(x)，输入 x 使用弧度。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": "rad"
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.cos",
+    "name": "余弦",
+    "category": "三角函数",
+    "description": "计算 cos(x)，输入 x 使用弧度。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": "rad"
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.tan",
+    "name": "正切",
+    "category": "三角函数",
+    "description": "计算 tan(x)，输入 x 使用弧度。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": "rad"
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.asin",
+    "name": "反正弦",
+    "category": "三角函数",
+    "description": "计算反正弦，输入范围 [-1,1]，输出弧度。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": "rad"
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.acos",
+    "name": "反余弦",
+    "category": "三角函数",
+    "description": "计算反余弦，输入范围 [-1,1]，输出弧度。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": "rad"
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.atan",
+    "name": "反正切",
+    "category": "三角函数",
+    "description": "计算反正切，输出弧度。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": "rad"
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.abs",
+    "name": "绝对值",
+    "category": "数学运算",
+    "description": "去掉输入的正负号，返回绝对值。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.sqrt",
+    "name": "平方根",
+    "category": "数学运算",
+    "description": "计算非负输入的平方根。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.exp",
+    "name": "指数",
+    "category": "数学运算",
+    "description": "计算自然常数 e 的 x 次幂。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.log",
+    "name": "自然对数",
+    "category": "数学运算",
+    "description": "计算正数的自然对数 ln(x)。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.log10",
+    "name": "常用对数",
+    "category": "数学运算",
+    "description": "计算正数以 10 为底的对数。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.floor",
+    "name": "向下取整",
+    "category": "数学运算",
+    "description": "向下取整到不大于输入的整数。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.ceil",
+    "name": "向上取整",
+    "category": "数学运算",
+    "description": "向上取整到不小于输入的整数。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.negate",
+    "name": "取反",
+    "category": "数学运算",
+    "description": "将输入变号，输出 -x。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.degrees",
+    "name": "弧度转角度",
+    "category": "数学运算",
+    "description": "将弧度换算成角度。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": "rad"
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": "deg"
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.radians",
+    "name": "角度转弧度",
+    "category": "数学运算",
+    "description": "将角度换算成弧度。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": "deg"
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": "rad"
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.sign",
+    "name": "符号",
+    "category": "数学运算",
+    "description": "根据输入的正负或零返回 1、-1 或 0。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.add",
+    "name": "加法",
+    "category": "数学运算",
+    "description": "将所有数值输入相加。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "inputs": {
+        "type": "json",
+        "default": [
+          "a",
+          "b"
+        ],
+        "label": "输入端口（按顺序）"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.subtract",
+    "name": "减法",
+    "category": "数学运算",
+    "description": "计算 a - b，需要两个数值输入。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "inputs": {
+        "type": "json",
+        "default": [
+          "a",
+          "b"
+        ],
+        "label": "输入端口（按顺序）"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.multiply",
+    "name": "乘法",
+    "category": "数学运算",
+    "description": "将所有数值输入相乘。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "inputs": {
+        "type": "json",
+        "default": [
+          "a",
+          "b"
+        ],
+        "label": "输入端口（按顺序）"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.divide",
+    "name": "除法",
+    "category": "数学运算",
+    "description": "计算 a / b，除数 b 不能为零。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "inputs": {
+        "type": "json",
+        "default": [
+          "a",
+          "b"
+        ],
+        "label": "输入端口（按顺序）"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.minimum",
+    "name": "最小值",
+    "category": "数学运算",
+    "description": "取所有数值输入中的最小值。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "inputs": {
+        "type": "json",
+        "default": [
+          "a",
+          "b"
+        ],
+        "label": "输入端口（按顺序）"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.maximum",
+    "name": "最大值",
+    "category": "数学运算",
+    "description": "取所有数值输入中的最大值。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "inputs": {
+        "type": "json",
+        "default": [
+          "a",
+          "b"
+        ],
+        "label": "输入端口（按顺序）"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.power",
+    "name": "幂",
+    "category": "数学运算",
+    "description": "计算 a 的 b 次幂，需要两个数值输入。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "inputs": {
+        "type": "json",
+        "default": [
+          "a",
+          "b"
+        ],
+        "label": "输入端口（按顺序）"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.atan2",
+    "name": "双参数反正切",
+    "category": "数学运算",
+    "description": "计算 atan2(a,b)，输出弧度。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "inputs": {
+        "type": "json",
+        "default": [
+          "a",
+          "b"
+        ],
+        "label": "输入端口（按顺序）"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.greater",
+    "name": "大于",
+    "category": "数学运算",
+    "description": "比较 a 是否大于 b，输出布尔值。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "boolean",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "inputs": {
+        "type": "json",
+        "default": [
+          "a",
+          "b"
+        ],
+        "label": "输入端口（按顺序）"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.less",
+    "name": "小于",
+    "category": "数学运算",
+    "description": "比较 a 是否小于 b，输出布尔值。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "boolean",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "inputs": {
+        "type": "json",
+        "default": [
+          "a",
+          "b"
+        ],
+        "label": "输入端口（按顺序）"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.equal",
+    "name": "等于",
+    "category": "数学运算",
+    "description": "比较 a 是否等于 b，输出布尔值。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "boolean",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "inputs": {
+        "type": "json",
+        "default": [
+          "a",
+          "b"
+        ],
+        "label": "输入端口（按顺序）"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.limit",
+    "name": "限幅",
+    "category": "数学运算",
+    "description": "把 x 限制在 minimum 与 maximum 之间。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "minimum",
+        "label": "minimum",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "maximum",
+        "label": "maximum",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.linear_map",
+    "name": "线性映射",
+    "category": "数学运算",
+    "description": "按输入、输出区间端点进行线性换算，允许外推。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "x",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "in_min",
+        "label": "in_min",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "in_max",
+        "label": "in_max",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out_min",
+        "label": "out_min",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out_max",
+        "label": "out_max",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {},
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.sine_wave",
+    "name": "正弦波",
+    "category": "波形函数",
+    "description": "将外部时间转换为正弦波，振幅、频率和相位由输入提供。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "t",
+        "label": "t",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "amplitude",
+        "label": "amplitude",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "frequency",
+        "label": "frequency",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "phase",
+        "label": "phase",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "offset",
+        "label": "offset",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "time_unit": {
+        "type": "string",
+        "default": "s",
+        "choices": [
+          "s",
+          "ms",
+          "us",
+          "ns",
+          "min",
+          "h"
+        ],
+        "label": "t 的单位"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.square_wave",
+    "name": "方波",
+    "category": "波形函数",
+    "description": "将外部时间转换为方波，振幅、频率和相位由输入提供。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "t",
+        "label": "t",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "amplitude",
+        "label": "amplitude",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "frequency",
+        "label": "frequency",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "phase",
+        "label": "phase",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "offset",
+        "label": "offset",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "time_unit": {
+        "type": "string",
+        "default": "s",
+        "choices": [
+          "s",
+          "ms",
+          "us",
+          "ns",
+          "min",
+          "h"
+        ],
+        "label": "t 的单位"
+      },
+      "duty": {
+        "type": "number",
+        "default": 0.5,
+        "min": 0,
+        "max": 1,
+        "label": "占空比"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.triangle_wave",
+    "name": "三角波",
+    "category": "波形函数",
+    "description": "将外部时间转换为三角波，振幅、频率和相位由输入提供。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "t",
+        "label": "t",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "amplitude",
+        "label": "amplitude",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "frequency",
+        "label": "frequency",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "phase",
+        "label": "phase",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "offset",
+        "label": "offset",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "time_unit": {
+        "type": "string",
+        "default": "s",
+        "choices": [
+          "s",
+          "ms",
+          "us",
+          "ns",
+          "min",
+          "h"
+        ],
+        "label": "t 的单位"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.sawtooth_wave",
+    "name": "锯齿波",
+    "category": "波形函数",
+    "description": "将外部时间转换为锯齿波，振幅、频率和相位由输入提供。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "t",
+        "label": "t",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "amplitude",
+        "label": "amplitude",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "frequency",
+        "label": "frequency",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "phase",
+        "label": "phase",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "offset",
+        "label": "offset",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "time_unit": {
+        "type": "string",
+        "default": "s",
+        "choices": [
+          "s",
+          "ms",
+          "us",
+          "ns",
+          "min",
+          "h"
+        ],
+        "label": "t 的单位"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.ramp",
+    "name": "斜坡",
+    "category": "波形函数",
+    "description": "输出 slope × t + offset，t 是显式输入的时间。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "t",
+        "label": "t",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "slope",
+        "label": "slope",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "offset",
+        "label": "offset",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "time_unit": {
+        "type": "string",
+        "default": "s",
+        "choices": [
+          "s",
+          "ms",
+          "us",
+          "ns",
+          "min",
+          "h"
+        ],
+        "label": "t 的单位"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.random",
+    "name": "随机数",
+    "category": "波形函数",
+    "description": "按输入更新产生均匀或正态随机数，可用种子复现序列。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "t",
+        "label": "驱动输入",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "seed": {
+        "type": "integer",
+        "default": 0,
+        "label": "初始化 / 重置时的随机种子"
+      },
+      "distribution": {
+        "type": "string",
+        "default": "uniform",
+        "choices": [
+          "uniform",
+          "normal"
+        ]
+      }
+    },
+    "views": [],
+    "actions": {
+      "read_state": {
+        "description": "读取完整处理状态及保留历史",
+        "requires_running": false,
+        "args": {}
+      },
+      "reset_state": {
+        "description": "手动恢复此函数的初始状态",
+        "requires_running": false,
+        "requires_paused": true,
+        "immediate": true,
+        "args": {}
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.integral",
+    "name": "积分",
+    "category": "历史处理",
+    "description": "按显式时间累计输入的面积，支持梯形和前向欧拉积分。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "输入数值",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "t",
+        "label": "显式时间",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "initial": {
+        "type": "number",
+        "default": 0,
+        "label": "重置初值"
+      },
+      "time_unit": {
+        "type": "string",
+        "default": "s",
+        "choices": [
+          "s",
+          "ms",
+          "us",
+          "ns",
+          "min",
+          "h"
+        ],
+        "label": "t 的单位"
+      },
+      "method": {
+        "type": "string",
+        "default": "trapezoid",
+        "choices": [
+          "trapezoid",
+          "forward_euler"
+        ],
+        "label": "积分方法"
+      }
+    },
+    "views": [],
+    "actions": {
+      "read_state": {
+        "description": "读取完整处理状态及保留历史",
+        "requires_running": false,
+        "args": {}
+      },
+      "reset_state": {
+        "description": "手动恢复此函数的初始状态",
+        "requires_running": false,
+        "requires_paused": true,
+        "immediate": true,
+        "args": {}
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.derivative",
+    "name": "微分",
+    "category": "历史处理",
+    "description": "按显式时间计算输入数值的变化率。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "输入数值",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "t",
+        "label": "显式时间",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "initial": {
+        "type": "number",
+        "default": 0,
+        "label": "重置初值"
+      },
+      "time_unit": {
+        "type": "string",
+        "default": "s",
+        "choices": [
+          "s",
+          "ms",
+          "us",
+          "ns",
+          "min",
+          "h"
+        ],
+        "label": "t 的单位"
+      }
+    },
+    "views": [],
+    "actions": {
+      "read_state": {
+        "description": "读取完整处理状态及保留历史",
+        "requires_running": false,
+        "args": {}
+      },
+      "reset_state": {
+        "description": "手动恢复此函数的初始状态",
+        "requires_running": false,
+        "requires_paused": true,
+        "immediate": true,
+        "args": {}
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.moving_average",
+    "name": "滑动平均",
+    "category": "历史处理",
+    "description": "对最近 N 次采样求平均，平滑波动与噪声。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "输入数值",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "initial": {
+        "type": "number",
+        "default": 0,
+        "label": "重置初值"
+      },
+      "window": {
+        "type": "integer",
+        "default": 10,
+        "min": 1,
+        "max": 100000,
+        "label": "窗口采样数"
+      }
+    },
+    "views": [],
+    "actions": {
+      "read_state": {
+        "description": "读取完整处理状态及保留历史",
+        "requires_running": false,
+        "args": {}
+      },
+      "reset_state": {
+        "description": "手动恢复此函数的初始状态",
+        "requires_running": false,
+        "requires_paused": true,
+        "immediate": true,
+        "args": {}
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.lowpass",
+    "name": "一阶低通",
+    "category": "历史处理",
+    "description": "按截止频率平滑高频变化，保留缓慢变化的信号。",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "x",
+        "label": "输入数值",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "t",
+        "label": "显式时间",
+        "direction": "in",
+        "data_type": "number",
+        "unit": ""
+      },
+      {
+        "id": "out",
+        "label": "结果",
+        "direction": "out",
+        "data_type": "number",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "initial": {
+        "type": "number",
+        "default": 0,
+        "label": "重置初值"
+      },
+      "time_unit": {
+        "type": "string",
+        "default": "s",
+        "choices": [
+          "s",
+          "ms",
+          "us",
+          "ns",
+          "min",
+          "h"
+        ],
+        "label": "t 的单位"
+      },
+      "cutoff_hz": {
+        "type": "number",
+        "default": 5,
+        "min": 1e-06,
+        "max": 1000000,
+        "label": "截止频率 / Hz"
+      }
+    },
+    "views": [],
+    "actions": {
+      "read_state": {
+        "description": "读取完整处理状态及保留历史",
+        "requires_running": false,
+        "args": {}
+      },
+      "reset_state": {
+        "description": "手动恢复此函数的初始状态",
+        "requires_running": false,
+        "requires_paused": true,
+        "immediate": true,
+        "args": {}
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.expression",
+    "name": "数学表达式",
+    "category": "自定义函数",
+    "description": "多个命名输入与公式输出；可用 sin、cos、pi 等数学名称",
+    "version": "3.0",
+    "ports": [],
+    "properties": {
+      "inputs": {
+        "type": "json",
+        "default": [
+          "x",
+          "t"
+        ],
+        "label": "输入变量"
+      },
+      "outputs": {
+        "type": "json",
+        "default": {
+          "out": "sin(x)"
+        },
+        "label": "输出公式"
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "function.python",
+    "name": "Python 函数",
+    "category": "自定义函数",
+    "description": "process(inputs,state)；隔离执行，多输入多输出，state 显式保留",
+    "version": "3.0",
+    "ports": [],
+    "properties": {
+      "inputs": {
+        "type": "json",
+        "default": [
+          "x",
+          "t"
+        ],
+        "label": "输入变量"
+      },
+      "outputs": {
+        "type": "json",
+        "default": [
+          "out"
+        ],
+        "label": "输出变量"
+      },
+      "code": {
+        "type": "string",
+        "multiline": true,
+        "default": "def process(inputs, state):\n    return {'out': inputs['x']}\n"
+      },
+      "timeout_ms": {
+        "type": "integer",
+        "default": 1000,
+        "min": 10,
+        "max": 60000,
+        "label": "执行时限 / ms"
+      }
+    },
+    "views": [],
+    "actions": {
+      "reset_state": {
+        "description": "手动恢复此函数的初始状态",
+        "requires_running": false,
+        "requires_paused": true,
+        "immediate": true,
+        "args": {}
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "plot.curves",
+    "name": "实时曲线",
+    "category": "绘图",
+    "description": "C++ 实时曲线：多通道、缩放平移、通道列表、显隐颜色、暂停跟随、FFT、CSV/PNG/SVG",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "samples",
+        "label": "曲线数据",
+        "direction": "in",
+        "data_type": "samples",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "window_seconds": {
+        "type": "number",
+        "default": 10,
+        "min": 0.01,
+        "max": 86400,
+        "runtime_editable": true
+      },
+      "follow": {
+        "type": "boolean",
+        "default": true,
+        "runtime_editable": true
+      },
+      "refresh_ms": {
+        "type": "integer",
+        "default": 16,
+        "min": 1,
+        "max": 1000,
+        "runtime_editable": true
+      },
+      "max_points": {
+        "type": "integer",
+        "default": 200000,
+        "min": 100,
+        "max": 10000000,
+        "runtime_editable": true
+      },
+      "line_width": {
+        "type": "number",
+        "default": 1,
+        "min": 0.5,
+        "max": 5,
+        "runtime_editable": true
+      },
+      "colors": {
+        "type": "json",
+        "default": {},
+        "runtime_editable": true
+      },
+      "channels": {
+        "type": "json",
+        "default": [],
+        "runtime_editable": true
+      },
+      "visibility": {
+        "type": "json",
+        "default": {},
+        "runtime_editable": true
+      },
+      "x_label": {
+        "type": "string",
+        "default": "时间",
+        "runtime_editable": true
+      },
+      "x_unit": {
+        "type": "string",
+        "default": "s",
+        "choices": [
+          "s",
+          "ms",
+          "us",
+          "ns",
+          "min",
+          "h"
+        ],
+        "runtime_editable": true
+      },
+      "inputs": {
+        "type": "json",
+        "default": [],
+        "label": "独立数值输入端口"
+      },
+      "input_labels": {
+        "type": "json",
+        "default": {},
+        "label": "数值端口 → 曲线名称"
+      },
+      "y_label": {
+        "type": "string",
+        "default": "数值",
+        "runtime_editable": true
+      },
+      "y_unit": {
+        "type": "string",
+        "default": "",
+        "runtime_editable": true
+      }
+    },
+    "views": [
+      "plot"
+    ],
+    "actions": {
+      "clear": {
+        "description": "清空保留数据",
+        "requires_running": false,
+        "immediate": true,
+        "args": {}
+      },
+      "pause_display": {
+        "description": "暂停绘制，继续采集",
+        "requires_running": false,
+        "immediate": true,
+        "args": {
+          "value": {
+            "type": "boolean",
+            "required": true
+          }
+        }
+      },
+      "read_data": {
+        "description": "分页读取原始保留数据",
+        "requires_running": false,
+        "immediate": true,
+        "args": {
+          "channel": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "integer",
+            "min": 0
+          },
+          "limit": {
+            "type": "integer",
+            "min": 1,
+            "max": 1000000
+          }
+        }
+      },
+      "export_csv": {
+        "description": "导出所有保留数据",
+        "requires_running": false,
+        "args": {
+          "path": {
+            "type": "string",
+            "required": true
+          }
+        }
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "plot.attitude",
+    "name": "3D 姿态仪",
+    "category": "绘图",
+    "description": "极简飞机或 STL/OBJ 几何模型；欧拉角/四元数独立输入，未连接为零，坐标轴和显示约定可配置",
+    "version": "3.0",
+    "ports": [],
+    "properties": {
+      "mode": {
+        "type": "string",
+        "default": "euler",
+        "choices": [
+          "euler",
+          "quaternion"
+        ],
+        "choice_labels": {
+          "euler": "欧拉角",
+          "quaternion": "四元数"
+        },
+        "label": "输入模式"
+      },
+      "angle_unit": {
+        "type": "string",
+        "default": "rad",
+        "choices": [
+          "rad",
+          "deg"
+        ],
+        "choice_labels": {
+          "rad": "弧度",
+          "deg": "角度"
+        },
+        "label": "欧拉角单位",
+        "runtime_editable": true,
+        "visible_if": {
+          "mode": [
+            "euler"
+          ]
+        }
+      },
+      "euler_order": {
+        "type": "string",
+        "default": "ZYX",
+        "choices": [
+          "XYZ",
+          "XZY",
+          "YXZ",
+          "YZX",
+          "ZXY",
+          "ZYX"
+        ],
+        "label": "欧拉角顺序",
+        "runtime_editable": true,
+        "visible_if": {
+          "mode": [
+            "euler"
+          ]
+        }
+      },
+      "euler_frame": {
+        "type": "string",
+        "default": "intrinsic",
+        "choices": [
+          "intrinsic",
+          "extrinsic"
+        ],
+        "choice_labels": {
+          "intrinsic": "内禀（随体轴）",
+          "extrinsic": "外禀（固定轴）"
+        },
+        "label": "旋转轴约定",
+        "runtime_editable": true,
+        "visible_if": {
+          "mode": [
+            "euler"
+          ]
+        }
+      },
+      "direction": {
+        "type": "string",
+        "default": "body_to_world",
+        "choices": [
+          "body_to_world",
+          "world_to_body"
+        ],
+        "choice_labels": {
+          "body_to_world": "机体 → 世界",
+          "world_to_body": "世界 → 机体"
+        },
+        "label": "姿态方向",
+        "runtime_editable": true
+      },
+      "axis_x": {
+        "type": "string",
+        "default": "front",
+        "choices": [
+          "front",
+          "back",
+          "left",
+          "right",
+          "up",
+          "down"
+        ],
+        "choice_labels": {
+          "front": "前",
+          "back": "后",
+          "left": "左",
+          "right": "右",
+          "up": "上",
+          "down": "下"
+        },
+        "label": "X 正方向",
+        "runtime_editable": true
+      },
+      "axis_y": {
+        "type": "string",
+        "default": "left",
+        "choices": [
+          "front",
+          "back",
+          "left",
+          "right",
+          "up",
+          "down"
+        ],
+        "choice_labels": {
+          "front": "前",
+          "back": "后",
+          "left": "左",
+          "right": "右",
+          "up": "上",
+          "down": "下"
+        },
+        "label": "Y 正方向",
+        "runtime_editable": true
+      },
+      "axis_z": {
+        "type": "string",
+        "default": "up",
+        "choices": [
+          "front",
+          "back",
+          "left",
+          "right",
+          "up",
+          "down"
+        ],
+        "choice_labels": {
+          "front": "前",
+          "back": "后",
+          "left": "左",
+          "right": "右",
+          "up": "上",
+          "down": "下"
+        },
+        "label": "Z 正方向",
+        "runtime_editable": true
+      },
+      "model_file": {
+        "type": "string",
+        "default": "",
+        "format": "file",
+        "label": "模型文件（空=极简飞机）",
+        "file_filter": "静态模型 (*.stl *.obj)",
+        "runtime_editable": true
+      },
+      "auto_center": {
+        "type": "boolean",
+        "default": true,
+        "label": "导入时自动居中",
+        "runtime_editable": true
+      },
+      "model_rotation_deg": {
+        "type": "json",
+        "default": [
+          0,
+          0,
+          0
+        ],
+        "label": "模型安装旋转 XYZ / deg",
+        "runtime_editable": true
+      },
+      "model_offset": {
+        "type": "json",
+        "default": [
+          0,
+          0,
+          0
+        ],
+        "label": "模型位移 XYZ（模型单位）",
+        "runtime_editable": true
+      },
+      "model_scale": {
+        "type": "number",
+        "default": 1,
+        "min": 0.001,
+        "max": 1000,
+        "label": "模型缩放",
+        "runtime_editable": true
+      },
+      "reference_quaternion": {
+        "type": "json",
+        "default": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "label": "显示参考四元数 wxyz",
+        "runtime_editable": true
+      },
+      "model_color": {
+        "type": "string",
+        "default": "#BCD8E8",
+        "pattern": "#[0-9a-fA-F]{6}",
+        "label": "模型颜色",
+        "runtime_editable": true
+      },
+      "background_color": {
+        "type": "string",
+        "default": "#17212C",
+        "pattern": "#[0-9a-fA-F]{6}",
+        "label": "背景颜色",
+        "runtime_editable": true
+      },
+      "background_opacity": {
+        "type": "number",
+        "default": 1,
+        "min": 0,
+        "max": 1,
+        "label": "背景不透明度",
+        "runtime_editable": true
+      },
+      "show_model_axes": {
+        "type": "boolean",
+        "default": true,
+        "label": "显示模型坐标轴",
+        "runtime_editable": true
+      },
+      "show_world_axes": {
+        "type": "boolean",
+        "default": true,
+        "label": "显示世界坐标轴",
+        "runtime_editable": true
+      },
+      "frame_visible": {
+        "type": "boolean",
+        "default": true,
+        "label": "显示外框",
+        "runtime_editable": true
+      },
+      "camera_azimuth": {
+        "type": "number",
+        "default": 38,
+        "min": -36000,
+        "max": 36000,
+        "label": "观察方位角 / deg",
+        "runtime_editable": true
+      },
+      "camera_elevation": {
+        "type": "number",
+        "default": 24,
+        "min": -90,
+        "max": 90,
+        "label": "观察仰角 / deg",
+        "runtime_editable": true
+      },
+      "camera_distance": {
+        "type": "number",
+        "default": 4.5,
+        "min": 1.05,
+        "max": 10000,
+        "label": "观察距离",
+        "runtime_editable": true
+      },
+      "camera_pan": {
+        "type": "json",
+        "default": [
+          0,
+          0
+        ],
+        "label": "观察平移 XY",
+        "runtime_editable": true
+      },
+      "camera_target": {
+        "type": "json",
+        "default": [
+          0,
+          0,
+          0
+        ],
+        "label": "观察中心 XYZ",
+        "runtime_editable": true
+      },
+      "projection": {
+        "type": "string",
+        "default": "perspective",
+        "choices": [
+          "perspective",
+          "orthographic"
+        ],
+        "choice_labels": {
+          "perspective": "透视",
+          "orthographic": "正交"
+        },
+        "label": "投影",
+        "runtime_editable": true
+      },
+      "refresh_ms": {
+        "type": "integer",
+        "default": 33,
+        "min": 10,
+        "max": 1000,
+        "label": "显示刷新周期 / ms"
+      }
+    },
+    "views": [
+      "attitude"
+    ],
+    "actions": {
+      "geometry": {
+        "description": "分页读取实际模型 vertices/faces 几何",
+        "requires_running": false,
+        "args": {
+          "component": {
+            "type": "string",
+            "choices": [
+              "vertices",
+              "faces"
+            ]
+          },
+          "offset": {
+            "type": "integer",
+            "min": 0
+          },
+          "limit": {
+            "type": "integer",
+            "min": 1,
+            "max": 10000
+          }
+        }
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  },
+  {
+    "id": "terminal.ansi",
+    "name": "交互终端",
+    "category": "调试",
+    "description": "ANSI/VT、颜色、历史滚动、复制选择、粘贴、控制键和 SSH 窗口尺寸",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "rx",
+        "label": "终端输入",
+        "direction": "in",
+        "data_type": "bytes",
+        "unit": ""
+      },
+      {
+        "id": "tx",
+        "label": "键盘输出",
+        "direction": "out",
+        "data_type": "bytes",
+        "unit": ""
+      },
+      {
+        "id": "through",
+        "label": "原始数据继续",
+        "direction": "out",
+        "data_type": "bytes",
+        "unit": ""
+      },
+      {
+        "id": "resize",
+        "label": "终端尺寸",
+        "direction": "out",
+        "data_type": "object",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "encoding": {
+        "type": "string",
+        "default": "utf-8"
+      },
+      "columns": {
+        "type": "integer",
+        "default": 80,
+        "min": 2,
+        "max": 500
+      },
+      "rows": {
+        "type": "integer",
+        "default": 24,
+        "min": 2,
+        "max": 300
+      },
+      "history_lines": {
+        "type": "integer",
+        "default": 10000,
+        "min": 100,
+        "max": 100000
+      }
+    },
+    "views": [
+      "terminal"
+    ],
+    "actions": {
+      "send": {
+        "description": "发送 text 或 hex",
+        "args": {
+          "text": {
+            "type": "string"
+          },
+          "hex": {
+            "type": "string"
+          }
+        }
+      },
+      "resize": {
+        "description": "设置 columns/rows",
+        "immediate": true,
+        "requires_running": false,
+        "args": {
+          "columns": {
+            "type": "integer",
+            "min": 2,
+            "max": 500,
+            "required": true
+          },
+          "rows": {
+            "type": "integer",
+            "min": 2,
+            "max": 300,
+            "required": true
+          }
+        }
+      },
+      "read_screen": {
+        "description": "读取终端屏幕，可包含逐字符样式",
+        "immediate": true,
+        "requires_running": false,
+        "args": {
+          "styles": {
+            "type": "boolean"
+          }
+        }
+      },
+      "read_history": {
+        "description": "分页读取全部保留历史与当前屏幕",
+        "immediate": true,
+        "requires_running": false,
+        "args": {
+          "offset": {
+            "type": "integer",
+            "min": 0
+          },
+          "limit": {
+            "type": "integer",
+            "min": 1,
+            "max": 1000
+          },
+          "styles": {
+            "type": "boolean"
+          }
+        }
+      },
+      "clear": {
+        "description": "清屏",
+        "immediate": true,
+        "requires_running": false,
+        "args": {}
+      },
+      "previous_page": {
+        "description": "历史上一页",
+        "immediate": true,
+        "requires_running": false,
+        "args": {}
+      },
+      "next_page": {
+        "description": "历史下一页",
+        "immediate": true,
+        "requires_running": false,
+        "args": {}
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
+    "implementation": "native"
+  }
+]

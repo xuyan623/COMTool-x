@@ -1,26 +1,21 @@
-param([switch]$SkipVerify)
+param(
+    [string]$QtPrefix = 'D:\Software\DevTools\Qt\6.12.0\msvc2022_64',
+    [string]$Python = '',
+    [switch]$SkipVerify
+)
 $ErrorActionPreference = 'Stop'
-$taskRoot = $PSScriptRoot
-Set-Location -LiteralPath $taskRoot
-
-# The locked environment is reproducible; Python is needed only on the build machine.
-uv sync --locked --group build --python 3.15
-if ($LASTEXITCODE -ne 0) { throw 'Dependency synchronization failed' }
-$taskPython = Join-Path $taskRoot '.venv\Scripts\python.exe'
-$env:QT_QPA_PLATFORM = 'offscreen'
-& $taskPython -m unittest discover -s tests -v
-if ($LASTEXITCODE -ne 0) { throw 'Behavioural checks failed' }
-& $taskPython -m tools.package
-if ($LASTEXITCODE -ne 0) { throw 'Packaging failed' }
-if (-not $SkipVerify) {
-    & $taskPython -m tools.integration_check --executable (Join-Path $taskRoot 'build\release\COMTool-x\COMTool-x.exe')
-    if ($LASTEXITCODE -ne 0) { throw 'Packaged integration checks failed' }
-    & $taskPython -m tools.api_discovery_check --executable (Join-Path $taskRoot 'build\release\COMTool-x\COMTool-x.exe')
-    if ($LASTEXITCODE -ne 0) { throw 'Multi-window API discovery checks failed' }
+$repoRoot = $PSScriptRoot
+if ($Python) {
+    if (!(Test-Path -LiteralPath $Python -PathType Leaf)) { throw 'Choose an existing local Python interpreter for extension tests' }
+    $env:COMTOOLX_TEST_PYTHON = [IO.Path]::GetFullPath($Python)
 }
-& $taskPython -m tools.package --archive-only
-if ($LASTEXITCODE -ne 0) { throw 'Archive creation failed' }
-$publishDirectory = Join-Path $taskRoot 'dist'
-New-Item -ItemType Directory -Path $publishDirectory -Force | Out-Null
-Copy-Item -LiteralPath (Join-Path $taskRoot 'build\release\COMTool-x-Windows-x64.zip') -Destination (Join-Path $publishDirectory 'COMTool-x-Windows-x64.zip') -Force
-Write-Host 'Portable package: dist\COMTool-x-Windows-x64.zip'
+& (Join-Path $repoRoot 'tools\build_native.ps1') -QtPrefix $QtPrefix -Test
+if ($LASTEXITCODE -ne 0) { throw 'Native build or C++ tests failed' }
+& (Join-Path $repoRoot 'tools\package_native.ps1') -QtPrefix $QtPrefix
+if (!$SkipVerify -and $Python) {
+    & $Python (Join-Path $repoRoot 'tools\native_release_check.py') --executable (Join-Path $repoRoot 'build\native-release\COMTool-x\COMTool-x.exe') --data-dir (Join-Path $repoRoot 'build\qa-build-release') --output (Join-Path $repoRoot 'verification\native-packaged')
+    if ($LASTEXITCODE -ne 0) { throw 'Deployed desktop checks failed' }
+    & (Join-Path $repoRoot 'tools\package_native.ps1') -QtPrefix $QtPrefix -ArchiveOnly
+}
+Write-Host 'Portable build: dist\COMTool-x-Windows-x64.zip'
+Write-Host 'Corresponding source: dist\COMTool-x-source.zip'

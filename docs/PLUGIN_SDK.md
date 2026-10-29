@@ -1,63 +1,66 @@
-# 插件开发
+# 用户插件 v3
 
-核心外壳负责工程、注册表、端口检查、调度、编辑器和 API。通信、协议、曲线、控件、布局与导线均由插件注册。
+用户插件以 JSON 声明、Python 逻辑及可选 QML 视图组成。官方 C++ 插件随软件提供；旧 PySide6/PyQt5 NodeRuntime 接口不兼容。
 
-## 最小可运行示例
+## 环境
 
-`docs/plugin_examples/gain.py` 是实际工作的数值增益节点。通过“插件 → 加载本地插件”选择它，或者调用 `plugin.load`。在功能图中连接：
+在设置中选定本机 Python 3.10+，或调用 `preferences.set` 的 `python` 绝对路径。`python.probe` 可检查 `dependencies` 模块列表。软件不安装解释器或依赖；缺少依赖会显示模块名。只运行官方节点时不启动 Python。
 
-~~~text
-数值输入.value → 数值增益.in → 数值显示.value
-~~~
+## 运行示例
 
-运行后修改数值，输出等于输入乘以 `gain`。示例还提供自己的视图与可发现的 `prefix` 属性。
+在插件库点击“导入用户插件”，选择同目录的 `plugin_examples/gain.json`。该声明引用 `gain.py` 和 `Gain.qml`。添加后连接 `control.number.value → user.example.gain.x → display.value.value`，运行后输出等于输入乘以 gain（默认 2）。
 
-插件通过菜单或 `plugin.load` 导入当前工程，启动时不扫描外部插件目录。保存 `.comtoolx` 时自动保存实际使用的插件实现快照，包含内置实现；未使用的外部插件不会打包。打开工程从包内加载实现，关闭或切换工程后卸载，失败打开保留当前工程。旧 JSON 工程不受支持。
+```json
+{
+  "plugin_api": 3,
+  "id": "user.example.gain",
+  "name": "数值增益",
+  "code_file": "gain.py",
+  "resource_files": ["Gain.qml"],
+  "ports": [
+    {"id":"x","direction":"in","data_type":"number"},
+    {"id":"out","direction":"out","data_type":"number"}
+  ],
+  "properties": {"gain":{"type":"number","default":2}},
+  "views": {"result":{"qml":"Gain.qml"}}
+}
+```
 
-插件入口可以通过相对导入引用同目录的 Python 辅助模块，保存时会一并收集。用 `PROJECT_FILES = ["assets", "calibration.json"]` 声明还需要随插件携带的文件或子目录，路径不能越出插件目录。资源在打开后的插件目录中保持相对位置，可通过 `Path(__file__).parent` 读取。源代码与这些资源在导入时形成快照；修改源文件后需要重新导入，工程包不会静默采用磁盘上的新版本。
+`process(inputs, state)` 读取完整输入，返回输出端口名称到值的字典；返回 None 表示本次不发布。`inputs['__config__']` 是当前参数，`inputs['__context__']` 包含 time（秒）、batch 和 resumed。state 是可序列化的私有状态，失败调用不提交新值。
 
-配置中引用输入文件时，属性声明使用 `type="string", format="file"`；保存时携带文件，打开后为运行实例提供包内文件路径。设计配置原值保留，重保存时仍携带包内资源。输出文件路径无需此标记。
+输入/输出类型为 number、bytes、string、boolean、object、samples、trigger 或 any。samples 为 `{'time':秒,'values':{'通道名':数值}}`；bytes 在 Python 内为 bytes，外部 JSON 用 `{type:'bytes',base64:'...',length:N}`。
 
-## 节点契约
+```python
+def process(inputs, state):
+    result = inputs['x'] * inputs['__config__']['gain']
+    state['last'] = result
+    return {'out': result}
+```
 
-入口必须实现 `register(registry)`，并注册 `Definition`：
+## 声明、资源和动作
 
-- `id`：稳定且唯一，升级时保持相同含义。
-- `ports`：`Port(id,label,direction,data_type)`；direction 为 `in/out`，同一节点内各端口使用不同 ID。
-- `properties`：属性声明，支持 string、number、integer、boolean、json，以及 default/min/max/choices/pattern。
-- `factory(node,engine)`：创建 `NodeRuntime` 实例，构造阶段不得连接设备或发送数据。
-- `views`：`{view_name: factory(runtime, request, properties)}`，返回 QWidget。
-- `actions`：暴露可操作能力与参数说明；`requires_running` 默认 true；轻量操作可设置 `immediate:true`。
-- `view_properties`：按视图名称声明额外可编辑属性，供属性校验和 AI 发现。
-- `breaks_cycle`：仅真正通过异步 IO 隔断同步回路的节点才能声明。
+- `plugin_api=3`、id、name、code/code_file 必填；ID 不可覆盖官方或已有插件。
+- properties 描述参数类型、默认值、choices、min/max 等。ports 显式声明方向和数据类型；一个端口只连接一条导线。
+- dependencies 是 Python 导入名列表。每次加载前检查；没有隐式 pip 安装。
+- resource_files 将声明目录内的辅助文件加入资源，resources 可直接提供文本或 bytes。Python 可用 `from .helper import ...`；文件在独立包中展开。禁止越出资源目录。
+- source_interval_ms 可让插件作为自主信号源；普通插件由上游输入更新触发。
+- actions 的每项描述 args、可选 requires_paused；实现 `action_<名称>(inputs,state)`，从 inputs['args'] 读参数。动作同时收到当前端口输入、`inputs['__config__']` 和 `inputs['__context__']`，返回 `{'result':动作结果,'outputs':输出字典}`。
+- timeout_ms 参数控制单次调用上限，默认 1000 ms；主机允许 10～60000 ms。超时会关闭工作进程，后续调用可重新启动。
 
-`NodeRuntime` 提供线程锁、停止事件、快照和输出检查。`receive(port,data)` 处理输入；`action(name,args)` 执行声明的操作；`emit(port,data)` 返回 Future，表示这次下游交付的结果。需要可靠发送结果时等待该 Future，不能把“入队”写成“已发送”。
+插件 print/stderr 会接入节点日志。结果与 state 不能包含非有限数值、文件句柄或任意 Python 对象；每次请求/响应均限制 16 MiB。内置 math、json、struct、crc16 也可直接使用。
 
-端口当前使用 bytes、string、number、boolean、object、samples、trigger、any；导线不执行隐式转换。samples 是 `{channel: {"x":[...],"y":[...]}}`。每个端口一对一，分发与聚合由后续处理插件实现。
+## QML 视图
 
-## 线程与视图
+views 的键是 view ID，值的 qml 指向打包资源。视图根对象必须声明 `required property var bridge`，由宿主加载时传入。
 
-图处理、动作、设备 RX/TX 与 Qt 绘图分别执行。普通动作在有序工作线程执行；`immediate` 动作在调用线程执行，因此只适合短时状态调整。禁止工作线程直接操作 QWidget。
+- bridge.state 是节点视图快照，包含 state、inputs、outputs 等；用户 process 的 state 位于 `bridge.state.state.script_state`。
+- bridge.config 是当前参数。
+- bridge.action(name,args) 使用与 GUI/API 相同的节点动作入口。
 
-视图读取 `runtime.snapshot()` 或通过 `request(action,args)` 发起动作。定时器应以视图 QWidget 为 parent，使删除视图时一同停止。初始化控件时先赋值再连接信号，避免打开工程就发送指令。
+只使用 bridge，不依赖宿主的私有 C++ 对象。视图资源、Python 代码和辅助文件随 `.comtoolx` 保存；切换工程会卸载旧工程插件，解释器路径不会带给其他电脑。
 
-可给根视图提供：
+## AI 控件操作
 
-~~~python
-widget.refresh_from_runtime = refresh
-widget.api_actions = {"custom_action": callback}
-~~~
+已加载的 QML 控件无需额外注解即可被 controls.list 发现，包括未设置 objectName 的控件。每个对象提供存活期间稳定的 handle，以及描述当前视觉树的 path；可通过 page、node、view 和 ui_item 找到正确视图。明确命名仍适合长期脚本；自动 handle 在视图重建或工程切换后需要重新发现。
 
-`refresh()` 无参数、只更新显示，内部截图前会调用。专用 API action 接收 args，执行于 Qt 线程，不得阻塞。为重要控件设置稳定的 `objectName`，外壳会附加 `layout/<item-id>/` 或 `runtime/<item-id>/` 命名空间。
-
-## 导线与布局插件
-
-`WireDefinition(id,name,properties,factory)` 的 factory 接收 `(wire,source_point,target_point)`，返回 QGraphicsItem；编辑端点时调用其 `update_endpoints(source,target)`。内置导线使用原生曲线和箭头。
-
-渲染时的 wire 还包含 `source_rotation`、`target_rotation`，表示端点模块当前的角度；它们由外壳计算，不重复写入工程导线数据。导线插件可以据此调整曲线切线和箭头方向。内置导线显示在模块主体上方，端点附近的鼠标事件会让给端口。
-
-内置导线在 `properties.points` 保存可编辑路径点，选中后提供拖动、插入、删除及重置交互，通过统一的 `graph.wire.patch` 提交为可撤销操作。`type=json, format=points` 声明有限二维坐标列表，供图形编辑器和 API 使用相同校验。
-
-`ContainerDefinition(id,name,properties,factory)` 的 factory 接收 `(item,children)`，children 为 `(child_item,child_widget)` 列表。负责拉伸、网格或标签页排版，不创建新的功能实例。
-
-外部插件使用便携包已包含的依赖时可直接加载。工程包携带插件实现和声明资源，公共 SDK、Qt 及其他第三方运行库由 COMTool-x 提供；新增运行库需要在构建环境安装并重新打包程序。工程包中的 Python 插件及自定义 Python 协议会执行本地代码，只打开可信来源的工程。
+标准输入控件使用 controls.set／commit／click；set 的 value、currentIndex 和 checked 会执行相应的用户操作回调。自绘控件可通过 controls.key／pointer 接收应用内部 Qt 事件，无需控制系统鼠标或键盘。业务动作和文件路径优先通过声明的 node.action 传递，避免依赖文件对话框。控件回调产生的 jobs 必须逐个等待完成；原生 CLI 的 --wait 会自动处理。

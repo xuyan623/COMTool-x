@@ -1,38 +1,48 @@
 ---
 name: comtool-x
-description: 通过 COMTool-x 本地 API 编辑功能图和操作界面、配置插件、运行调试并获取内部截图。用于 COMTool-x 工程设计与控制，不用于操纵原版 COMTool。
+description: 通过 COMTool-x 原生 v3 本地 API 编辑功能设计和界面、配置插件、运行调试并获取内部截图；不用于原版 COMTool。
 ---
 
 # COMTool-x
 
-使用本地 API 完成设计与运行控制。无需操作桌面或通过鼠标定位控件。
+优先使用原生本地 API 完成设计、查询和运行控制。
 
-## 连接
+## 连接与核对
 
-定位用户的 COMTool-x 程序目录；读取其中 `.sessions/api.json`，或用户指定的 `--data-dir`。文件包含本次实例的地址、token 和进程信息。不要把 token 写入工程、日志或回答。
+定位运行程序或用户指定的 --data-dir，读取其中 `.sessions/api.json`。凭据不得写入工程、日志或回答。原生程序仅监听本机，接口为 `GET /v3/schema`、`POST /v3/command`，全部需要认证。
 
-默认文件指向最近启动且仍可连接的窗口，每个窗口还在 `.sessions/instances/api-<pid>-<port>.json` 中保存独立记录。若默认文件暂时缺失或失效，检查这些记录，向 `/v1/schema` 发送认证请求确认实例仍可连接，再读取 `app.state` 确认工程名和路径。多窗口时不要假定默认记录就是用户要操作的窗口；也可使用目标窗口帮助菜单给出的独立 `discovery` 路径。CLI 会自动从失效的默认记录回退到存活实例，没有窗口时返回可读 JSON 错误。
+使用 `COMTool-x-cli.exe api <op> --json-file <path> --data-dir <dir> --wait`；简单参数可用 --json。CLI 不需要 Python；默认记录失效时探测 `.sessions/instances/` 的独立进程记录。一个工程的多个子窗口共享同一接口；多个程序实例先核对 app.state 的 project/path。
 
-可用 `COMTool-x-cli.exe api <op> --json-file <path> --data-dir <dir>` 调用；结构简单时用 `--json`。长动作增加 `--wait`。源码环境可用 `python -m comtoolx api`。也可用 PowerShell HTTP 调用，不依赖额外 Python。
+先读取 app.state、schema、registry 和 project.get，以真实节点/端口/属性/动作契约为准。异步 job 或控件回调返回的 jobs 必须通过 job.get 逐个等待 complete/failed，不能把提交成功当作执行成功；原生 CLI 的 --wait 支持两种返回形式。
 
-先读取 `app.state`、`registry`、`project.get` 和 `/v1/schema`，使用实际插件及端口 ID。详细参数见 [API 文档](references/API.md)。
+## 设计与保存
 
-## 设计
+功能设计定义实际执行。修改结构前暂停运行；保持用户已有设计，未保存时先保存。editor.add 按 page=graph/layout 添加待放置对象，editor.place 落位，editor.withdraw 撤下保留配置；未放置功能节点不参与计算。graph.node.add 是显式直接建图接口，可用 placed=false 保持待放置；每个端口只连一条导线，分发/汇合使用实际处理节点。
 
-功能图是功能定义来源。先创建和连接节点，再显式 `ui.update`。新增视图在待放置容器；按 `ui.item.move/patch` 调整排版和样式。沿用已有 UI 对象 ID，避免重新生成全部布局。
+双向同步先 sync.plan（direction=graph_to_ui/ui_to_graph），展示默认全选的 changes，再将已确认的 keys 和同一 revision 交给 sync.apply。目标多余对象会列入删除，可取消勾选保留；新增进入目标待放置区，已有位置、图层、ID 保留，重复同步不重复创建。不能把 ui.update 当作完整双向同步。
 
-修改功能图前停止运行；只读工程应按用户本次设计意图显式进入编辑模式。支持 `batch` 将相关设计操作作为一个可撤销事务提交。每个端口首版只允许一条导线，类型转换、分发和聚合需要实际处理插件。
+删除／替换前用 editor.plan 展示影响，确认后 editor.remove/replace 携带 confirmed=true 和 revision。editor.copy/paste 独立复制新 ID，外部连线不继承。功能属性只用 node.configure；界面外观和布局只用 ui.item.patch，不以界面参数覆盖功能初值。layout.canvas 的 width/height 为设计尺寸，grid_size 为 1～128 px；所有界面位置、尺寸及容器排列吸附网格，运行时整图等比缩放。对象栏保留文字缩进以表示容器层级。容器名称仅在对象层级显示，设计与运行均不显示容器标题，也不保留标题栏空间。
 
-用 `project.validate` 检查。通过 `capture` 获取 `graph`、`layout`、`runtime` 或窗口的内部截图，读取返回的本地图片检查排版，再按需调整。不要用截图替代工程和运行状态的读取。
+project.validate 检查工程；capture 获取真实窗口或页面截图并查看本地图片，截图不能替代运行数据。目标窗口需要显示和恢复。共享引擎控件的 ID 是 execution.*，独立于当前工作区。
 
-完成后保存用户指定的 `.comtoolx` 工程包，并报告保存路径。未指定路径时 `project.save` 默认保存到程序的 `project/` 目录。工程包携带所用插件实现、配置和资源；打开包后无需单独导入插件。关闭或切换工程会卸载旧工程插件。旧 JSON 工程不兼容。打开工程不自动运行、连接或发送。
+用 ui.item.schema 查询外观字段，ui.view.bind 修改已有视图绑定并保留布局。graph.connection.options 查询端口兼容性。editor.state/configure 按 page=graph/layout 查询／设置画布 zoom、pan_x、pan_y、left_width、right_width；侧栏宽度 0 表示收起，fit=true 适应画布，graph 的 animation 控制数据活动显示。它们只改显示状态。window.configure 设置窗口几何与 normal/minimized/maximized/fullscreen，可先恢复窗口再截图。
 
-## 运行
+project.save 保存用户指定的单文件 .comtoolx，未指定路径时默认写入程序数据目录的 project/。v3 工程携带用户插件、辅助文件、QML 和模型资源；官方 C++ 插件由程序提供，解释器路径仅在本机设置中。旧 v2 工程/插件不兼容。打开工程不自动运行、连接或发送。
 
-只在用户已授权的范围内启动功能图、连接设备、发送或调参。设计请求本身不意味着可以向硬件发送。
+## 运行与观测
 
-优先使用 `node.action`；通过 `job.get` 等待 complete/failed。发送成功只表示底层写入，固件执行需另有反馈。查询状态和曲线数据以节点快照与动作结果为准。
+只在用户授权范围内启动、连接设备或发送。设计请求本身不授权硬件动作。优先 node.action 并等待 job；发送成功只是本机写入/接收请求，设备执行须有反馈。
 
-需要操作某个界面控件时使用 `controls.list/set/click`；图表范围、图片导出等先读取 `view.actions`，再调用 `view.call`。参考 [插件开发](references/PLUGIN_SDK.md) 理解外部插件提供的契约。
+runtime.pause 保留实验，runtime.stop 释放连接并保留参数，runtime.reset 恢复工程初值；只读临时调参使用 node.configure persist=false。通过 node.state、view.read、节点 read_data/geometry/read_screen 等动作读取真实数据。先查 view.actions 再使用 view.call 操作相机、范围或导出。graph.activity 仅观测实际绘图层，不影响计算。
 
-用户没有要求丢弃设计时，先保存再关闭；`app.quit` 的 `discard:true` 只用于明确授权丢弃的情形。
+workspace.open 定位已有页面，插件库打开唯一精简子窗口，不能作为工作区标签；中间卡片左侧功能设计、右侧界面，中间为浅色竖分割线；右侧详情保留上下双预览。顶部为工作区标签，底部为共享引擎；分离窗口默认按聚焦关系排列，仅手动置顶时保持最上层；拖出和关闭页面不会结束引擎。用户没有要求丢弃设计时，先保存再退出。
+
+controls.list 可按 page 发现具名及未命名 QML 控件，记录包含 node/view/ui_item、可读值、writable 与 actions。优先使用明确命名的 ID；自动 handle 在实际对象存活期间稳定，视图重建／切换工程后重新发现，不能持久保存。controls.get 读取状态；controls.set 操作 writable 字段，文本再 controls.commit。标准滑块、下拉框、SpinBox 和勾选框会触发真实操作。自绘控件使用 controls.key/pointer 直接向应用内 Qt 对象投递事件，无需桌面自动化；业务动作仍优先 node.action，文件通过结构化路径传递。
+
+## 本地 Python
+
+官方插件不依赖 Python。用户扩展只使用用户指定的本地 Python 3.10+；preferences.set 选择解释器，python.probe 检查模块。缺依赖时明确报告，不自动安装或修改环境。用户插件由 JSON 声明及 Python/QML 资源组成，使用 plugin.import，不能加载旧 NodeRuntime 或 PyQt 插件。
+
+详细字段见 [API](references/API.md) 和 [插件 SDK](references/PLUGIN_SDK.md)。
+
+交互规则：节点使用小圆角直边；输入为凹口，输出为囊泡。点击输出牵引，接入时填合凹口；取出可接回或改接。右键、Esc、空白或源端短线取消并回母体断线。拿着其他对象时右键也取消，空闲时才快速放置。界面编辑手势由画布统一处理，不能用运行控件动作替代设计拖放。
