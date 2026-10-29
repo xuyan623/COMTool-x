@@ -63,11 +63,14 @@ def main():
     c = None
     try:
         c = launch()
+        check(executable.name == 'CoRig.exe' and (deployment / 'CoRig-cli.exe').is_file(), 'deployed GUI and CLI use the CoRig product names')
+        check(c.call('app.state')['application'] == c.call('schema')['application'] == 'CoRig', 'GUI state and API schema identify the current CoRig application')
         check(c.call('app.state')['python'] == '', 'deployed application starts without a Python interpreter')
         check(len(c.call('registry')) == 78, 'all 78 official plugin declarations are available in deployment')
         for name in ('SerialPlot', 'FunctionLab', 'RecordPlayback'):
-            c.call('project.open', {'path': str(deployment / 'examples' / (name + '.comtoolx'))})
+            c.call('project.open', {'path': str(deployment / 'examples' / (name + '.corig'))})
             check(c.call('project.validate')['valid'], name + ' opens as a native v3 project')
+            check(not c.call('graph.overlaps'), name + ' has no node spacing warnings')
             c.call('workspace.open', {'page': 'runtime'})
             c.call('runtime.start', {'debug': False})
             if name == 'SerialPlot':
@@ -86,10 +89,18 @@ def main():
             c.call('runtime.stop')
         # The second process shares discovery storage but not the first
         # process's session. CLI must find surviving authenticated records.
+        record = json.loads((data / '.sessions/api.json').read_text('utf-8'))
+        record.pop('application')
+        unbranded = data / '.sessions/unbranded.json'
+        unbranded.write_text(json.dumps(record), 'utf-8')
+        rejected = subprocess.run([str(deployment / 'CoRig-cli.exe'), 'api', 'app.state', '--discovery', str(unbranded)],
+                                  env=environment, capture_output=True, encoding='utf-8')
+        unbranded.unlink()
+        check(rejected.returncode != 0 and not json.loads(rejected.stdout)['ok'], 'CLI rejects previous unbranded discovery records without connecting')
         other = launch()
         alias = data / '.sessions/api.json'
         alias.unlink()
-        cli = subprocess.run([str(deployment / 'COMTool-x-cli.exe'), 'api', 'app.state', '--data-dir', str(data)],
+        cli = subprocess.run([str(deployment / 'CoRig-cli.exe'), 'api', 'app.state', '--data-dir', str(data)],
                              env=environment, capture_output=True, encoding='utf-8', check=True)
         check(json.loads(cli.stdout)['ok'], 'native CLI recovers when the default discovery record is absent')
         other.call('app.quit')
@@ -133,7 +144,7 @@ def main():
         if c is not None:
             try:
                 if c.call('app.state')['dirty']:
-                    c.call('project.save', {'path': str(output / 'LastCheck.comtoolx')})
+                    c.call('project.save', {'path': str(output / 'LastCheck.corig')})
                 c.call('runtime.stop')
                 c.call('app.quit')
             except (OSError, RuntimeError):

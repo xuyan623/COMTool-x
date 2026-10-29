@@ -38,7 +38,7 @@ def main():
         ("constant", "source.constant", [30, 40], {"values": {"value": 1.25}}),
         ("exponential", "function.exp", [360, 40], {}),
         ("result", "display.value", [790, 40], {"label": "指数运算结果"}),
-        ("text", "control.text", [30, 260], {"value": "COMTool-x"}),
+        ("text", "control.text", [30, 260], {"value": "CoRig"}),
         ("button", "control.button", [360, 260], {}),
         ("sine", "function.sin", [650, 260], {}),
     ]:
@@ -119,7 +119,7 @@ def main():
     time.sleep(.2)
     client.call("capture", {"target": "runtime", "path": str(output / "runtime.png")})
     project = client.call("project.get")
-    saved = output / "Workbench.comtoolx"
+    saved = output / "Workbench.corig"
     client.call("project.save", {"path": str(saved)})
     client.call("project.open", {"path": str(saved)})
     check(client.call("project.get") == project, "placement, layers and bindings survive save/reopen")

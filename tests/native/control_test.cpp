@@ -11,9 +11,9 @@ static QVariantMap design(const QString &id, const QString &kind, const QVariant
     return {{"id",id},{"plugin",kind},{"position",QVariantList{0.,0.}},{"config",config}};
 }
 
-static QVariant call(cx::Engine &engine, const QString &operation, const QVariantMap &arguments = {})
+static QVariant call(corig::Engine &engine, const QString &operation, const QVariantMap &arguments = {})
 {
-    QSignalSpy completions(&engine,&cx::Engine::completed);
+    QSignalSpy completions(&engine,&corig::Engine::completed);
     const auto id = engine.submit(operation,arguments);
     QElapsedTimer timeout; timeout.start();
     while (timeout.elapsed() < 5000) {
@@ -38,14 +38,14 @@ private slots:
 
 void ControlTest::truthTablesAndRepeatedUpdates()
 {
-    cx::Catalog catalog;
+    corig::Catalog catalog;
     for (const auto &op : {"and","or","not","nand","nor","xor","xnor"}) for (int bits = 0; bits < 4; ++bits) {
         const bool a = bits & 1, b = bits & 2;
         const QString name(op);
         const bool expected = name == "and" ? a && b : name == "or" ? a || b : name == "not" ? !a : name == "nand" ? !(a && b) : name == "nor" ? !(a || b) : name == "xor" ? a != b : a == b;
-        auto gate = cx::makeNode(design("gate","logic." + name),catalog,{});
+        auto gate = corig::makeNode(design("gate","logic." + name),catalog,{});
         gate->setConnections(name == "not" ? QSet<QString>{"a"} : QSet<QString>{"a","b"});
-        const cx::Values inputs = name == "not" ? cx::Values{{"a",a}} : cx::Values{{"a",a},{"b",b}};
+        const corig::Values inputs = name == "not" ? corig::Values{{"a",a}} : corig::Values{{"a",a},{"b",b}};
         QCOMPARE(gate->execute(inputs,{},{}).emissions.front().value("out").toBool(),expected);
         QCOMPARE(gate->execute(inputs,{},{}).emissions.size(),1);
         QVERIFY(gate->execute({},QSet<QString>{"a"},{}).disconnected.contains("out"));
@@ -54,9 +54,9 @@ void ControlTest::truthTablesAndRepeatedUpdates()
 
 void ControlTest::selectedEdges()
 {
-    cx::Catalog catalog;
+    corig::Catalog catalog;
     for (const auto &mode : {"rising","falling","both"}) {
-        auto edge = cx::makeNode(design("edge","logic.edge",{{"edge",mode}}),catalog,{});
+        auto edge = corig::makeNode(design("edge","logic.edge",{{"edge",mode}}),catalog,{});
         edge->setConnections({"in"}); int count = 0;
         for (const bool value : {false,true,true,false,false,true,false}) {
             const auto result = edge->execute({{"in",value}}, {},{});
@@ -69,30 +69,30 @@ void ControlTest::selectedEdges()
 
 void ControlTest::distributionLimitsAndButton()
 {
-    cx::Catalog catalog;
+    corig::Catalog catalog;
     QVariantList outputs; for (const auto &name : {"a","b","c","d","e","f","g","h"}) outputs.append(name);
-    auto fork = cx::makeNode(design("fork","data.fork",{{"data_type","boolean"},{"outputs",outputs}}),catalog,{});
+    auto fork = corig::makeNode(design("fork","data.fork",{{"data_type","boolean"},{"outputs",outputs}}),catalog,{});
     fork->setConnections({"in"});
     const auto result = fork->execute({{"in",true}}, {},{});
     QCOMPARE(result.emissions.front().size(),8);
     for (const auto &name : outputs) QVERIFY(result.emissions.front().value(name.toString()).toBool());
-    QVERIFY_THROWS_EXCEPTION(cx::Error,catalog.checkedConfig("data.fork",{{"outputs",QVariantList{"a"}}}));
-    outputs.append("i"); QVERIFY_THROWS_EXCEPTION(cx::Error,catalog.checkedConfig("data.fork",{{"outputs",outputs}}));
-    QVERIFY_THROWS_EXCEPTION(cx::Error,catalog.checkedConfig("data.fork",{{"data_type","trigger"}}));
-    auto button = cx::makeNode(design("button","control.button"),catalog,{});
+    QVERIFY_THROWS_EXCEPTION(corig::Error,catalog.checkedConfig("data.fork",{{"outputs",QVariantList{"a"}}}));
+    outputs.append("i"); QVERIFY_THROWS_EXCEPTION(corig::Error,catalog.checkedConfig("data.fork",{{"outputs",outputs}}));
+    QVERIFY_THROWS_EXCEPTION(corig::Error,catalog.checkedConfig("data.fork",{{"data_type","trigger"}}));
+    auto button = corig::makeNode(design("button","control.button"),catalog,{});
     QVariant actionResult;
     for (int click = 0; click < 2; ++click) {
         const auto event = button->action("click",{}, {},actionResult);
         QCOMPARE(event.emissions.size(),1); QCOMPARE(event.emissions.front().value("trigger").metaType().id(),int(QMetaType::Bool));
         QVERIFY(event.emissions.front().value("trigger").toBool());
     }
-    QVERIFY_THROWS_EXCEPTION(cx::Error,catalog.checkedConfig("control.button",{{"payload","obsolete"}}));
+    QVERIFY_THROWS_EXCEPTION(corig::Error,catalog.checkedConfig("control.button",{{"payload","obsolete"}}));
 }
 
 void ControlTest::countdownRestartAndStop()
 {
-    cx::Catalog catalog;
-    auto timer = cx::makeNode(design("timer","source.timer",{{"mode","countdown"},{"interval_ms",1000}}),catalog,{});
+    corig::Catalog catalog;
+    auto timer = corig::makeNode(design("timer","source.timer",{{"mode","countdown"},{"interval_ms",1000}}),catalog,{});
     timer->setConnections({"start","stop"});
     timer->execute({{"start",true}}, {},{1,0.});
     timer->execute({{"start",true}}, {},{2,.7});
@@ -108,10 +108,10 @@ void ControlTest::countdownRestartAndStop()
 
 void ControlTest::externalTimerFollowsEngine()
 {
-    auto project = cx::emptyProject();
+    auto project = corig::emptyProject();
     project["nodes"] = QVariantList{design("button","control.button"),design("timer","source.timer",{{"mode","countdown"},{"interval_ms",180}})};
     project["wires"] = QVariantList{QVariantMap{{"id","start"},{"source",QVariantList{"button","trigger"}},{"target",QVariantList{"timer","start"}}}};
-    cx::Engine engine({}); call(engine,"project.apply",{{"project",project}}); call(engine,"runtime.start");
+    corig::Engine engine({}); call(engine,"project.apply",{{"project",project}}); call(engine,"runtime.start");
     call(engine,"node.action",{{"node","button"},{"action","click"}}); QTest::qWait(70);
     call(engine,"node.action",{{"node","button"},{"action","click"}}); QTest::qWait(90);
     QCOMPARE(call(engine,"node.state",{{"node","timer"}}).toMap().value("state").toMap().value("ticks").toULongLong(),0ull);

@@ -6,7 +6,7 @@
 class QJSEngine;
 class QJSValue;
 
-namespace cx {
+namespace corig {
 
 // Sources and scalar math share the engine's batch clock. History-bearing
 // functions re-anchor time after pause while preserving accumulated results.
@@ -34,4 +34,4 @@ private:
     bool anchored_ = false;
 };
 
-} // namespace cx
+} // namespace corig

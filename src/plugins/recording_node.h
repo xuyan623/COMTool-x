@@ -3,7 +3,7 @@
 #include "core/node.h"
 #include "core/recording.h"
 
-namespace cx {
+namespace corig {
 
 // A single data stream always passes through. Capture commands only control
 // private recording storage, with engine-time gaps omitted during local pause.
@@ -53,4 +53,4 @@ private:
     QString error_;
 };
 
-} // namespace cx
+} // namespace corig

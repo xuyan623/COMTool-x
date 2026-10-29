@@ -6,7 +6,7 @@
 #include <QSet>
 #include <algorithm>
 
-namespace cx {
+namespace corig {
 namespace {
 qsizetype indexOf(const QVariantList &items, const QString &id)
 {
@@ -154,7 +154,7 @@ QVariantMap copyEditorObjects(const QVariantMap &project, const QString &page, c
             copiedItems.append(item); if (item.contains("node")) { const auto node = boundNode(item,nodes); const auto id = node.value("id").toString(); if (!nodeIds.contains(id)) { copiedNodes.append(node); nodeIds.insert(id); } }
         }
     }
-    return {{"format","comtool-x-objects"},{"page",page},{"roots",ids},{"nodes",copiedNodes},{"items",copiedItems},{"wires",wires}};
+    return {{"format","corig-objects"},{"page",page},{"roots",ids},{"nodes",copiedNodes},{"items",copiedItems},{"wires",wires}};
 }
 
 QVariantMap editorImpact(const QVariantMap &project, const Catalog &catalog, const QVariantMap &args)
@@ -231,7 +231,7 @@ EditResult editEditorProject(QVariantMap project, const Catalog &catalog, const 
         }
         const auto invalid = incompatibleWires(wires,nodes,catalog); wires.erase(std::remove_if(wires.begin(),wires.end(),[&](const QVariant &v) { return invalid.contains(v.toMap().value("id").toString()); }),wires.end()); edit.selected = ids.value(0);
     } else if (op == "editor.paste") {
-        const auto payload = args.value("payload").toMap(); if (payload.value("format") != "comtool-x-objects") throw Error("剪贴板没有可粘贴对象");
+        const auto payload = args.value("payload").toMap(); if (payload.value("format") != "corig-objects") throw Error("剪贴板没有可粘贴对象");
         if (payload.value("page") != page) throw Error("请在原页面粘贴；跨页传递请使用同步清单");
         QHash<QString,QString> mapping; QVariantList newNodeIds, newItemIds;
         for (const auto &entry : payload.value("nodes").toList()) { auto node = entry.toMap(); const auto old = node.value("id").toString(), id = newId("node"); mapping[old] = id; node["id"] = id; node["placed"] = page == "graph"; auto pos = node.value("position",QVariantList{80.,80.}).toList(); node["position"] = QVariantList{pos.value(0).toDouble()+32.,pos.value(1).toDouble()+32.}; nodes.append(node); newNodeIds.append(id); }
@@ -258,4 +258,4 @@ EditResult editEditorProject(QVariantMap project, const Catalog &catalog, const 
     ui["items"] = items; project["ui"] = ui; project["nodes"] = nodes; project["wires"] = wires;
     alignUiToGrid(project); validateProject(project,catalog); edit.project = project; edit.engineChanged = engine; return edit;
 }
-} // namespace cx
+} // namespace corig

@@ -6,7 +6,7 @@
 #include <QColor>
 #include <deque>
 
-namespace cx {
+namespace corig {
 
 class TerminalScreen {
 public:
@@ -38,4 +38,4 @@ private:
     quint64 version_ = 0, removed_ = 0;
 };
 
-} // namespace cx
+} // namespace corig

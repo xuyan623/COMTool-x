@@ -8,9 +8,9 @@
 #include <cmath>
 #include <limits>
 
-namespace cx {
+namespace corig {
 namespace {
-const QByteArray Magic("COMTool-x\0REC1\n",15);
+const QByteArray Magic = QByteArrayLiteral("CoRig\0REC1\n");
 constexpr quint32 MaxValueBytes = 16u * 1024u * 1024u;
 
 // Length-prefixed CBOR keeps binary values native and bounds parser allocations.
@@ -34,9 +34,9 @@ QByteArray frameHeader(double time, quint32 bytes)
 
 void RecordingWriter::begin(const QString &type)
 {
-    auto candidate = std::make_unique<QTemporaryFile>(QDir::tempPath() + "/COMTool-x-recording-XXXXXX");
+    auto candidate = std::make_unique<QTemporaryFile>(QDir::tempPath() + "/CoRig-recording-XXXXXX");
     if (!candidate->open()) throw Error("无法创建录制缓存：" + candidate->errorString());
-    const auto metadata = QCborValue::fromVariant(QVariantMap{{"format","comtool-x-recording"},{"version",1},{"data_type",type}}).toCbor();
+    const auto metadata = QCborValue::fromVariant(QVariantMap{{"format","corig-recording"},{"version",1},{"data_type",type}}).toCbor();
     QByteArray length(4,Qt::Uninitialized); qToBigEndian<quint32>(static_cast<quint32>(metadata.size()),length.data());
     const auto header = Magic + length + metadata;
     if (candidate->write(header) != header.size()) throw Error("录制文件头写入失败");
@@ -85,7 +85,7 @@ void RecordingWriter::reset()
 RecordingReader::RecordingReader(const QString &path, const std::function<bool()> &cancelled) : file_(path)
 {
     if (!file_.open(QIODevice::ReadOnly)) throw Error("录制文件无法打开：" + file_.errorString());
-    if (file_.read(Magic.size()) != Magic) throw Error("不是 COMTool-x 录制文件");
+    if (file_.read(Magic.size()) != Magic) throw Error("不是 CoRig 录制文件");
     const auto lengthBytes = file_.read(4);
     if (lengthBytes.size() != 4) throw Error("录制文件头不完整");
     const auto length = qFromBigEndian<quint32>(lengthBytes.constData());
@@ -93,7 +93,7 @@ RecordingReader::RecordingReader(const QString &path, const std::function<bool()
     const auto metadataBytes = file_.read(length);
     if (metadataBytes.size() != length) throw Error("录制文件头已截断");
     const auto metadata = decode(metadataBytes).toMap(); type_ = metadata.value("data_type").toString();
-    if (metadata.value("format") != "comtool-x-recording" || metadata.value("version") != 1
+    if (metadata.value("format") != "corig-recording" || metadata.value("version") != 1
         || !QStringList{"number","boolean","bytes","string","object","samples","any"}.contains(type_)) throw Error("录制文件格式或信号类型不受支持");
     double previous = 0.; bool finalized = false;
     while (!file_.atEnd()) {
@@ -148,4 +148,4 @@ quint32 RecordingReader::bytesAt(qsizetype index) const
     return entries_[index].bytes;
 }
 
-} // namespace cx
+} // namespace corig

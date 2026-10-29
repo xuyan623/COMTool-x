@@ -4,7 +4,7 @@
 // view-window placement are deliberately outside this saved document.
 #include "catalog.h"
 
-namespace cx {
+namespace corig {
 
 QVariantMap emptyProject(const QString &name = "未命名工程");
 void validateProject(const QVariantMap &project, const Catalog &catalog);
@@ -16,4 +16,4 @@ void saveProject(const QString &path, const QVariantMap &project);
 QString importResource(QVariantMap &project, const QString &path);
 QByteArray resourceBytes(const QVariantMap &project, const QString &reference);
 
-} // namespace cx
+} // namespace corig

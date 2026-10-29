@@ -12,7 +12,7 @@
 #include <map>
 #include <optional>
 
-namespace cx {
+namespace corig {
 
 class Engine final : public QThread {
     Q_OBJECT
@@ -94,4 +94,4 @@ private:
     std::atomic<std::shared_ptr<const QVariantMap>> published_;
 };
 
-} // namespace cx
+} // namespace corig

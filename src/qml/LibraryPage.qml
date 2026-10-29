@@ -107,5 +107,5 @@ Item {
             }
         }
     }
-    FileDialog{id:pluginFile;title:"导入用户插件声明";nameFilters:["COMTool-x 插件声明 (*.json)"];onAccepted:App.invoke("plugin.import",{path:selectedFile.toString()})}
+    FileDialog{id:pluginFile;title:"导入用户插件声明";nameFilters:["CoRig 插件声明 (*.json)"];onAccepted:App.invoke("plugin.import",{path:selectedFile.toString()})}
 }

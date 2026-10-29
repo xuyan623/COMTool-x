@@ -39,7 +39,7 @@ private:
     QVariantMap mapProperty(QObject *object, const char *name);
     void click(const QPoint &point, Qt::MouseButton button = Qt::LeftButton);
     std::unique_ptr<QTemporaryDir> folder_;
-    std::unique_ptr<cx::Controller> app_;
+    std::unique_ptr<corig::Controller> app_;
     std::unique_ptr<QQmlApplicationEngine> qml_;
     QQuickWindow *window_ = nullptr;
     QQuickItem *graph_ = nullptr;
@@ -48,19 +48,19 @@ private:
 void WorkbenchUiTest::initTestCase()
 {
     QQuickStyle::setStyle("Basic");
-    qmlRegisterType<cx::NodeSurface>("ComToolX.Native",1,0,"NodeSurface");
-    qmlRegisterType<cx::WireLayer>("ComToolX.Native",1,0,"WireLayer");
-    qmlRegisterType<cx::NativePlot>("ComToolX.Native",1,0,"NativePlot");
-    qmlRegisterType<cx::NativeAttitude>("ComToolX.Native",1,0,"NativeAttitude");
+    qmlRegisterType<corig::NodeSurface>("CoRig.Native",1,0,"NodeSurface");
+    qmlRegisterType<corig::WireLayer>("CoRig.Native",1,0,"WireLayer");
+    qmlRegisterType<corig::NativePlot>("CoRig.Native",1,0,"NativePlot");
+    qmlRegisterType<corig::NativeAttitude>("CoRig.Native",1,0,"NativeAttitude");
 }
 
 void WorkbenchUiTest::init()
 {
     folder_ = std::make_unique<QTemporaryDir>();
-    app_ = std::make_unique<cx::Controller>(folder_->path());
-    qml_ = std::make_unique<QQmlApplicationEngine>();qml_->addImageProvider("icons",new cx::IconProvider);
+    app_ = std::make_unique<corig::Controller>(folder_->path());
+    qml_ = std::make_unique<QQmlApplicationEngine>();qml_->addImageProvider("icons",new corig::IconProvider);
     app_->attachUi(qml_.get());
-    const auto workspace = qobject_cast<cx::Workspaces *>(app_->workspaces());
+    const auto workspace = qobject_cast<corig::Workspaces *>(app_->workspaces());
     graph_ = workspace->page("graph");window_ = graph_->window();
     QVERIFY(QTest::qWaitForWindowExposed(window_));
     run("graph.node.add",{{"id","source"},{"plugin","control.number"},{"position",QVariantList{20.,40.}}});
@@ -147,7 +147,7 @@ void WorkbenchUiTest::rightClickCancelsHeldObjects()
     graph_->setProperty("placement",QVariantMap{{"plugin","function.cos"}});
     click(point,Qt::RightButton);QVERIFY(mapProperty(graph_,"placement").isEmpty());
     QVERIFY(!quick->property("visible").toBool());QCOMPARE(app_->project().value("nodes").toList().size(),before);
-    run("workspace.open",{{"page","layout"}});QTest::qWait(30);auto page = qobject_cast<cx::Workspaces *>(app_->workspaces())->page("layout");QVERIFY(page);
+    run("workspace.open",{{"page","layout"}});QTest::qWait(30);auto page = qobject_cast<corig::Workspaces *>(app_->workspaces())->page("layout");QVERIFY(page);
     page->setProperty("placement",QVariantMap{{"plugin","control.button"}});
     click(findItem("layout.viewport")->mapToScene({150.,150.}).toPoint(),Qt::RightButton);
     QVERIFY(mapProperty(page,"placement").isEmpty());
@@ -205,13 +205,13 @@ void WorkbenchUiTest::externalDropsReachContainerSlots()
     run("workspace.open",{{"page","layout"}});QTest::qWait(40);
     auto container = findItem("ui.container");QVERIFY(container);
     const auto point = container->mapToScene({container->width()/3.,container->height()/2.}).toPoint();
-    QMimeData plugin;plugin.setData("application/x-comtoolx-plugin","control.button");
+    QMimeData plugin;plugin.setData("application/x-corig-plugin","control.button");
     QDragEnterEvent enter(point,Qt::CopyAction,&plugin,Qt::LeftButton,Qt::NoModifier);QCoreApplication::sendEvent(window_,&enter);QVERIFY(enter.isAccepted());
     QDragMoveEvent move(point,Qt::CopyAction,&plugin,Qt::LeftButton,Qt::NoModifier);QCoreApplication::sendEvent(window_,&move);
     QDropEvent drop(point,Qt::CopyAction,&plugin,Qt::LeftButton,Qt::NoModifier);QCoreApplication::sendEvent(window_,&drop);QTest::qWait(30);QVERIFY(drop.isAccepted());
     QCOMPARE(app_->uiItem("container").value("children").toList().size(),1);
     run("editor.add",{{"page","layout"},{"id","pending_control"},{"plugin","control.text"}});
-    QMimeData pending;pending.setData("application/x-comtoolx-object",QJsonDocument::fromVariant(QVariantMap{{"page","layout"},{"id","pending_control"}}).toJson(QJsonDocument::Compact));
+    QMimeData pending;pending.setData("application/x-corig-object",QJsonDocument::fromVariant(QVariantMap{{"page","layout"},{"id","pending_control"}}).toJson(QJsonDocument::Compact));
     QDragEnterEvent enterPending(point,Qt::MoveAction,&pending,Qt::LeftButton,Qt::NoModifier);QCoreApplication::sendEvent(window_,&enterPending);QVERIFY(enterPending.isAccepted());
     QDropEvent dropPending(point,Qt::MoveAction,&pending,Qt::LeftButton,Qt::NoModifier);QCoreApplication::sendEvent(window_,&dropPending);QTest::qWait(30);QVERIFY(dropPending.isAccepted());
     QVERIFY(app_->uiItem("container").value("children").toList().contains("pending_control"));
@@ -248,7 +248,7 @@ void WorkbenchUiTest::designAndRuntimeShareContainerLayout()
     run("ui.item.patch",{{"id","container"},{"properties",QVariantMap{{"title","仅用于左侧层级的容器名"}}}});
     run("editor.add",{{"page","layout"},{"id","child"},{"plugin","control.text"}});
     run("editor.place",{{"page","layout"},{"id","child"},{"parent","container"}});
-    auto workspaces = qobject_cast<cx::Workspaces *>(app_->workspaces());
+    auto workspaces = qobject_cast<corig::Workspaces *>(app_->workspaces());
     run("workspace.open",{{"page","layout"}});QTest::qWait(40);
     auto design = workspaces->page("layout"), designRoot = findItem("ui.root",design), designChild = findItem("ui.child",design);
     QVERIFY(designRoot);QVERIFY(designChild);const auto position = designChild->mapToItem(designRoot,{0.,0.});const auto size = designChild->size();
@@ -268,7 +268,7 @@ void WorkbenchUiTest::publicEditorPresentationRoundTrip()
         QTest::qWait(25);const auto state = run("editor.state",{{"page",page}}).toMap();
         QCOMPARE(state.value("zoom").toDouble(),.75);QCOMPARE(state.value("pan_x").toDouble(),123.);QCOMPARE(state.value("pan_y").toDouble(),-45.);
         QCOMPARE(state.value("left_width").toDouble(),180.);QCOMPARE(state.value("right_width").toDouble(),224.);
-        QVERIFY_EXCEPTION_THROWN(app_->command("editor.configure",{{"page",page},{"zoom",0.},{"pan_x",999.}}),cx::Error);
+        QVERIFY_EXCEPTION_THROWN(app_->command("editor.configure",{{"page",page},{"zoom",0.},{"pan_x",999.}}),corig::Error);
         QCOMPARE(run("editor.state",{{"page",page}}).toMap(),state);
         run("editor.configure",{{"page",page},{"left_width",0.},{"right_width",0.}});QTest::qWait(25);
         QCOMPARE(run("editor.state",{{"page",page}}).toMap().value("left_width").toDouble(),0.);
@@ -308,7 +308,7 @@ void WorkbenchUiTest::switchesPressedFeedbackAndCombinedEngineControl()
     run("ui.view.add",{{"id","flag_view"},{"node","flag"},{"view","control"},{"properties",QVariantMap{{"x",16.},{"y",16.},{"width",320.},{"height",64.},{"title","冗余标题"}}}});
     run("ui.view.add",{{"id","button_view"},{"node","button"},{"view","control"},{"properties",QVariantMap{{"x",16.},{"y",96.},{"width",320.},{"height",64.},{"title","冗余标题"}}}});
     run("workspace.open",{{"page","runtime"}}); run("runtime.start",{{"debug",false}}); QTest::qWait(60);
-    auto runtime = qobject_cast<cx::Workspaces *>(app_->workspaces())->page("runtime");
+    auto runtime = qobject_cast<corig::Workspaces *>(app_->workspaces())->page("runtime");
     auto flag = findItem("control.flag",runtime); QVERIFY(flag); QVERIFY(flag->inherits("QQuickSwitch"));
     const auto indicator = flag->property("indicator").value<QQuickItem *>(); QVERIFY(indicator); QVERIFY(indicator->width() > indicator->height());
     run("controls.set",{{"id","control.flag"},{"page","runtime"},{"property","checked"},{"value",true}});

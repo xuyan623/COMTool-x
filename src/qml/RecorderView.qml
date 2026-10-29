@@ -38,8 +38,8 @@ Item {
         Item{Layout.fillHeight:true}
     }
     FileDialog{
-        id:saveFile;title:"保存录制文件";fileMode:FileDialog.SaveFile;defaultSuffix:"comtoolrec"
-        nameFilters:["COMTool-x 录制 (*.comtoolrec)"]
+        id:saveFile;title:"保存录制文件";fileMode:FileDialog.SaveFile;defaultSuffix:"corigrec"
+        nameFilters:["CoRig 录制 (*.corigrec)"]
         onAccepted:{const job=root.host.action("save",{path:selectedFile.toString()});root.fileJob=job.job||""}
     }
 }

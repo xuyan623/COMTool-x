@@ -1,4 +1,4 @@
-# 用户插件 v3
+# CoRig 用户插件 v3
 
 用户插件以 JSON 声明、Python 逻辑及可选 QML 视图组成。官方 C++ 插件随软件提供；旧 PySide6/PyQt5 NodeRuntime 接口不兼容。
 
@@ -67,7 +67,7 @@ views 的键是 view ID，值的 qml 指向打包资源。视图根对象必须�
 - bridge.config 是当前参数。
 - bridge.action(name,args) 使用与 GUI/API 相同的节点动作入口。
 
-只使用 bridge，不依赖宿主的私有 C++ 对象。视图资源、Python 代码和辅助文件随 `.comtoolx` 保存；切换工程会卸载旧工程插件，解释器路径不会带给其他电脑。
+只使用 bridge，不依赖宿主的私有 C++ 对象。视图资源、Python 代码和辅助文件随 `.corig` 保存；切换工程会卸载旧工程插件，解释器路径不会带给其他电脑。
 
 ## AI 控件操作
 

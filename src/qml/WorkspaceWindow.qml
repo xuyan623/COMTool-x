@@ -16,7 +16,7 @@ ApplicationWindow {
     width:childWindow?1000:1420;height:childWindow?700:900;minimumWidth:childWindow?540:800;minimumHeight:childWindow?320:540
     visible: false
     color: Theme.panel
-    title: (App.dirty ? "● " : "") + (App.project.name || "未命名工程") + " — COMTool-x"
+    title: (App.dirty ? "● " : "") + (App.project.name || "未命名工程") + " — 联调 · CoRig"
     font.family: "Microsoft YaHei UI"
     font.pixelSize: 13
     palette.window: Theme.panel
@@ -125,7 +125,7 @@ ApplicationWindow {
                             onPositionChanged:m=>{if(pressed&&!dragging&&Math.hypot(m.x-start.x,m.y-start.y)>10){dragging=true;App.workspaces.dragPage(tab.modelData.key)}}
                         }
                         IconButton{anchors.right:parent.right;anchors.verticalCenter:parent.verticalCenter;symbol:"close";text:"关闭标签";width:28;height:28;onClicked:App.workspaces.closePage(tab.modelData.key)}
-                        DropArea{anchors.fill:parent;keys:["application/x-comtoolx-workspace"];onEntered:mark.visible=true;onExited:mark.visible=false;onDropped:d=>{mark.visible=false;App.workspaces.acceptDrop(d.getDataAsString("application/x-comtoolx-workspace"),win.hostId,tab.index);d.acceptProposedAction()}}
+                        DropArea{anchors.fill:parent;keys:["application/x-corig-workspace"];onEntered:mark.visible=true;onExited:mark.visible=false;onDropped:d=>{mark.visible=false;App.workspaces.acceptDrop(d.getDataAsString("application/x-corig-workspace"),win.hostId,tab.index);d.acceptProposedAction()}}
                         Rectangle{id:mark;visible:false;width:3;height:parent.height;color:Theme.blue}
                     }
                 }
@@ -137,7 +137,7 @@ ApplicationWindow {
                 IconButton{objectName:"window.pin."+win.hostId;symbol:"pin";ink:win.pinned?Theme.blue:Theme.text;text:win.pinned?"取消置顶":"固定在顶部";height:36;checkable:true;checked:win.pinned;onClicked:App.workspaces.pinWindow(win.hostId,checked)}
                 IconButton{symbol:"dock";text:"定位主窗口";height:36;onClicked:App.workspaces.focusMain()}
             }
-            DropArea{visible:win.activePage!=="library";x:tabStrip.width;width:Math.max(0,(win.childWindow?childTools.x:parent.width)-x);height:parent.height;keys:["application/x-comtoolx-workspace"];onDropped:d=>{App.workspaces.acceptDrop(d.getDataAsString("application/x-comtoolx-workspace"),win.hostId,-1);d.acceptProposedAction()}}
+            DropArea{visible:win.activePage!=="library";x:tabStrip.width;width:Math.max(0,(win.childWindow?childTools.x:parent.width)-x);height:parent.height;keys:["application/x-corig-workspace"];onDropped:d=>{App.workspaces.acceptDrop(d.getDataAsString("application/x-corig-workspace"),win.hostId,-1);d.acceptProposedAction()}}
         }
         Item {
             objectName:"workspace.content";Layout.fillWidth:true;Layout.fillHeight:true;clip:true
@@ -173,8 +173,8 @@ ApplicationWindow {
         MenuItem { text: "移至新窗口"; onTriggered: App.workspaces.detach(tabMenu.key) }
         MenuItem { text: "关闭标签"; onTriggered: App.workspaces.closePage(tabMenu.key) }
     }
-    FileDialog { id: openProject; title: "打开工程"; nameFilters: ["COMTool-x 工程 (*.comtoolx)"]; onAccepted: App.invoke("project.open", {path: selectedFile.toString(), discard:true}) }
-    FileDialog { id: saveProject; title: "保存工程"; fileMode: FileDialog.SaveFile; defaultSuffix: "comtoolx"; nameFilters: ["COMTool-x 工程 (*.comtoolx)"]; onAccepted: { win.savingJob = App.invoke("project.save", {path: selectedFile.toString()}).job || "" } }
+    FileDialog { id: openProject; title: "打开工程"; nameFilters: ["CoRig 工程 (*.corig)"]; onAccepted: App.invoke("project.open", {path: selectedFile.toString(), discard:true}) }
+    FileDialog { id: saveProject; title: "保存工程"; fileMode: FileDialog.SaveFile; defaultSuffix: "corig"; nameFilters: ["CoRig 工程 (*.corig)"]; onAccepted: { win.savingJob = App.invoke("project.save", {path: selectedFile.toString()}).job || "" } }
     Dialog {
         id: unsaved; title: "工程有未保存修改"; modal: true; anchors.centerIn: parent; width: 400
         contentItem: Label { text: "保存当前工程后再继续？"; color: Theme.text; padding: 12 }
@@ -198,7 +198,7 @@ ApplicationWindow {
     }
     FileDialog { id: pythonFile; title: "选择本地 Python"; nameFilters: ["Python (python.exe python3.exe)", "所有文件 (*)"]; onAccepted: pythonInput.text = decodeURIComponent(selectedFile.toString().replace(/^file:\/\/\//, "")) }
     Dialog {
-        id: about; title: "COMTool-x 0.3"; width: 510; anchors.centerIn: parent; standardButtons: Dialog.Close
+        id: about; title: "联调 · CoRig 0.3"; width: 510; anchors.centerIn: parent; standardButtons: Dialog.Close
         Label { width: parent.width; wrapMode: Text.WrapAnywhere; color: Theme.text; text: "原生 C++ / Qt Quick 功能设计工作台\n\n本地接口：" + App.dataDirectory + "/.sessions/api.json\n\n五个工作区共享同一个工程与运行会话。可将标签拖出为独立窗口，也可拖回其他窗口。" }
     }
 }

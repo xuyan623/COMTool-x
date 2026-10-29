@@ -11,7 +11,7 @@
 #include <cmath>
 #include <numbers>
 
-namespace cx {
+namespace corig {
 NodeSurface::NodeSurface(QQuickItem *parent) : QQuickPaintedItem(parent) { setAntialiasing(true); }
 void NodeSurface::setGeometry(const QVariantMap &value) { if (geometry_ == value) return; geometry_ = value; update(); emit changed(); }
 void NodeSurface::setOutline(const QColor &value) { if (outline_ == value) return; outline_ = value; update(); emit changed(); }
@@ -255,7 +255,7 @@ QVariantMap NativePlot::exportImage(const QString &path, int width, int height) 
     try {
         if (path.isEmpty() || width < 100 || height < 100 || width > 8192 || height > 8192) throw Error("请选择文件，导出尺寸需要 100～8192");
         QImage raster; QSvgGenerator svg; std::unique_ptr<QPainter> painter;
-        if (path.endsWith(".svg",Qt::CaseInsensitive)) { svg.setFileName(path); svg.setSize({width,height}); svg.setViewBox(QRect(0,0,width,height)); svg.setTitle("COMTool-x 曲线"); painter = std::make_unique<QPainter>(&svg); }
+        if (path.endsWith(".svg",Qt::CaseInsensitive)) { svg.setFileName(path); svg.setSize({width,height}); svg.setViewBox(QRect(0,0,width,height)); svg.setTitle("CoRig 曲线"); painter = std::make_unique<QPainter>(&svg); }
         else { raster = QImage(width,height,QImage::Format_ARGB32_Premultiplied); painter = std::make_unique<QPainter>(&raster); }
         if (!painter->isActive()) throw Error("导出文件无法打开");
         painter->fillRect(QRect(0,0,width,height),QColor("#111923")); painter->setRenderHint(QPainter::Antialiasing);

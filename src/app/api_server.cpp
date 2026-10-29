@@ -12,7 +12,7 @@
 #include <QSaveFile>
 #include <QTimer>
 
-namespace cx {
+namespace corig {
 
 static void saveRecord(const QString &path, const QVariantMap &value)
 {
@@ -77,7 +77,7 @@ void ApiServer::publish()
     const auto directory = controller_.dataDirectory() + "/.sessions"; QDir().mkpath(directory + "/instances");
     discovery_ = directory + "/instances/api-" + QString::number(QCoreApplication::applicationPid()) + "-" + QString::number(serverPort()) + ".json";
     alias_ = directory + "/api.json";
-    record_ = {{"api_version",3},{"url","http://127.0.0.1:" + QString::number(serverPort())},{"token",token_},
+    record_ = {{"application","CoRig"},{"api_version",3},{"url","http://127.0.0.1:" + QString::number(serverPort())},{"token",token_},
         {"pid",QCoreApplication::applicationPid()},{"started_at",QDateTime::currentMSecsSinceEpoch() / 1000.}, {"discovery",discovery_}};
     QLockFile lock(directory + "/.api-discovery.lock"); if (!lock.tryLock(3000)) throw Error("本地连接信息正在更新");
     saveRecord(discovery_,record_); saveRecord(alias_,record_);

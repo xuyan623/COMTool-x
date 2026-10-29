@@ -4,7 +4,7 @@
 // discovery. Native and Python providers expose the same port/data contract.
 #include "value.h"
 
-namespace cx {
+namespace corig {
 
 struct Port {
     QString id, label, direction, type, unit;
@@ -27,4 +27,4 @@ private:
 
 QVariantMap checkedProperties(const QVariantMap &schema, const QVariantMap &changes, const QVariantMap &previous = {});
 
-} // namespace cx
+} // namespace corig

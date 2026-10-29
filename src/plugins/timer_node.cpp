@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace cx {
+namespace corig {
 
 TimerNode::TimerNode(QVariantMap design, QVariantMap definition, QVector<Port> ports, NodeHost host)
     : Node(std::move(design),std::move(definition),std::move(ports),std::move(host)) {}
@@ -62,4 +62,4 @@ NodeResult TimerNode::process(const Values &changes, const BatchContext &context
     result.rescheduleSource = true; return result;
 }
 
-} // namespace cx
+} // namespace corig

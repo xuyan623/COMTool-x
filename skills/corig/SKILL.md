@@ -1,17 +1,17 @@
 ---
-name: comtool-x
-description: 通过 COMTool-x 原生 v3 本地 API 编辑功能设计和界面、配置插件、运行调试并获取内部截图；不用于原版 COMTool。
+name: corig
+description: 通过联调 CoRig 的本地 API 创建工程、搭建功能与界面、配置插件、运行调试并获取内部截图。用于 CoRig 软件的实际操作与结果核验。
 ---
 
-# COMTool-x
+# 联调 · CoRig
 
 优先使用原生本地 API 完成设计、查询和运行控制。
 
 ## 连接与核对
 
-定位运行程序或用户指定的 --data-dir，读取其中 `.sessions/api.json`。凭据不得写入工程、日志或回答。原生程序仅监听本机，接口为 `GET /v3/schema`、`POST /v3/command`，全部需要认证。
+定位运行程序或用户指定的 --data-dir，读取其中 `.sessions/api.json`。凭据不得写入工程、日志或回答。原生程序仅监听本机，接口为 `GET /v3/schema`、`POST /v3/command`，全部需要认证。连接记录和 schema 必须声明 application=CoRig，拒绝其他产品或没有产品标识的旧记录。
 
-使用 `COMTool-x-cli.exe api <op> --json-file <path> --data-dir <dir> --wait`；简单参数可用 --json。CLI 不需要 Python；默认记录失效时探测 `.sessions/instances/` 的独立进程记录。一个工程的多个子窗口共享同一接口；多个程序实例先核对 app.state 的 project/path。
+使用 `CoRig-cli.exe api <op> --json-file <path> --data-dir <dir> --wait`；简单参数可用 --json。CLI 不需要 Python；默认记录失效时探测 `.sessions/instances/` 的独立进程记录。一个工程的多个子窗口共享同一接口；多个程序实例先核对 app.state 的 project/path。
 
 先读取 app.state、schema、registry 和 project.get，以真实节点/端口/属性/动作契约为准。异步 job 或控件回调返回的 jobs 必须通过 job.get 逐个等待 complete/failed，不能把提交成功当作执行成功；原生 CLI 的 --wait 支持两种返回形式。
 
@@ -23,11 +23,11 @@ description: 通过 COMTool-x 原生 v3 本地 API 编辑功能设计和界面�
 
 删除／替换前用 editor.plan 展示影响，确认后 editor.remove/replace 携带 confirmed=true 和 revision。editor.copy/paste 独立复制新 ID，外部连线不继承。功能属性只用 node.configure；界面外观和布局只用 ui.item.patch，不以界面参数覆盖功能初值。layout.canvas 的 width/height 为设计尺寸，grid_size 为 1～128 px；所有界面位置、尺寸及容器排列吸附网格，运行时整图等比缩放。对象栏保留文字缩进以表示容器层级。容器名称仅在对象层级显示，设计与运行均不显示容器标题，也不保留标题栏空间。
 
-project.validate 检查工程；capture 获取真实窗口或页面截图并查看本地图片，截图不能替代运行数据。目标窗口需要显示和恢复。共享引擎控件的 ID 是 execution.*，独立于当前工作区。
+project.validate 检查工程结构；graph.overlaps 单独查询节点重叠与间距警告，生成或调整布局后应确认结果为空。capture 获取真实窗口或页面截图并查看本地图片，截图不能替代运行数据。目标窗口需要显示和恢复。共享引擎控件的 ID 是 execution.*，独立于当前工作区。
 
 用 ui.item.schema 查询外观字段，ui.view.bind 修改已有视图绑定并保留布局。graph.connection.options 查询端口兼容性。editor.state/configure 按 page=graph/layout 查询／设置画布 zoom、pan_x、pan_y、left_width、right_width；侧栏宽度 0 表示收起，fit=true 适应画布，graph 的 animation 控制数据活动显示。它们只改显示状态。window.configure 设置窗口几何与 normal/minimized/maximized/fullscreen，可先恢复窗口再截图。
 
-project.save 保存用户指定的单文件 .comtoolx，未指定路径时默认写入程序数据目录的 project/。v3 工程携带用户插件、辅助文件、QML 和模型资源；官方 C++ 插件由程序提供，解释器路径仅在本机设置中。旧 v2 工程/插件不兼容。打开工程不自动运行、连接或发送。
+project.save 保存用户指定的单文件 .corig，未指定路径时默认写入程序数据目录的 project/。v3 工程携带用户插件、辅助文件、QML 和模型资源；官方 C++ 插件由程序提供，解释器路径仅在本机设置中。只读取 CoRig 新格式，不迁移旧工程或录制文件。打开工程不自动运行、连接或发送。
 
 ## 运行与观测
 
@@ -37,7 +37,7 @@ runtime.pause 保留实验，runtime.stop 释放连接并保留参数，runtime.
 
 控制信号统一为 boolean。按钮只发布 true；接收动作只处理本次新到达的 true，边沿识别由 logic.edge 完成。logic.and/or/not/nand/nor/xor/xnor 是七种逻辑门；source.timer 支持 periodic/countdown，start 重新计时，stop 停止。data.fork 默认 a/b 两路，outputs 名称列表限制 2～8；右栏使用数量控件。
 
-信号录制使用 data.record（原始字节日志仍为 data.recorder），同类型 in/out 始终直通，布尔 start/pause 控制采集；动作 start/pause/save(path)/reset。暂停时长从录制时间轴中扣除，信号内容原样保存为独立 .comtoolrec 文件，工程只保存设计。引擎重置清空未保存录制，插件不能豁免全局控制。
+信号录制使用 data.record（原始字节日志仍为 data.recorder），同类型 in/out 始终直通，布尔 start/pause 控制采集；动作 start/pause/save(path)/reset。暂停时长从录制时间轴中扣除，信号内容原样保存为独立 .corigrec 文件，工程只保存设计。引擎重置清空未保存录制，插件不能豁免全局控制。
 
 data.playback 的设计 path 是默认外部文件引用；load(path) 仅临时导入。导入保持待播放，不自动切换截断开关；cutoff(value=true) 屏蔽实时输入但不自动播放，play/pause 控制进度。seek(position秒) 截断时输出目标记录一次，step(direction=-1/1) 逐条并暂停，set_speed(value=0.125～16) 调倍速。关闭截断恢复直通并暂停文件；暂停、结束和读取错误保持截断。回放只发布信号，不恢复下游历史。reset 清除临时文件和进度，再按设计加载默认引用；外部文件内容不写入工程。
 

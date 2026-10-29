@@ -4,7 +4,7 @@
 // Only a validated candidate can become the visible/saved project.
 #include "core/project.h"
 
-namespace cx {
+namespace corig {
 struct EditResult {
     QVariantMap project;
     QVariant result;

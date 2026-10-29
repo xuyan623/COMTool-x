@@ -4,18 +4,18 @@
 #include <QUrl>
 #include <algorithm>
 
-namespace cx {
+namespace corig {
 IconProvider::IconProvider() : QQuickImageProvider(QQuickImageProvider::Image) {}
 
 QImage IconProvider::requestImage(const QString &id, QSize *size, const QSize &requested)
 {
     static const QHash<QString,QString> paths{
-        {"record",R"(<circle cx="12" cy="12" r="7" fill="{c}" stroke="none"/>)"},
+        {"record",R"(<circle corig="12" cy="12" r="7" fill="{c}" stroke="none"/>)"},
         {"save",R"(<path d="M4 3h13l4 4v14H3V3Z"/><path d="M7 3v6h10V3M7 21v-8h10v8"/>)"},
         {"open",R"(<path d="M3 7V4h7l3 3h8v3M3 7h9l2 3h7l-3 10H3Z"/>)"},
         {"rewind",R"(<path d="M5 4v16M19 5l-11 7 11 7Z"/>)"},
         {"export",R"(<path d="M12 15V3m-4 4 4-4 4 4M4 13v8h16v-8"/>)"},
-        {"follow",R"(<path d="M3 7h18M3 17h18M7 3v18m10-18v18"/><circle cx="12" cy="12" r="3"/>)"},
+        {"follow",R"(<path d="M3 7h18M3 17h18M7 3v18m10-18v18"/><circle corig="12" cy="12" r="3"/>)"},
         {"spectrum",R"(<path d="M3 21V3m0 18h19M7 21v-6m4 6V6m4 15V10m4 11v-5"/>)"},
         {"previous",R"(<path d="m15 5-7 7 7 7"/>)"},
         {"next",R"(<path d="m9 5 7 7-7 7"/>)"},
@@ -23,13 +23,13 @@ QImage IconProvider::requestImage(const QString &id, QSize *size, const QSize &r
         {"display",R"(<rect x="2" y="3" width="20" height="15" rx="2"/><path d="M8 22h8m-4-4v4M6 8h4m-4 5h12"/>)"},
         {"text-input",R"(<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 9h7M7 13h5m5-5v8m-2-8h4m-4 8h4"/>)"},
         {"button",R"(<rect x="3" y="6" width="18" height="13" rx="5"/><path d="M7 15h10M9 3h6"/>)"},
-        {"sliders",R"(<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/>)"},
+        {"sliders",R"(<path d="M4 7h16M4 17h16"/><circle corig="9" cy="7" r="3"/><circle corig="15" cy="17" r="3"/>)"},
         {"wave",R"(<path d="M2 13c3-12 7-12 10 0s7 12 10 0M3 21h18"/>)"},
-        {"clock",R"(<circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 3"/>)"},
+        {"clock",R"(<circle corig="12" cy="12" r="9"/><path d="M12 6v6l4 3"/>)"},
         {"connection",R"(<rect x="3" y="6" width="18" height="12" rx="3"/><path d="M7 10h10M7 14h3m4 0h3M8 3v3m8-3v3m-8 12v3m8-3v3"/>)"},
         {"decode",R"(<path d="m7 4-4 8 4 8M17 4l4 8-4 8M10 16l4-8"/>)"},
-        {"fork",R"(<path d="M3 12h8m0 0 6-7h4m-10 7 6 7h4"/><circle cx="3" cy="12" r="2"/>)"},
-        {"switch",R"(<path d="M3 16h5m8 0h5M8 16l8-9"/><circle cx="8" cy="16" r="2"/><circle cx="16" cy="16" r="2"/>)"},
+        {"fork",R"(<path d="M3 12h8m0 0 6-7h4m-10 7 6 7h4"/><circle corig="3" cy="12" r="2"/>)"},
+        {"switch",R"(<path d="M3 16h5m8 0h5M8 16l8-9"/><circle corig="8" cy="16" r="2"/><circle corig="16" cy="16" r="2"/>)"},
         {"attitude",R"(<path d="m12 2 3 8 7 4-1 2-7-2v5l3 2v1l-5-1-5 1v-1l3-2v-5l-7 2-1-2 7-4Z"/>)"},
         {"terminal",R"(<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m6 9 3 3-3 3m6 0h5"/>)"},
         {"sidebar-left",R"(<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>)"},

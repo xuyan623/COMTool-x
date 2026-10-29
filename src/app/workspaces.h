@@ -13,7 +13,7 @@
 #include <memory>
 
 class QQmlEngine;
-namespace cx {
+namespace corig {
 class Controller;
 
 class Workspaces final : public QObject {

@@ -11,7 +11,7 @@ static void initializePythonResource()
     Q_INIT_RESOURCE(python_worker);
 }
 
-namespace cx {
+namespace corig {
 
 PythonHost::PythonHost(std::function<bool()> interrupted) : interrupted_(std::move(interrupted)) {}
 PythonHost::~PythonHost() { close(); }
@@ -97,4 +97,4 @@ QVariantMap PythonHost::call(const QVariantMap &request)
     return response;
 }
 
-} // namespace cx
+} // namespace corig

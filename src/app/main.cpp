@@ -30,23 +30,24 @@ static void messageHandler(QtMsgType type, const QMessageLogContext &, const QSt
 int main(int argc, char **argv)
 {
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
-    QGuiApplication application(argc,argv); QCoreApplication::setOrganizationName("COMTool-x"); QCoreApplication::setApplicationName("COMTool-x"); QCoreApplication::setApplicationVersion("0.3.0");
+    QGuiApplication application(argc,argv); QCoreApplication::setOrganizationName("CoRig"); QCoreApplication::setApplicationName("CoRig"); QCoreApplication::setApplicationVersion("0.3.0");
+    application.setApplicationDisplayName(QStringLiteral("联调 · CoRig"));
     application.setQuitOnLastWindowClosed(false);
-    QCommandLineParser parser; parser.setApplicationDescription("COMTool-x 原生功能设计工作台"); parser.addHelpOption(); parser.addVersionOption();
+    QCommandLineParser parser; parser.setApplicationDescription("联调 · CoRig 工程调试工作台"); parser.addHelpOption(); parser.addVersionOption();
     parser.addOption({"data-dir","工程、设置和本地连接信息的目录","directory",QCoreApplication::applicationDirPath()});
     parser.addPositionalArgument("project","启动后打开的新版工程文件（不会自动运行）"); parser.process(application);
     const auto directory = QDir(parser.value("data-dir")).absolutePath(); QDir().mkpath(directory); logPath = directory + "/native.log"; qInstallMessageHandler(messageHandler);
     QQuickStyle::setStyle("Basic");
     application.setFont(QFont("Microsoft YaHei UI",10));
     application.setWindowIcon(QIcon(":/icon.svg"));
-    qmlRegisterType<cx::WireLayer>("ComToolX.Native",1,0,"WireLayer");
-    qmlRegisterType<cx::NodeSurface>("ComToolX.Native",1,0,"NodeSurface");
-    qmlRegisterType<cx::NativePlot>("ComToolX.Native",1,0,"NativePlot");
-    qmlRegisterType<cx::NativeAttitude>("ComToolX.Native",1,0,"NativeAttitude");
+    qmlRegisterType<corig::WireLayer>("CoRig.Native",1,0,"WireLayer");
+    qmlRegisterType<corig::NodeSurface>("CoRig.Native",1,0,"NodeSurface");
+    qmlRegisterType<corig::NativePlot>("CoRig.Native",1,0,"NativePlot");
+    qmlRegisterType<corig::NativeAttitude>("CoRig.Native",1,0,"NativeAttitude");
     try {
-        cx::Controller controller(directory); QQmlApplicationEngine qml;
-        qml.addImageProvider("icons",new cx::IconProvider);
-        QObject::connect(&application,&QCoreApplication::aboutToQuit,&controller,&cx::Controller::shutdown);
+        corig::Controller controller(directory); QQmlApplicationEngine qml;
+        qml.addImageProvider("icons",new corig::IconProvider);
+        QObject::connect(&application,&QCoreApplication::aboutToQuit,&controller,&corig::Controller::shutdown);
         controller.attachUi(&qml);
         const auto projects = parser.positionalArguments();
         if (!projects.isEmpty()) controller.invoke("project.open",{{"path",projects.first()}});

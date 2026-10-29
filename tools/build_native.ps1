@@ -21,7 +21,7 @@ foreach ($entry in $compilerEnvironment) {
 $env:PATH = "$QtPrefix\bin;$ninjaDir;$env:PATH"
 $buildPath = Join-Path $repoRoot 'build\native'
 $buildApplication = if ($CoreOnly) { 'OFF' } else { 'ON' }
-& cmake -S $repoRoot -B $buildPath -G Ninja "-DCMAKE_BUILD_TYPE=$Configuration" "-DCMAKE_PREFIX_PATH=$QtPrefix" "-DCX_BUILD_APP=$buildApplication"
+& cmake -S $repoRoot -B $buildPath -G Ninja "-DCMAKE_BUILD_TYPE=$Configuration" "-DCMAKE_PREFIX_PATH=$QtPrefix" "-DCORIG_BUILD_APP=$buildApplication"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 & cmake --build $buildPath --parallel 4
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

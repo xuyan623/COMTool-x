@@ -24,9 +24,9 @@ def create_design(client: Client):
         ('rec', 'data.record', {'data_type': 'samples'}, [640, 16]),
         ('play', 'data.playback', {'data_type': 'samples'}, [960, 16]),
         ('branch', 'data.fork', {'data_type': 'samples'}, [1280, 16]),
-        ('extract', 'data.extract', {'channels': {'roll': 'roll', 'pitch': 'pitch', 'yaw': 'yaw'}}, [1580, 300]),
-        ('plot', 'plot.curves', {'inputs': [], 'channels': ['sine', 'cosine'], 'window_seconds': 5}, [1580, 16]),
-        ('attitude', 'plot.attitude', {'angle_unit': 'deg'}, [1920, 300]),
+        ('extract', 'data.extract', {'channels': {'roll': 'roll', 'pitch': 'pitch', 'yaw': 'yaw'}}, [1640, 300]),
+        ('plot', 'plot.curves', {'inputs': [], 'channels': ['sine', 'cosine'], 'window_seconds': 5}, [1640, 16]),
+        ('attitude', 'plot.attitude', {'angle_unit': 'deg'}, [2000, 300]),
         ('start', 'control.button', {'label': '录制 5 秒'}, [16, 600]),
         ('start_branch', 'data.fork', {'data_type': 'boolean'}, [320, 600]),
         ('timer', 'source.timer', {'mode': 'countdown', 'interval_ms': 5000}, [640, 600]),
@@ -90,6 +90,7 @@ def main():
     check(all('logic.' + op in specs for op in ('and', 'or', 'not', 'nand', 'nor', 'xor', 'xnor', 'edge')), 'all logic gates and edge detection are discoverable')
     check(all(port['data_type'] != 'trigger' for entry in registry for port in entry['ports']), 'control signals expose boolean types throughout the registry')
     check(create_design(client)['valid'], 'complete recording, timer, split and instrument design validates')
+    check(not client.call('graph.overlaps'), 'recording example has no node spacing warnings')
     window = client.call('app.state')['workspaces']['windows'][0]['id']
     client.call('window.configure', {'window': window, 'state': 'normal', 'width': 1420, 'height': 950})
     for _ in range(100):
@@ -97,7 +98,7 @@ def main():
             break
         time.sleep(.02)
     check(client.call('app.state')['workspaces']['windows'][0]['frame_count'] > 0, 'native window restoration starts actual rendering before capture')
-    client.call('project.save', {'path': str(output / 'RecordPlayback.comtoolx')})
+    client.call('project.save', {'path': str(output / 'RecordPlayback.corig')})
     client.call('workspace.open', {'page': 'runtime'})
     client.call('controls.click', {'id': 'execution.run'})
     time.sleep(.15)
@@ -116,7 +117,7 @@ def main():
     check(live['outputs']['out'] == live['inputs']['in'], 'recorder and unloaded playback preserve the original live stream')
     client.call('controls.click', {'id': 'recording.rec.toggle'})
     wait_for('rec', lambda s: s['records'] > paused['records'] + 8)
-    capture = output / 'capture.comtoolrec'
+    capture = output / 'capture.corigrec'
     saved = client.call('node.action', {'node': 'rec', 'action': 'save', 'args': {'path': capture.as_uri()}})
     check(capture.is_file() and saved['saved'] and not saved['recording'], 'finish-and-save creates an independent recording file')
     check(saved['duration'] < time.monotonic() - wall_start - .12, 'paused wall time is excluded from the capture timeline')
@@ -180,14 +181,14 @@ def main():
     restored = state('play')
     check(restored['path'] == str(capture).replace('\\', '/') and not restored['cutoff'] and not restored['playing'], 'engine reset reloads the design default in bypass and standby')
     check(state('rec')['records'] == 0 and not state('rec')['recording'], 'engine reset clears unfinished recording without plugin exceptions')
-    temporary = output / 'temporary.comtoolrec'
+    temporary = output / 'temporary.corigrec'
     shutil.copyfile(capture, temporary)
     client.call('node.action', {'node': 'play', 'action': 'load', 'args': {'path': temporary.as_uri()}})
     check(Path(state('play')['path']) == temporary, 'runtime file import is allowed while the engine is idle')
     client.call('runtime.reset')
     check(Path(state('play')['path']) == capture, 'temporary import is discarded by reset in favor of the design default')
     client.call('node.configure', {'node': 'play', 'changes': {'path': ''}, 'persist': True})
-    destination = args.example.resolve() if args.example else output / 'RecordPlayback.comtoolx'
+    destination = args.example.resolve() if args.example else output / 'RecordPlayback.corig'
     destination.parent.mkdir(parents=True, exist_ok=True)
     client.call('project.save', {'path': str(destination)})
     project = client.call('project.get')

@@ -69,12 +69,16 @@ def main():
             c.call('ui.item.patch', {'id': views['time'], 'properties': {'width': 320, 'height': 112}})
         if not c.call('project.validate')['valid']:
             raise AssertionError(name + ' does not validate')
-        destination = (args.output / (name + '.comtoolx')).resolve()
+        if c.call('graph.overlaps'):
+            raise AssertionError(name + ' has node spacing warnings')
+        destination = (args.output / (name + '.corig')).resolve()
         c.call('project.save', {'path': str(destination)})
         print(destination, flush=True)
     from native_recording_check import create_design
     create_design(c)
-    destination = (args.output / 'RecordPlayback.comtoolx').resolve()
+    if c.call('graph.overlaps'):
+        raise AssertionError('RecordPlayback has node spacing warnings')
+    destination = (args.output / 'RecordPlayback.corig').resolve()
     c.call('project.save', {'path': str(destination)})
     print(destination, flush=True)
 

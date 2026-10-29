@@ -4,7 +4,7 @@
 #include <QUrl>
 #include <algorithm>
 
-namespace cx {
+namespace corig {
 namespace {
 // File dialogs and structured actions accept local URLs or filesystem paths.
 QString localPath(const QString &value)
@@ -214,4 +214,4 @@ NodeResult PlaybackNode::process(const Values &changes, const BatchContext &cont
     result.rescheduleSource = true; return result;
 }
 
-} // namespace cx
+} // namespace corig

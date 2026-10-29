@@ -8,7 +8,7 @@
 #include <numbers>
 #include <numeric>
 
-namespace cx {
+namespace corig {
 static constexpr double Pi = std::numbers::pi;
 
 MathNode::MathNode(QVariantMap design, QVariantMap definition, QVector<Port> ports, NodeHost host)
@@ -219,4 +219,4 @@ QVariantMap MathNode::snapshot(bool detailed) const
     return result;
 }
 
-} // namespace cx
+} // namespace corig

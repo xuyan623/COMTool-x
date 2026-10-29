@@ -1,6 +1,6 @@
 #include "logic_node.h"
 
-namespace cx {
+namespace corig {
 
 LogicNode::LogicNode(QVariantMap design, QVariantMap definition, QVector<Port> ports, NodeHost host)
     : Node(std::move(design),std::move(definition),std::move(ports),std::move(host))
@@ -49,4 +49,4 @@ NodeResult LogicNode::process(const Values &changes, const BatchContext &, bool)
     return NodeResult::output({{"out",value}});
 }
 
-} // namespace cx
+} // namespace corig

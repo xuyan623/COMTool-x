@@ -4,7 +4,7 @@
 #include <QUrl>
 #include <algorithm>
 
-namespace cx {
+namespace corig {
 
 // Design assets are embedded; captured data stays external and only its local
 // path is normalized. Both node creation and configuration use this policy.
@@ -205,4 +205,4 @@ EditResult editProject(QVariantMap project, const Catalog &catalog, const QStrin
     return edit;
 }
 
-} // namespace cx
+} // namespace corig

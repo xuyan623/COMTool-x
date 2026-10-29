@@ -4,7 +4,7 @@
 #include <QTextCodec>
 #include <optional>
 
-namespace cx {
+namespace corig {
 
 QByteArray encodeText(const QString &text, const QString &encoding = "utf-8", bool hex = false, bool escape = false, const QString &newline = "None");
 QString decodeText(const QByteArray &bytes, const QString &encoding);
@@ -32,4 +32,4 @@ private:
 
 std::unique_ptr<Node> makePythonNode(QVariantMap design, QVariantMap definition, QVector<Port> ports, NodeHost host);
 
-} // namespace cx
+} // namespace corig

@@ -12,7 +12,7 @@
 #include <QCursor>
 #include <windows.h>
 
-namespace cx {
+namespace corig {
 static const QMap<QString,QString> Titles{{"graph","功能设计"},{"layout","界面设计"},{"runtime","运行界面"},{"logs","日志"},{"library","插件库"}};
 static const QMap<QString,QString> Components{{"graph","GraphPage"},{"layout","LayoutPage"},{"runtime","RuntimePage"},{"logs","LogPage"},{"library","LibraryPage"}};
 
@@ -28,7 +28,7 @@ Workspaces::~Workspaces()
 QString Workspaces::createWindow(const QPoint &position, bool child)
 {
     const auto id = newId("window");
-    QQmlComponent component(engine_,QUrl("qrc:/qt/qml/ComToolX/WorkspaceWindow.qml"));
+    QQmlComponent component(engine_,QUrl("qrc:/qt/qml/CoRig/WorkspaceWindow.qml"));
     const auto object = component.createWithInitialProperties({{"hostId",id},{"childWindow",child}});
     const auto window = qobject_cast<QQuickWindow *>(object);
     if (!window) { delete object; throw Error("窗口创建失败：" + component.errorString()); }
@@ -57,7 +57,7 @@ QQuickItem *Workspaces::ensurePage(const QString &key)
 {
     if (!Components.contains(key)) throw Error("未知工作区：" + key);
     if (pages_.value(key)) return pages_.value(key);
-    QQmlComponent component(engine_,QUrl("qrc:/qt/qml/ComToolX/" + Components.value(key) + ".qml"));
+    QQmlComponent component(engine_,QUrl("qrc:/qt/qml/CoRig/" + Components.value(key) + ".qml"));
     const auto object = component.create(); auto item = qobject_cast<QQuickItem *>(object);
     if (!item) { delete object; throw Error("页面创建失败：" + component.errorString()); }
     item->setParent(this); item->setVisible(false); pages_.insert(key,item); return item;
@@ -169,7 +169,7 @@ void Workspaces::dragPage(const QString &key)
 {
     if (owningHost(key).isEmpty()) return;
     QDrag drag(this); auto mime = new QMimeData;
-    mime->setData("application/x-comtoolx-workspace",QJsonDocument::fromVariant(QVariantMap{{"session",session_},{"page",key}}).toJson(QJsonDocument::Compact)); drag.setMimeData(mime);
+    mime->setData("application/x-corig-workspace",QJsonDocument::fromVariant(QVariantMap{{"session",session_},{"page",key}}).toJson(QJsonDocument::Compact)); drag.setMimeData(mime);
     QPixmap preview(170,34); preview.fill(QColor("#243446")); QPainter painter(&preview); painter.setPen(QColor("#E6EDF5")); painter.drawText(preview.rect().adjusted(12,0,-8,0),Qt::AlignVCenter,Titles.value(key)); painter.end();
     drag.setPixmap(preview); drag.setHotSpot({50,17});
     const auto result = drag.exec(Qt::MoveAction);
@@ -242,4 +242,4 @@ void Workspaces::promoteMain()
     synchronize();
 }
 
-} // namespace cx
+} // namespace corig

@@ -5,7 +5,7 @@
 #include <QTcpServer>
 #include <QVariantMap>
 
-namespace cx {
+namespace corig {
 class Controller;
 class ApiServer final : public QTcpServer {
 public:

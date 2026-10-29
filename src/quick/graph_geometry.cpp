@@ -4,7 +4,7 @@
 #include <QSet>
 #include <cmath>
 
-namespace cx {
+namespace corig {
 
 QVariantMap nodeGeometry(const QVariantMap &node, const Catalog &catalog)
 {
@@ -140,4 +140,4 @@ QVariantList graphLayout(const QVariantMap &project, const Catalog &catalog)
     return result;
 }
 
-} // namespace cx
+} // namespace corig

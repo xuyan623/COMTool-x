@@ -9,7 +9,7 @@
 #include <QSet>
 #include <stdexcept>
 
-namespace cx {
+namespace corig {
 
 class Error final : public std::runtime_error {
 public:
@@ -28,4 +28,4 @@ bool valueMatches(const QVariant &value, const QString &type);
 QVariantList sampleFrames(const QVariant &value);
 QString newId(const QString &prefix);
 
-} // namespace cx
+} // namespace corig

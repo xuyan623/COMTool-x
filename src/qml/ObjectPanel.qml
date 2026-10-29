@@ -57,10 +57,10 @@ Rectangle {
                     IconButton{width:24;height:28;visible:!row.modelData.pending;symbol:"withdraw";text:"撤下";enabled:!App.readOnly;onClicked:{root.picked(row.modelData.id,0);root.editRequested("withdraw")}}
                 }
                 DropArea {
-                    anchors.fill:parent;enabled:!row.modelData.heading;keys:["application/x-comtoolx-object"]
-                    onEntered:drag=>{const payload=JSON.parse(drag.getDataAsString("application/x-comtoolx-object"));drag.accepted=payload.page===root.page;layerMark.visible=drag.accepted}
+                    anchors.fill:parent;enabled:!row.modelData.heading;keys:["application/x-corig-object"]
+                    onEntered:drag=>{const payload=JSON.parse(drag.getDataAsString("application/x-corig-object"));drag.accepted=payload.page===root.page;layerMark.visible=drag.accepted}
                     onExited:layerMark.visible=false
-                    onDropped:drop=>{layerMark.visible=false;const payload=JSON.parse(drop.getDataAsString("application/x-comtoolx-object"));if(payload.page===root.page){App.invoke("editor.reorder",{page:root.page,id:payload.id,index:row.modelData.index});drop.acceptProposedAction()}}
+                    onDropped:drop=>{layerMark.visible=false;const payload=JSON.parse(drop.getDataAsString("application/x-corig-object"));if(payload.page===root.page){App.invoke("editor.reorder",{page:root.page,id:payload.id,index:row.modelData.index});drop.acceptProposedAction()}}
                 }
                 Rectangle{id:layerMark;visible:false;anchors.top:parent.top;width:parent.width;height:2;color:Theme.blue}
             }

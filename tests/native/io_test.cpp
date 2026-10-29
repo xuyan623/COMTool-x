@@ -10,9 +10,9 @@ class IoTest : public QObject {
 private slots:
     void softwareLoopback()
     {
-        cx::IoHub hub; QByteArray received; QMutex guard;
-        hub.setCallbacks([&](const QString &, const cx::Values &values) { QMutexLocker lock(&guard); received += values.value("rx").toByteArray(); },{});
-        cx::Catalog catalog;
+        corig::IoHub hub; QByteArray received; QMutex guard;
+        hub.setCallbacks([&](const QString &, const corig::Values &values) { QMutexLocker lock(&guard); received += values.value("rx").toByteArray(); },{});
+        corig::Catalog catalog;
         const auto config = catalog.checkedConfig("io.serial",{{"port","loop://"}});
         QVERIFY(hub.transact("serial","connect",{{"kind","io.serial"},{"config",config}}).value("connected").toBool());
         const QByteArray bytes("\0abc\xff\r\n",7);
@@ -20,15 +20,15 @@ private slots:
         QCOMPARE(state.value("tx_bytes").toULongLong(),7u); QCOMPARE(state.value("rx_bytes").toULongLong(),7u);
         { QMutexLocker lock(&guard); QCOMPARE(received,bytes); }
         QVERIFY(!hub.transact("serial","disconnect",{}).value("connected").toBool());
-        QVERIFY_THROWS_EXCEPTION(cx::Error,hub.transact("serial","send",{{"data",bytes}}));
+        QVERIFY_THROWS_EXCEPTION(corig::Error,hub.transact("serial","send",{{"data",bytes}}));
     }
 
     void tcpAndUdp()
     {
         for (const auto &protocol : {QString("tcp"),QString("udp")}) {
-            cx::IoHub hub; QMutex guard; QHash<QString,QByteArray> received;
-            hub.setCallbacks([&](const QString &id, const cx::Values &values) { QMutexLocker lock(&guard); received[id] += values.value("rx").toByteArray(); },{});
-            cx::Catalog catalog;
+            corig::IoHub hub; QMutex guard; QHash<QString,QByteArray> received;
+            hub.setCallbacks([&](const QString &id, const corig::Values &values) { QMutexLocker lock(&guard); received[id] += values.value("rx").toByteArray(); },{});
+            corig::Catalog catalog;
             auto server = catalog.checkedConfig("io.network",{{"protocol",protocol},{"mode","server"},{"host","127.0.0.1"}});
             // Let the OS choose a free test port; user-facing configuration
             // still requires an explicit destination/listen port.
@@ -48,9 +48,9 @@ private slots:
 
     void sshFailureIsReported()
     {
-        cx::IoHub hub; cx::Catalog catalog;
+        corig::IoHub hub; corig::Catalog catalog;
         auto config = catalog.checkedConfig("io.ssh",{{"host","127.0.0.1"},{"port",1}});
-        QVERIFY_THROWS_EXCEPTION(cx::Error,hub.transact("ssh","connect",{{"kind","io.ssh"},{"config",config}}));
+        QVERIFY_THROWS_EXCEPTION(corig::Error,hub.transact("ssh","connect",{{"kind","io.ssh"},{"config",config}}));
         const auto state = hub.transact("ssh","status",{}); QVERIFY(!state.value("connected").toBool()); QVERIFY(!state.value("last_error").toString().isEmpty());
     }
 };

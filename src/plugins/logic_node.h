@@ -2,7 +2,7 @@
 
 #include "core/node.h"
 
-namespace cx {
+namespace corig {
 
 // Boolean gates retain input levels; edge detection publishes one true update
 // per selected transition. No distinct event type or hidden polling is used.
@@ -18,4 +18,4 @@ private:
     bool previous_ = false;
 };
 
-} // namespace cx
+} // namespace corig

@@ -5,7 +5,7 @@
 #include "core/value.h"
 #include <memory>
 
-namespace cx {
+namespace corig {
 class SshSession {
 public:
     SshSession();

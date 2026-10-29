@@ -6,7 +6,7 @@
 #include <QSaveFile>
 #include <QDateTime>
 
-namespace cx {
+namespace corig {
 
 DataNode::DataNode(QVariantMap design, QVariantMap definition, QVector<Port> ports, NodeHost host)
     : Node(std::move(design),std::move(definition),std::move(ports),std::move(host))
@@ -252,4 +252,4 @@ QVariantMap DataNode::view(const QString &name, const QVariantMap &args) const
     return {{"text",text},{"cursor",receivedTotal_},{"first_cursor",receivedTotal_ - received_.size()},{"send_text",render(transmitted_.right(limit))},{"state",state_}};
 }
 
-} // namespace cx
+} // namespace corig

@@ -6,7 +6,7 @@
 #include <QThread>
 #include <atomic>
 
-namespace cx {
+namespace corig {
 class IoWorker;
 class IoHub {
 public:

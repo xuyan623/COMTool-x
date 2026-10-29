@@ -175,10 +175,10 @@ Item {
                 }
                 Rectangle{visible:!!root.placement.id||!!root.placement.plugin;z:40;x:root.panX+root.cursorWorld.x*root.zoom;y:root.panY+root.cursorWorld.y*root.zoom;width:Math.min(320,root.designWidth)*root.zoom;height:160*root.zoom;color:"#303D80AC";border.color:Theme.blue;Label{anchors.centerIn:parent;text:root.placement.plugin?(App.definition(root.placement.plugin).name||"容器"):(App.uiItem(root.placement.id).properties||{}).title||"放置对象";color:Theme.text}}
                 DropArea {
-                    anchors.fill:parent;keys:["application/x-comtoolx-object","application/x-comtoolx-plugin","application/x-comtoolx-ui"]
+                    anchors.fill:parent;keys:["application/x-corig-object","application/x-corig-plugin","application/x-corig-ui"]
                     onPositionChanged:drag=>{const point=root.worldPoint(drag.x,drag.y);root.targetId=root.locateTarget(point,root.selection);root.insertionIndex=root.insertion(point,root.targetId)}
                     onExited:{root.targetId="";root.insertionIndex=-1}
-                    onDropped:drop=>{if(drop.formats.indexOf("application/x-comtoolx-object")>=0){const payload=JSON.parse(drop.getDataAsString("application/x-comtoolx-object"));if(payload.page!=="layout")return;root.placement={id:payload.id}}else if(drop.formats.indexOf("application/x-comtoolx-ui")>=0){root.placement={id:drop.getDataAsString("application/x-comtoolx-ui")}}else{root.placement={plugin:drop.getDataAsString("application/x-comtoolx-plugin")}}root.finishPlacement(root.worldPoint(drop.x,drop.y));drop.acceptProposedAction()}
+                    onDropped:drop=>{if(drop.formats.indexOf("application/x-corig-object")>=0){const payload=JSON.parse(drop.getDataAsString("application/x-corig-object"));if(payload.page!=="layout")return;root.placement={id:payload.id}}else if(drop.formats.indexOf("application/x-corig-ui")>=0){root.placement={id:drop.getDataAsString("application/x-corig-ui")}}else{root.placement={plugin:drop.getDataAsString("application/x-corig-plugin")}}root.finishPlacement(root.worldPoint(drop.x,drop.y));drop.acceptProposedAction()}
                 }
             }
             Inspector{id:inspector;page:"layout";objectName:"layout.inspector";SplitView.preferredWidth:306;SplitView.minimumWidth:0;SplitView.maximumWidth:520;clip:true}

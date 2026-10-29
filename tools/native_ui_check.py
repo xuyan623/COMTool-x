@@ -20,6 +20,8 @@ class Client:
 
     def __init__(self, directory):
         record = json.loads((Path(directory) / ".sessions/api.json").read_text("utf-8"))
+        if record.get('application') != 'CoRig' or record.get('api_version') != 3:
+            raise RuntimeError('Connection record does not identify the current CoRig application')
         self.url, self.token = record["url"], record["token"]
 
     def call(self, operation, arguments=None, *, wait=True):
@@ -187,7 +189,7 @@ def main():
     client.call("workspace.move", {"page": "runtime", "window": main_id})
     check(client.call("runtime.state")["active"], "moving and closing child windows preserves the shared session")
     client.call("runtime.stop")
-    client.call("project.save", {"path": str(output / "InterfaceAcceptance.comtoolx")})
+    client.call("project.save", {"path": str(output / "InterfaceAcceptance.corig")})
     client.call("workspace.open", {"page": "graph"})
     client.call("graph.select", {"id": "sine"})
     (output / "result.json").write_text(json.dumps({"checks": checks, "count": len(checks)}, ensure_ascii=False, indent=2), "utf-8")

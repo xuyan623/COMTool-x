@@ -5,7 +5,7 @@
 #include <bit>
 #include <cmath>
 
-namespace cx {
+namespace corig {
 
 QByteArray checkedHex(const QString &text)
 {
@@ -115,8 +115,8 @@ QVariantMap ProtocolNode::numericFrame(QVector<double> values, double arrival)
 
 std::optional<QVariantMap> ProtocolNode::decodeFrame(const QString &format, double arrival)
 {
-    if (format == "firewater" || format == "comtool_ascii") {
-        if (format == "comtool_ascii") {
+    if (format == "firewater" || format == "named_ascii") {
+        if (format == "named_ascii") {
             const auto start = buffer_.indexOf('$');
             if (start < 0) { buffer_.clear(); return {}; }
             buffer_.remove(0,start);
@@ -124,18 +124,18 @@ std::optional<QVariantMap> ProtocolNode::decodeFrame(const QString &format, doub
         const auto end = buffer_.indexOf('\n');
         if (end < 0) return {};
         auto line = buffer_.left(end).trimmed(); buffer_.remove(0,end + 1);
-        if (format == "comtool_ascii") {
+        if (format == "named_ascii") {
             line = line.mid(line.lastIndexOf('$'));
             const auto parts = line.mid(1).split(',');
-            if (parts.size() != 3 && parts.size() != 4) throw Error("COMTool ASCII 需要 $name,time,value[,checksum]");
+            if (parts.size() != 3 && parts.size() != 4) throw Error("命名 ASCII 需要 $name,time,value[,checksum]");
             if (parts.size() == 4) {
                 int checksum = 0; for (const auto byte : line.left(line.lastIndexOf(','))) checksum += static_cast<unsigned char>(byte);
                 bool ok; const auto expected = parts[3].toInt(&ok);
-                if (!ok || checksum % 256 != expected) throw Error("COMTool ASCII 校验失败");
+                if (!ok || checksum % 256 != expected) throw Error("命名 ASCII 校验失败");
             }
             bool timeOk, valueOk;
             const auto time = parts[1].toDouble(&timeOk), value = parts[2].toDouble(&valueOk);
-            if (!timeOk || !valueOk || parts[0].isEmpty()) throw Error("COMTool ASCII 数值或名称无效");
+            if (!timeOk || !valueOk || parts[0].isEmpty()) throw Error("命名 ASCII 数值或名称无效");
             return QVariantMap{{"time",time * timeUnit(config_.value("timestamp_unit").toString())}, {"values",QVariantMap{{QString::fromUtf8(parts[0]),value}}}};
         }
         if (line.startsWith("image:")) throw Error("当前解码器只接收数值采样帧");
@@ -162,7 +162,7 @@ std::optional<QVariantMap> ProtocolNode::decodeFrame(const QString &format, doub
     if (buffer_.size() < length) return {};
     const auto frame = buffer_.left(length);
     int checksum = 0; for (const auto byte : frame.first(length - 1)) checksum += static_cast<unsigned char>(byte);
-    if (!nameLength || checksum % 256 != static_cast<unsigned char>(frame.back())) { buffer_.remove(0,1); throw Error("COMTool 二进制校验失败"); }
+    if (!nameLength || checksum % 256 != static_cast<unsigned char>(frame.back())) { buffer_.remove(0,1); throw Error("命名二进制校验失败"); }
     buffer_.remove(0,length);
     const auto time = std::bit_cast<double>(qFromLittleEndian<quint64>(frame.constData() + length - 17));
     const auto value = std::bit_cast<double>(qFromLittleEndian<quint64>(frame.constData() + length - 9));
@@ -293,4 +293,4 @@ std::unique_ptr<Node> makePythonNode(QVariantMap design, QVariantMap definition,
     return std::make_unique<PythonNode>(std::move(design),std::move(definition),std::move(ports),std::move(host));
 }
 
-} // namespace cx
+} // namespace corig

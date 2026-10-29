@@ -10,7 +10,7 @@
 #include <cmath>
 #include <map>
 
-namespace cx {
+namespace corig {
 
 static QStringList plotColors{"#66B4F4","#F3AB65","#83CFAD","#D992BB","#B2A1EA","#E1CB78","#67C9C4","#E88F8F"};
 
@@ -237,4 +237,4 @@ std::unique_ptr<Node> makeInstrumentNode(QVariantMap design, QVariantMap definit
     throw Error("未知仪表类型：" + type);
 }
 
-} // namespace cx
+} // namespace corig

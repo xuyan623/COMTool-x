@@ -9,7 +9,7 @@
 #include <QPainterPath>
 #include <QQuickPaintedItem>
 
-namespace cx {
+namespace corig {
 
 // The same cut-out silhouette paints the graph card and library preview. The
 // final stroke is always above all three fills, including the selected top edge.

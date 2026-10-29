@@ -7,7 +7,7 @@
 #include "plugins/protocol_node.h"
 #include "plugins/instrument_node.h"
 
-namespace cx {
+namespace corig {
 
 NodeResult NodeResult::output(const Values &values)
 {
@@ -105,4 +105,4 @@ std::unique_ptr<Node> makeNode(const QVariantMap &design, const Catalog &catalog
     return std::make_unique<DataNode>(normalized, definition, ports, host);
 }
 
-} // namespace cx
+} // namespace corig

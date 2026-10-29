@@ -3,7 +3,7 @@
 #include <QPointF>
 #include <cmath>
 
-namespace cx {
+namespace corig {
 
 QVariant toJsonValue(const QVariant &value)
 {
@@ -119,4 +119,4 @@ QString newId(const QString &prefix)
     return prefix + "_" + QUuid::createUuid().toString(QUuid::Id128).left(12);
 }
 
-} // namespace cx
+} // namespace corig

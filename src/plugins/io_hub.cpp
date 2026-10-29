@@ -15,7 +15,7 @@
 #include <future>
 #include <windows.h>
 
-namespace cx {
+namespace corig {
 
 struct Device {
     QString id, kind;
@@ -296,4 +296,4 @@ void IoHub::shutdown()
     thread_.quit(); thread_.wait(); worker_ = nullptr;
 }
 
-} // namespace cx
+} // namespace corig

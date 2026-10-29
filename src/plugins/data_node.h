@@ -4,7 +4,7 @@
 #include <QFile>
 #include <deque>
 
-namespace cx {
+namespace corig {
 
 // Controls, explicit routing and byte tools share no hidden timing loop. IO
 // belongs to the host's separate event thread and reports actual completion.
@@ -31,4 +31,4 @@ private:
     double periodicInterval_ = -1.;
 };
 
-} // namespace cx
+} // namespace corig

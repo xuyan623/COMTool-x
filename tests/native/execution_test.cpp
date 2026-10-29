@@ -22,9 +22,9 @@ static QVariantMap wire(const QString &id, const QString &a, const QString &ap, 
     return {{"id",id},{"source",QVariantList{a,ap}},{"target",QVariantList{b,bp}}};
 }
 
-static QVariant request(cx::Engine &engine, const QString &operation, const QVariantMap &args = {})
+static QVariant request(corig::Engine &engine, const QString &operation, const QVariantMap &args = {})
 {
-    QSignalSpy spy(&engine,&cx::Engine::completed);
+    QSignalSpy spy(&engine,&corig::Engine::completed);
     const auto id = engine.submit(operation,args);
     QElapsedTimer timer; timer.start();
     while (timer.elapsed() < 5000) {
@@ -55,10 +55,10 @@ private slots:
 
 void ExecutionTest::nativeCatalogConstructs()
 {
-    cx::Catalog catalog;
+    corig::Catalog catalog;
     for (const auto &entry : catalog.describe()) {
         const auto spec = entry.toMap();
-        const auto instance = cx::makeNode(node("test",spec.value("id").toString()),catalog,{});
+        const auto instance = corig::makeNode(node("test",spec.value("id").toString()),catalog,{});
         QVERIFY2(instance != nullptr,qPrintable(spec.value("id").toString()));
         QCOMPARE(instance->kind(),spec.value("id").toString());
     }
@@ -66,11 +66,11 @@ void ExecutionTest::nativeCatalogConstructs()
 
 void ExecutionTest::coherentBranchesAndSteps()
 {
-    auto project = cx::emptyProject();
+    auto project = corig::emptyProject();
     project["nodes"] = QVariantList{node("source","source.constant",{{"values",QVariantMap{{"a",.3},{"b",.3}}}}),node("sin","function.sin"),node("cos","function.cos"),
         node("sum","function.add",{{"inputs",QVariantList{"a","b"}}}),node("plot","plot.curves",{{"inputs",QVariantList{"value"}}})};
     project["wires"] = QVariantList{wire("a","source","a","sin","x"),wire("b","source","b","cos","x"),wire("c","sin","out","sum","a"),wire("d","cos","out","sum","b"),wire("e","sum","out","plot","value")};
-    cx::Engine engine({}); request(engine,"project.apply",{{"project",project}}); request(engine,"runtime.start");
+    corig::Engine engine({}); request(engine,"project.apply",{{"project",project}}); request(engine,"runtime.start");
     QTRY_VERIFY_WITH_TIMEOUT(engine.observation().value("processed").toULongLong() > 1000,3000);
     request(engine,"runtime.pause");
     const auto state = engine.observation();
@@ -93,15 +93,15 @@ void ExecutionTest::coherentBranchesAndSteps()
 
 void ExecutionTest::disconnectedReadySourceSleeps()
 {
-    auto p = cx::emptyProject(); p["nodes"] = QVariantList{node("constant","source.constant")};
-    cx::Engine engine({}); request(engine,"project.apply",{{"project",p}}); request(engine,"runtime.start");
+    auto p = corig::emptyProject(); p["nodes"] = QVariantList{node("constant","source.constant")};
+    corig::Engine engine({}); request(engine,"project.apply",{{"project",p}}); request(engine,"runtime.start");
     QTest::qWait(80); QCOMPARE(engine.observation().value("processed").toULongLong(),0ull); request(engine,"runtime.stop");
 }
 
 void ExecutionTest::historyAndExpression()
 {
-    cx::Catalog catalog;
-    auto integral = cx::makeNode(node("i","function.integral"),catalog,{});
+    corig::Catalog catalog;
+    auto integral = corig::makeNode(node("i","function.integral"),catalog,{});
     integral->setConnections({"x","t"});
     integral->execute({{"x",2.},{"t",0.}}, {},{1,0.,false,true});
     integral->execute({{"x",2.},{"t",1.}}, {},{2,1.,false,false});
@@ -111,17 +111,17 @@ void ExecutionTest::historyAndExpression()
     QCOMPARE(integral->outputs().value("out").toDouble(),2.);
     integral->execute({{"x",2.},{"t",6.}}, {},{4,2.,true,false});
     QCOMPARE(integral->outputs().value("out").toDouble(),4.);
-    auto expression = cx::makeNode(node("f","function.expression",{{"inputs",QVariantList{"x","y"}},{"outputs",QVariantMap{{"a","x+y"},{"b","x*y"}}}}),catalog,{});
+    auto expression = corig::makeNode(node("f","function.expression",{{"inputs",QVariantList{"x","y"}},{"outputs",QVariantMap{{"a","x+y"},{"b","x*y"}}}}),catalog,{});
     const auto result = expression->execute({{"x",2.},{"y",3.}}, {},{});
     QCOMPARE(expression->outputs().value("a").toDouble(),5.); QCOMPARE(expression->outputs().value("b").toDouble(),6.);
     QCOMPARE(result.emissions.size(),1);
-    QVERIFY_EXCEPTION_THROWN(cx::makeNode(node("f","function.expression",{{"outputs",QVariantMap{{"out","x.constructor"}}}}),catalog,{}),cx::Error);
+    QVERIFY_EXCEPTION_THROWN(corig::makeNode(node("f","function.expression",{{"outputs",QVariantMap{{"out","x.constructor"}}}}),catalog,{}),corig::Error);
 }
 
 void ExecutionTest::chunkedProtocol()
 {
-    cx::Catalog catalog;
-    auto decoder = cx::makeNode(node("decoder","protocol.decode",{{"format","firewater"},{"sample_rate_hz",100.}}),catalog,{});
+    corig::Catalog catalog;
+    auto decoder = corig::makeNode(node("decoder","protocol.decode",{{"format","firewater"},{"sample_rate_hz",100.}}),catalog,{});
     const auto first = decoder->execute({{"bytes",QByteArray("1,")}}, {},{}); QVERIFY(first.emissions.isEmpty());
     const auto second = decoder->execute({{"bytes",QByteArray("2\n3,4\n")}}, {},{});
     QCOMPARE(second.emissions.size(),2); QVERIFY(second.separateFrames);
@@ -132,46 +132,54 @@ void ExecutionTest::chunkedProtocol()
     const auto bad = decoder->execute({{"bytes",QByteArray("bad\n9,10\n")}}, {},{});
     QCOMPARE(bad.emissions.size(),1);
     QCOMPARE(decoder->snapshot().value("state").toMap().value("bad_frames").toInt(),1);
+    // Renamed protocol IDs still decode real named-channel wire frames.
+    auto named = corig::makeNode(node("named","protocol.decode",{{"format","named_ascii"},{"timestamp_unit","s"}}),catalog,{});
+    const auto ascii = named->execute({{"bytes",QByteArray("$axis,1.5,2.25\n")}}, {},{}).emissions.front().value("samples").toMap();
+    QCOMPARE(ascii.value("time").toDouble(),1.5); QCOMPARE(ascii.value("values").toMap().value("axis").toDouble(),2.25);
+    auto binary = corig::makeNode(node("binary","protocol.decode",{{"format","named_binary"},{"timestamp_unit","s"}}),catalog,{});
+    const auto frame = QByteArray::fromHex("aacceebb0461786973000000000000f83f000000000000024051");
+    const auto decoded = binary->execute({{"bytes",frame}}, {},{}).emissions.front().value("samples").toMap();
+    QCOMPARE(decoded,ascii);
 }
 
 void ExecutionTest::ringsAndFft()
 {
-    cx::Series ring(10); for (int i = 0; i < 20; ++i) ring.append(i,i == 14 ? 100. : i);
+    corig::Series ring(10); for (int i = 0; i < 20; ++i) ring.append(i,i == 14 ? 100. : i);
     QCOMPARE(ring.size(),10); QCOMPARE(ring.total(),20ull); QCOMPARE(ring.points()[0].x(),10.);
     const auto display = ring.points(10.,19.,4);
     QVERIFY(std::any_of(display.cbegin(),display.cend(),[](const QPointF &p) { return p.y() == 100.; }));
-    const auto pairs = cx::describePoints(display);
+    const auto pairs = corig::describePoints(display);
     QCOMPARE(pairs.size(),display.size()); QCOMPARE(pairs[0].toList().size(),2);
-    const auto apiPairs = cx::toJsonValue(QVariant::fromValue(display)).toList();
+    const auto apiPairs = corig::toJsonValue(QVariant::fromValue(display)).toList();
     QCOMPARE(apiPairs,pairs);
     ring.resize(4); QCOMPARE(ring.size(),4); QCOMPARE(ring.total(),20ull); QCOMPARE(ring.points()[0].x(),16.);
     QVector<QPointF> wave;
     for (int i = 0; i < 1024; ++i) wave.append({i / 1024.,std::sin(2 * std::numbers::pi * 32 * i / 1024.)});
-    const auto fft = cx::spectrum(wave);
+    const auto fft = corig::spectrum(wave);
     const auto peak = *std::max_element(fft.cbegin(),fft.cend(),[](const auto &a, const auto &b) { return a.y() < b.y(); });
     QVERIFY(std::abs(peak.x() - 32.) < .001); QVERIFY(std::abs(peak.y() - 1.) < .005);
 }
 
 void ExecutionTest::geometryAndRotations()
 {
-    const auto plane = cx::airplane(); QVERIFY(plane->vertices.size() > 8); QVERIFY(plane->radius > 0.);
-    const auto mesh = cx::loadMesh("v 0 0 0\nv 2 0 0\nv 2 2 0\nv 1 1 0\nv 0 2 0\nf 1 2 3 4 5\n","concave.obj");
+    const auto plane = corig::airplane(); QVERIFY(plane->vertices.size() > 8); QVERIFY(plane->radius > 0.);
+    const auto mesh = corig::loadMesh("v 0 0 0\nv 2 0 0\nv 2 2 0\nv 1 1 0\nv 0 2 0\nf 1 2 3 4 5\n","concave.obj");
     QCOMPARE(mesh->triangles.size(),3);
     for (const auto &order : {"XYZ","XZY","YXZ","YZX","ZXY","ZYX"}) {
-        const auto matrix = cx::eulerMatrix(.2,.3,.4,order,"intrinsic");
-        const auto rows = cx::describeMatrix(matrix);
+        const auto matrix = corig::eulerMatrix(.2,.3,.4,order,"intrinsic");
+        const auto rows = corig::describeMatrix(matrix);
         QCOMPARE(rows.size(),3); QCOMPARE(rows[0].toList().size(),3);
         QCOMPARE(rows[1].toList()[2].toFloat(),matrix(1,2));
         const auto identity = matrix * matrix.transposed();
         for (int r = 0; r < 3; ++r) for (int c = 0; c < 3; ++c) QVERIFY(std::abs(identity(r,c) - (r == c ? 1.f : 0.f)) < 1e-5f);
     }
-    const auto a = cx::checkedQuaternion({1.,2.,3.,4.}).toRotationMatrix(), b = cx::checkedQuaternion({-1.,-2.,-3.,-4.}).toRotationMatrix();
-    QCOMPARE(a,b); QVERIFY_EXCEPTION_THROWN(cx::checkedQuaternion({0.,0.,0.,0.}),cx::Error);
+    const auto a = corig::checkedQuaternion({1.,2.,3.,4.}).toRotationMatrix(), b = corig::checkedQuaternion({-1.,-2.,-3.,-4.}).toRotationMatrix();
+    QCOMPARE(a,b); QVERIFY_EXCEPTION_THROWN(corig::checkedQuaternion({0.,0.,0.,0.}),corig::Error);
 }
 
 void ExecutionTest::terminal()
 {
-    cx::TerminalScreen terminal(20,4,100);
+    corig::TerminalScreen terminal(20,4,100);
     terminal.feed("hello\r\n\x1b[31mred\x1b[0m");
     const auto screen = terminal.describe(true);
     QCOMPARE(screen.value("lines").toStringList()[0],QString("hello"));
@@ -186,34 +194,34 @@ void ExecutionTest::terminal()
 
 void ExecutionTest::localPython()
 {
-    const auto path = qEnvironmentVariable("COMTOOLX_TEST_PYTHON");
-    if (path.isEmpty()) QSKIP("Set COMTOOLX_TEST_PYTHON to verify a real local interpreter");
-    bool interrupted = false; cx::PythonHost python([&] { return interrupted; }); python.selectInterpreter(path);
-    const auto probe = python.call({{"op","probe"},{"dependencies",QVariantList{"math","nonexistent_comtoolx_package"}}});
+    const auto path = qEnvironmentVariable("CORIG_TEST_PYTHON");
+    if (path.isEmpty()) QSKIP("Set CORIG_TEST_PYTHON to verify a real local interpreter");
+    bool interrupted = false; corig::PythonHost python([&] { return interrupted; }); python.selectInterpreter(path);
+    const auto probe = python.call({{"op","probe"},{"dependencies",QVariantList{"math","nonexistent_corig_package"}}});
     QVERIFY(probe.value("modules").toMap().value("math").toMap().value("available").toBool());
-    QVERIFY(!probe.value("modules").toMap().value("nonexistent_comtoolx_package").toMap().value("available").toBool());
+    QVERIFY(!probe.value("modules").toMap().value("nonexistent_corig_package").toMap().value("available").toBool());
     QVariantMap call{{"node","test"},{"code","def process(inputs,state):\n    state['n']=state.get('n',0)+1\n    print('stdout is a log')\n    return {'data':inputs['data']+b'!','n':state['n']}\n"},
         {"inputs",QVariantMap{{"data",QByteArray("hello")}}},{"state",QVariantMap{}},{"entry","process"},{"timeout_ms",1000}};
     const auto first = python.call(call); QCOMPARE(first.value("result").toMap().value("data").toByteArray(),QByteArray("hello!"));
     call["state"] = first.value("state"); const auto second = python.call(call); QCOMPARE(second.value("result").toMap().value("n").toInt(),2);
     call["code"] = "def process(inputs,state):\n    while True: pass\n"; call["timeout_ms"] = 40;
-    QVERIFY_EXCEPTION_THROWN(python.call(call),cx::Error);
+    QVERIFY_EXCEPTION_THROWN(python.call(call),corig::Error);
     call["code"] = "def process(inputs,state): return 7\n"; call["timeout_ms"] = 1000;
     QCOMPARE(python.call(call).value("result").toInt(),7); python.close();
 }
 
 void ExecutionTest::localPythonBooleanUpdates()
 {
-    const auto path = qEnvironmentVariable("COMTOOLX_TEST_PYTHON");
-    if (path.isEmpty()) QSKIP("Set COMTOOLX_TEST_PYTHON to verify real Python control inputs");
-    cx::PythonHost python([] { return false; }); python.selectInterpreter(path);
-    cx::Catalog catalog;
+    const auto path = qEnvironmentVariable("CORIG_TEST_PYTHON");
+    if (path.isEmpty()) QSKIP("Set CORIG_TEST_PYTHON to verify real Python control inputs");
+    corig::PythonHost python([] { return false; }); python.selectInterpreter(path);
+    corig::Catalog catalog;
     catalog.addPython({{"plugin_api",3},{"id","user.control"},{"name","控制更新验证"},
         {"code","def process(inputs,state):\n    if 'start' in inputs['__context__']['changed'] and inputs['start']:\n        state['starts']=state.get('starts',0)+1\n    return {'out':state.get('starts',0)}\n"},
         {"ports",QVariantList{QVariantMap{{"id","start"},{"direction","in"},{"data_type","boolean"}},QVariantMap{{"id","value"},{"direction","in"},{"data_type","number"}},QVariantMap{{"id","out"},{"direction","out"},{"data_type","number"}}}},
         {"properties",QVariantMap{}}});
-    cx::NodeHost host; host.python = [&](const QVariantMap &request) { return python.call(request); };
-    auto control = cx::makeNode(node("control","user.control"),catalog,host); control->setConnections({"start","value"});
+    corig::NodeHost host; host.python = [&](const QVariantMap &request) { return python.call(request); };
+    auto control = corig::makeNode(node("control","user.control"),catalog,host); control->setConnections({"start","value"});
     control->execute({{"start",true},{"value",1.}}, {},{1,0.}); QCOMPARE(control->outputs().value("out").toInt(),1);
     control->execute({{"value",2.}}, {},{2,.1}); QCOMPARE(control->outputs().value("out").toInt(),1);
     control->execute({{"start",true}}, {},{3,.2}); QCOMPARE(control->outputs().value("out").toInt(),2);
@@ -224,13 +232,13 @@ void ExecutionTest::localPythonBooleanUpdates()
 
 void ExecutionTest::enginePauseInterruptsPython()
 {
-    const auto path = qEnvironmentVariable("COMTOOLX_TEST_PYTHON");
-    if (path.isEmpty()) QSKIP("Set COMTOOLX_TEST_PYTHON to verify engine priority over Python work");
-    cx::Engine *running = nullptr;
-    cx::PythonHost python([&] { return running && running->interrupted(); }); python.selectInterpreter(path);
-    cx::NodeHost host; host.python = [&](const QVariantMap &call) { return python.call(call); }; host.stopExtensions = [&] { python.close(); };
-    cx::Engine engine(host); running = &engine;
-    auto project = cx::emptyProject();
+    const auto path = qEnvironmentVariable("CORIG_TEST_PYTHON");
+    if (path.isEmpty()) QSKIP("Set CORIG_TEST_PYTHON to verify engine priority over Python work");
+    corig::Engine *running = nullptr;
+    corig::PythonHost python([&] { return running && running->interrupted(); }); python.selectInterpreter(path);
+    corig::NodeHost host; host.python = [&](const QVariantMap &call) { return python.call(call); }; host.stopExtensions = [&] { python.close(); };
+    corig::Engine engine(host); running = &engine;
+    auto project = corig::emptyProject();
     project["nodes"] = QVariantList{node("source","source.constant"),node("python","function.python",{{"code","def process(inputs,state):\n    while True: pass\n"},{"timeout_ms",2000}})};
     project["wires"] = QVariantList{wire("input","source","value","python","x")};
     request(engine,"project.apply",{{"project",project}}); request(engine,"runtime.start"); QTest::qWait(30);

@@ -7,7 +7,7 @@
 #include <limits>
 #include <numbers>
 
-namespace cx {
+namespace corig {
 
 QVariantMap Mesh::describe() const
 {
@@ -174,4 +174,4 @@ QVariantList describeMatrix(const QMatrix3x3 &matrix)
     return rows;
 }
 
-} // namespace cx
+} // namespace corig

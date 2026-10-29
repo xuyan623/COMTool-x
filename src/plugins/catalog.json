@@ -400,7 +400,7 @@
     "id": "protocol.decode",
     "name": "数据解码器",
     "category": "协议",
-    "description": "选择 COMTool ASCII/二进制、FireWater 或 JustFloat；每个完整数值帧形成一个采样批次",
+    "description": "选择 命名 ASCII/二进制、FireWater 或 JustFloat；每个完整数值帧形成一个采样批次",
     "version": "3.0",
     "ports": [
       {
@@ -425,18 +425,18 @@
         "choices": [
           "firewater",
           "justfloat",
-          "comtool_ascii",
-          "comtool_binary"
+          "named_ascii",
+          "named_binary"
         ],
         "label": "数据格式"
       },
       "header": {
         "type": "string",
         "default": "AA CC EE BB",
-        "label": "COMTool 二进制帧头",
+        "label": "命名二进制帧头",
         "visible_if": {
           "format": [
-            "comtool_binary"
+            "named_binary"
           ]
         }
       },

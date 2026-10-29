@@ -22,7 +22,7 @@
 #include <algorithm>
 #include <limits>
 
-namespace cx {
+namespace corig {
 
 // The view bridge exposes the same observed state and checked actions used by
 // official views. User QML never receives a live engine or device object.
@@ -217,7 +217,7 @@ QVariantMap Controller::commit(EditResult edit, const QString &label, bool remem
 
 QVariantMap Controller::appState() const
 {
-    return {{"version","0.3.0"},{"project",project_.value("name")},{"path",projectPath_},{"dirty",dirty_},{"read_only",readOnly_},
+    return {{"application","CoRig"},{"version","0.3.0"},{"project",project_.value("name")},{"path",projectPath_},{"dirty",dirty_},{"read_only",readOnly_},
         {"busy",busy_},{"runtime",engine_->observation()},{"workspaces",workspaces_ ? workspaces_->state() : QVariantMap{}},
         {"python",pythonPath()},{"theme",theme_},{"view_observations",observedViews_},{"selection",QVariantMap{{"id",selected_},{"kind",selectedKind_},{"nodes",selectedNodes_}}}};
 }
@@ -273,7 +273,7 @@ void Controller::openLibrary(const QString &page)
 void Controller::dragObject(const QString &page, const QString &item)
 {
     QDrag drag(this); auto mime = new QMimeData;
-    mime->setData("application/x-comtoolx-object",QJsonDocument::fromVariant(QVariantMap{{"page",page},{"id",item}}).toJson(QJsonDocument::Compact));
+    mime->setData("application/x-corig-object",QJsonDocument::fromVariant(QVariantMap{{"page",page},{"id",item}}).toJson(QJsonDocument::Compact));
     drag.setMimeData(mime); drag.exec(Qt::MoveAction);
 }
 
@@ -342,13 +342,13 @@ QVariantMap Controller::wireEditState(const QString &id, double x, double y) con
 
 void Controller::dragPlugin(const QString &plugin)
 {
-    try { if (!QStringList{"layout.row","layout.column","layout.grid","layout.tabs"}.contains(plugin)) catalog_.definition(plugin); QDrag drag(this); auto mime = new QMimeData; mime->setData("application/x-comtoolx-plugin",plugin.toUtf8()); drag.setMimeData(mime); drag.exec(Qt::CopyAction); }
+    try { if (!QStringList{"layout.row","layout.column","layout.grid","layout.tabs"}.contains(plugin)) catalog_.definition(plugin); QDrag drag(this); auto mime = new QMimeData; mime->setData("application/x-corig-plugin",plugin.toUtf8()); drag.setMimeData(mime); drag.exec(Qt::CopyAction); }
     catch (const Error &e) { tell(e.message,"error"); }
 }
 void Controller::dragUiItem(const QString &item)
 {
     if (uiItem(item).isEmpty()) return;
-    QDrag drag(this); auto mime = new QMimeData; mime->setData("application/x-comtoolx-ui",item.toUtf8()); drag.setMimeData(mime); drag.exec(Qt::MoveAction);
+    QDrag drag(this); auto mime = new QMimeData; mime->setData("application/x-corig-ui",item.toUtf8()); drag.setMimeData(mime); drag.exec(Qt::MoveAction);
 }
 
 void Controller::observeView(const QString &node, const QString &view, const QVariantMap &arguments) { viewArguments_[node + "/" + view] = arguments; }
@@ -429,6 +429,6 @@ bool Controller::confirmExit(const QString &window, bool discard)
     QTimer::singleShot(50,qApp,&QCoreApplication::quit); return true;
 }
 
-} // namespace cx
+} // namespace corig
 
 #include "controller.moc"

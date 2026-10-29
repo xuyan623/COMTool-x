@@ -9,7 +9,7 @@
 #include <array>
 #include <memory>
 
-namespace cx {
+namespace corig {
 struct Mesh {
     QVector<QVector3D> vertices;
     QVector<std::array<int,3>> triangles;
@@ -26,4 +26,4 @@ QMatrix3x3 axisMapping(const QVariantMap &config);
 QQuaternion checkedQuaternion(const QVariantList &values);
 QVariantList describeMatrix(const QMatrix3x3 &matrix);
 }
-Q_DECLARE_METATYPE(cx::MeshPtr)
+Q_DECLARE_METATYPE(corig::MeshPtr)

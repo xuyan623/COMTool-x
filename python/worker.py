@@ -59,8 +59,8 @@ def load_namespace(request, namespaces):
     """Expand portable resources into an isolated package for relative imports."""
     node = request["node"]
     unload(namespaces, node)
-    package = "comtoolx_ext_" + hashlib.sha256(node.encode()).hexdigest()[:16]
-    directory = tempfile.TemporaryDirectory(prefix="comtoolx-python-")
+    package = "corig_ext_" + hashlib.sha256(node.encode()).hexdigest()[:16]
+    directory = tempfile.TemporaryDirectory(prefix="corig-python-")
     root = Path(directory.name).resolve()
     try:
         for name, content in request.get("resources", {}).items():

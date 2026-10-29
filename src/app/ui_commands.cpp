@@ -20,7 +20,7 @@
 #include <windows.h>
 #endif
 
-namespace cx {
+namespace corig {
 namespace {
 
 // QML-generated class suffixes vary between processes. The underlying Qt
@@ -65,8 +65,8 @@ QList<Control> discoverControls(Workspaces *workspaces)
             Control entry; entry.object = object;
             // The generated handle belongs to the rendered QObject, so a
             // sibling reorder cannot silently address a different control.
-            entry.handle = object->property("_comtoolxAutomationId").toString();
-            if (entry.handle.isEmpty()) { entry.handle = "auto:" + newId("control"); object->setProperty("_comtoolxAutomationId",entry.handle); }
+            entry.handle = object->property("_corigAutomationId").toString();
+            if (entry.handle.isEmpty()) { entry.handle = "auto:" + newId("control"); object->setProperty("_corigAutomationId",entry.handle); }
             QStringList segments;
             auto visual = item;
             if (!visual) {
@@ -352,4 +352,4 @@ QVariant Controller::configureWindow(const QVariantMap &args)
     throw Error("窗口已经关闭");
 }
 
-} // namespace cx
+} // namespace corig

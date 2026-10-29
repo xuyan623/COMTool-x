@@ -15,7 +15,7 @@
 #include <QGuiApplication>
 #include <algorithm>
 
-namespace cx {
+namespace corig {
 
 // Discovery lists the real command surface. Node/view-specific schemas stay
 // with their declarations, so adding a plugin cannot widen unrelated commands.
@@ -60,7 +60,7 @@ QVariantMap Controller::schema() const
     };
     QVariantMap commands;
     for (auto i = fields.cbegin(); i != fields.cend(); ++i) commands.insert(i.key(),QVariantMap{{"arguments",i.value()}});
-    return {{"api_version",3},{"version","0.3.0"},{"commands",commands},{"async","A job is complete only after its operation succeeds; poll job.get"},
+    return {{"application","CoRig"},{"api_version",3},{"version","0.3.0"},{"commands",commands},{"async","A job is complete only after its operation succeeds; poll job.get"},
         {"values",QVariantMap{{"bytes","{type:bytes,base64:...,length:N}"},{"samples","{time:seconds,values:{name:number}}"}}}};
 }
 
@@ -134,8 +134,8 @@ QVariant Controller::command(const QString &op, const QVariantMap &args)
     if (op == "project.save") {
         if (busy_) throw Error("工程操作尚未完成");
         auto path = args.value("path",projectPath_).toString(); if (QUrl(path).isLocalFile()) path = QUrl(path).toLocalFile();
-        if (path.isEmpty()) path = dataDirectory_ + "/project/" + project_.value("name").toString().replace(QRegularExpression("[\\\\/:*?\"<>|]"),"_") + ".comtoolx";
-        if (!path.endsWith(".comtoolx",Qt::CaseInsensitive)) path += ".comtoolx";
+        if (path.isEmpty()) path = dataDirectory_ + "/project/" + project_.value("name").toString().replace(QRegularExpression("[\\\\/:*?\"<>|]"),"_") + ".corig";
+        if (!path.endsWith(".corig",Qt::CaseInsensitive)) path += ".corig";
         path = QFileInfo(path).absoluteFilePath(); const auto snapshot = project_;
         busy_ = true; emit busyChanged();
         return launchTask(op,[path,snapshot] { QDir().mkpath(QFileInfo(path).absolutePath()); saveProject(path,snapshot); return QVariantMap{{"path",path}}; },
@@ -306,4 +306,4 @@ QVariant Controller::capture(const QVariantMap &args)
     item->window()->update(); return QVariantMap{{"job",id},{"state","running"}};
 }
 
-} // namespace cx
+} // namespace corig

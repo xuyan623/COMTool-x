@@ -49,7 +49,7 @@ def main():
         {'op': 'graph.wire.add', 'args': {'id': 'observed', 'source': ['clock', 't'], 'target': ['plot', 'time']}},
         {'op': 'ui.view.add', 'args': {'id': 'curve', 'parent': 'root', 'node': 'plot', 'view': 'plot', 'properties': {'min_height': 500}}}]
     c.call('batch', {'commands': operations})
-    c.call('project.save', {'path': str((args.output / 'Performance.comtoolx').resolve())})
+    c.call('project.save', {'path': str((args.output / 'Performance.corig').resolve())})
     c.call('workspace.open', {'page': 'runtime'})
     runtime_window = c.call('workspace.detach', {'page': 'runtime', 'x': 600, 'y': 120})['window']
     c.call('workspace.open', {'page': 'graph'})

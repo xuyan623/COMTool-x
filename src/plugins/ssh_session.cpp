@@ -8,7 +8,7 @@
 #include <QFile>
 #include <QStandardPaths>
 
-namespace cx {
+namespace corig {
 
 struct SshSession::State {
     SOCKET socket = INVALID_SOCKET;
@@ -120,7 +120,7 @@ void SshSession::close()
     state_->active = false;
     if (state_->session) { libssh2_session_set_blocking(state_->session,1); libssh2_session_set_timeout(state_->session,200); }
     if (state_->channel) { libssh2_channel_close(state_->channel); libssh2_channel_free(state_->channel); state_->channel = nullptr; }
-    if (state_->session) { libssh2_session_disconnect(state_->session,"COMTool-x session closed"); libssh2_session_free(state_->session); state_->session = nullptr; }
+    if (state_->session) { libssh2_session_disconnect(state_->session,"CoRig session closed"); libssh2_session_free(state_->session); state_->session = nullptr; }
     if (state_->socket != INVALID_SOCKET) { closesocket(state_->socket); state_->socket = INVALID_SOCKET; }
 }
 
@@ -161,4 +161,4 @@ bool SshSession::connected() const { return state_->active; }
 qintptr SshSession::descriptor() const { return static_cast<qintptr>(state_->socket); }
 QString SshSession::fingerprint() const { return state_->fingerprint; }
 
-} // namespace cx
+} // namespace corig

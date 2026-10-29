@@ -6,7 +6,7 @@
 #include <QPainterPath>
 #include <QRectF>
 
-namespace cx {
+namespace corig {
 QVariantMap nodeGeometry(const QVariantMap &node, const Catalog &catalog);
 QPointF portPosition(const QVariantMap &node, const QVariantMap &geometry, const QString &port);
 QPainterPath wirePath(const QVariantMap &wire, const QHash<QString,QVariantMap> &nodes, const QHash<QString,QVariantMap> &geometry, QVector<QPainterPath> *segments = nullptr);

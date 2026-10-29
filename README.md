@@ -1,14 +1,14 @@
-# COMTool-x 0.3.0
+# 联调 · CoRig 0.3.0
 
-Windows 原生 C++ / Qt Quick 通信与仪表工作台。功能设计定义行为，界面设计器决定排版。通信、数学、曲线、姿态和桌面程序使用 C++，无需 Python；Python 脚本及用户插件按需调用本地解释器。
+联调（CoRig）是一款支持人与 AI 协作的工程调试工作台。按当前任务组合通信、数据处理、曲线、姿态和控制面板，将调试方案保存为可复用工程。功能设计定义行为，界面设计决定呈现。官方功能使用原生 C++ / Qt Quick，无需 Python；Python 脚本及用户插件按需调用本地解释器。
 
 ## 直接使用
 
-解压完整便携包，双击 `COMTool-x.exe`。Qt DLL、plugins 和 qml 文件夹需要保留在程序旁。
+解压完整便携包，双击 `CoRig.exe`。Qt DLL、plugins 和 qml 文件夹需要保留在程序旁。
 
-- `examples/FunctionLab.comtoolx`：无需硬件，时间源持续驱动正弦、余弦曲线与三维飞机姿态。
-- `examples/SerialPlot.comtoolx`：串口连接、文本收发和 FireWater 三通道曲线。默认 `loop://` 为软件回环；选择实际 COM 口后才连接设备。可在收发框发送 `1,2,3` 验证回环曲线。
-- `examples/RecordPlayback.comtoolx`：软件信号、曲线与姿态的录制回放。一个按钮通过分发同时开始录制和倒计时，到时自动暂停；录制文件由用户另行保存、导入，示例只携带设计。
+- `examples/FunctionLab.corig`：无需硬件，时间源持续驱动正弦、余弦曲线与三维飞机姿态。
+- `examples/SerialPlot.corig`：串口连接、文本收发和 FireWater 三通道曲线。默认 `loop://` 为软件回环；选择实际 COM 口后才连接设备。可在收发框发送 `1,2,3` 验证回环曲线。
+- `examples/RecordPlayback.corig`：软件信号、曲线与姿态的录制回放。一个按钮通过分发同时开始录制和倒计时，到时自动暂停；录制文件由用户另行保存、导入，示例只携带设计。
 
 打开工程不自动运行、连接或发送。底部公共引擎栏始终控制当前工程；F5 调试运行，Ctrl+F5 普通运行，F6 暂停，F10 整图下一步，F11 节点单步，Ctrl+Shift+F5 重置，Shift+F5 结束会话。
 
@@ -17,8 +17,8 @@ Windows 原生 C++ / Qt Quick 通信与仪表工作台。功能设计定义行�
 暂停保留连接、历史和处理状态；结束会话释放连接；重置恢复工程初值，也会清除只读运行中的临时调参。
 
 ```powershell
-.\COMTool-x.exe .\examples\FunctionLab.comtoolx
-.\COMTool-x.exe --data-dir D:\COMToolData .\examples\SerialPlot.comtoolx
+.\CoRig.exe .\examples\FunctionLab.corig
+.\CoRig.exe --data-dir D:\CoRigData .\examples\SerialPlot.corig
 ```
 
 设置、日志和本地连接信息默认写在程序目录；程序目录不可写时用 `--data-dir` 指定可写目录。
@@ -38,7 +38,7 @@ Windows 原生 C++ / Qt Quick 通信与仪表工作台。功能设计定义行�
 7. 两页分别提供对应方向的同步图标，每次先显示默认全选的变更清单。新增对象进入目标页待放置区；已有摆放与层序保留；目标页多余对象默认列入删除，可取消勾选保留。
 8. 功能设计只编辑通信、端口、运算、量程和初值等功能参数；界面设计只编辑外观与布局。运行界面将整张设计等比缩放，比例不符处留白。
 9. 撤下功能节点解除连线、退出计算，但保留对象配置；撤下界面控件退回待放置区，保留对应功能节点。独立复制产生新对象／节点并继承配置外观，外部连线不继承。
-10. 保存 `.comtoolx` 单文件工程。工程包含设计、配置、网格、布局、用户插件和模型资源；官方插件由应用提供。采样、日志、录制内容、播放进度和其他运行历史独立管理，外部录制文件只保存路径引用。
+10. 保存 `.corig` 单文件工程。工程包含设计、配置、网格、布局、用户插件和模型资源；官方插件由应用提供。采样、日志、录制内容、播放进度和其他运行历史独立管理，外部录制文件只保存路径引用。
 
 图结构修改需要先暂停；暂停后已有节点保留处理状态。只读模式锁定设计，仍支持连接、发送和临时调参。关闭页面不停止引擎；关闭最后一个窗口时处理未保存修改并结束会话。
 
@@ -47,10 +47,10 @@ Windows 原生 C++ / Qt Quick 通信与仪表工作台。功能设计定义行�
 - 串口：收发、流控、RTS/DTR、断线重连与软件回环。
 - 网络：TCP 客户端/多连接服务端、UDP 客户端/服务端；原生 libssh2 SSH 密码/密钥认证、主机指纹检查和 PTY。
 - 收发：文本/HEX、编码、转义、换行、快捷指令、历史、文件发送/取消与接收记录。
-- 协议：COMTool ASCII/二进制、FireWater、JustFloat、文本、JSON 与本地 Python 编解码。
+- 协议：命名 ASCII/二进制、FireWater、JustFloat、文本、JSON 与本地 Python 编解码。
 - 数据和数学：采样帧、通道提取、分发、通断、选择、常量、时间、定时器、算术/三角、限幅映射、波形、随机、积分微分、平均、低通与多输出表达式。
 - 逻辑与时序：与、或、非、与非、或非、异或、同或，及上升沿／下降沿／双边沿触发。控制信号统一为布尔值，按钮每次点击只发布一条 `true`；周期触发和单次倒计时支持外部开始／停止，重复开始重新计时。数据分发默认两路，右栏可调整为 2～8 路。
-- 信号录制与回放：单路输入输出、原样直通、开始／暂停合并控制、外部开始／暂停、结束保存与重置；暂停片段拼接，文件使用独立的 `.comtoolrec` 格式。回放提供导入、截断开关、播放／暂停、逐条、进度条和 0.125～16 倍速。原有字节记录仍支持二进制与 HEX 日志。
+- 信号录制与回放：单路输入输出、原样直通、开始／暂停合并控制、外部开始／暂停、结束保存与重置；暂停片段拼接，文件使用独立的 `.corigrec` 格式。回放提供导入、截断开关、播放／暂停、逐条、进度条和 0.125～16 倍速。原有字节记录仍支持二进制与 HEX 日志。
 - 曲线：C++ 原生绘制，左键平移、滚轮缩放、跟随、冻结显示、通道显隐/颜色、FFT、原始 CSV 与 PNG/SVG 导出。冻结显示时采集继续。
 - 姿态：极简飞机、STL/OBJ 静态模型，欧拉角/四元数输入、度/弧度、旋转顺序、内禀/外禀、轴映射、参考姿态及相机控制；左键旋转，右键平移，滚轮缩放。不提供姿态融合。
 - 终端：ANSI 屏幕控制、颜色、UTF-8 与 SSH 终端尺寸传递。
@@ -71,12 +71,12 @@ GUI 与本地 API 共用同一命令入口。程序仅监听本机，连接信�
 AI 可以直接编辑功能设计、界面和绑定，查询端口兼容性，设置画布缩放／平移与侧栏，控制窗口及运行调试，读取真实数据和内部截图，再保存重开工程。具名和未命名的 QML 控件均可发现；标准输入会触发实际操作，自绘控件可接收应用内部输入。原生 CLI 的 `--wait` 等待控件发起的后台动作完成。完整调用示例与 94 个命令的实际覆盖报告见 [验证范围](docs/VERIFICATION.md)。
 
 ```powershell
-.\COMTool-x-cli.exe api app.state
-.\COMTool-x-cli.exe api registry
-.\COMTool-x-cli.exe api runtime.start --json '{"debug":false}' --wait
+.\CoRig-cli.exe api app.state
+.\CoRig-cli.exe api registry
+.\CoRig-cli.exe api runtime.start --json '{"debug":false}' --wait
 ```
 
-工程、插件和接口均为 v3，不提供旧工程、旧插件或 v2 接口兼容。详见 [API](docs/API.md)、[插件开发](docs/PLUGIN_SDK.md)、[架构](docs/ARCHITECTURE.md)、[验证范围](docs/VERIFICATION.md) 和 [配套 Skill](skills/comtool-x/SKILL.md)。
+工程使用独立的 CoRig 文件标识，仅保存 `.corig` 和 `.corigrec` 新格式；不读取旧产品的工程、录制文件或迁移旧布局与控制配置，修改后缀不能转换格式。插件和本地接口采用当前 v3 契约。详见 [API](docs/API.md)、[插件开发](docs/PLUGIN_SDK.md)、[架构](docs/ARCHITECTURE.md)、[验证范围](docs/VERIFICATION.md) 和 [配套 Skill](skills/corig/SKILL.md)。
 
 ## 构建
 
@@ -87,8 +87,8 @@ AI 可以直接编辑功能设计、界面和绑定，查询端口兼容性，�
 .\tools\package_native.ps1
 ```
 
-构建和官方 C++ 测试不要求安装 Python。若要验证用户 Python 插件，设置 `COMTOOLX_TEST_PYTHON` 为实际解释器；界面/性能验收工具只使用 Python 标准库，SSH 本机服务器验收额外需要该测试环境中的 Paramiko。
+构建和官方 C++ 测试不要求安装 Python。若要验证用户 Python 插件，设置 `CORIG_TEST_PYTHON` 为实际解释器；界面/性能验收工具只使用 Python 标准库，SSH 本机服务器验收额外需要该测试环境中的 Paramiko。
 
-发布目录 `dist/` 包含最新便携包及对应源码归档；可直接运行的部署目录是 `build/native-release/COMTool-x/`。本项目按 LGPL-3.0 提供，来源及第三方许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 和 `licenses/`。
+发布目录 `dist/` 包含最新便携包及对应源码归档；可直接运行的部署目录是 `build/native-release/CoRig/`。本项目按 LGPL-3.0 提供，来源及第三方许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 和 `licenses/`。
 
 插件视图与容器均不显示左上角的外层标题，也不保留标题栏占位，名称用于对象栏定位。设计预览和运行使用相同控件布局；开关采用左右拨动样式，按钮提供实际按下反馈。

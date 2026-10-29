@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
-import ComToolX.Native 1.0
+import CoRig.Native 1.0
 
 Item {
     id:root;required property var host

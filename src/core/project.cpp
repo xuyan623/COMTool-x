@@ -9,12 +9,12 @@
 #include <algorithm>
 #include <cmath>
 
-namespace cx {
-static const QByteArray Magic("COMTool-x\0CPP3\n", 15);
+namespace corig {
+static const QByteArray Magic = QByteArrayLiteral("CoRig\0CPP3\n");
 
 QVariantMap emptyProject(const QString &name)
 {
-    return {{"format","comtool-x-native"}, {"schema_version",3}, {"name",name},
+    return {{"format","corig-project"}, {"schema_version",3}, {"name",name},
         {"nodes",QVariantList{}}, {"wires",QVariantList{}}, {"user_plugins",QVariantList{}}, {"resources",QVariantMap{}},
         {"ui",QVariantMap{{"root","root"}, {"items",QVariantList{QVariantMap{{"id","root"}, {"plugin","layout.canvas"}, {"children",QVariantList{}}, {"properties",QVariantMap{{"width",1280.},{"height",720.},{"grid_size",16},{"background","#111923"}}}}}}}}};
 }
@@ -70,7 +70,7 @@ QVector<QString> executionOrder(const QVariantMap &project, const Catalog &catal
 
 void validateProject(const QVariantMap &project, const Catalog &catalog)
 {
-    if (project.value("format") != "comtool-x-native" || project.value("schema_version").toInt() != 3)
+    if (project.value("format") != "corig-project" || project.value("schema_version").toInt() != 3)
         throw Error("工程格式不受支持，需要新版 C++ 工程包");
     const auto nodes = project.value("nodes").toList();
     if (nodes.size() > 10000) throw Error("节点数量超过工程上限");
@@ -128,6 +128,7 @@ void validateProject(const QVariantMap &project, const Catalog &catalog)
         items.insert(id, item);
     }
     if (!items.contains(ui.value("root").toString())) throw Error("界面缺少根容器");
+    if (items.value(ui.value("root").toString()).value("plugin") != "layout.canvas") throw Error("CoRig 工程的根布局必须是自由网格画布");
     QSet<QString> visited, parents;
     std::function<void(QString)> visit = [&](const QString &id) {
         if (!items.contains(id) || visited.contains(id)) throw Error("界面树存在环路或无效对象");
@@ -148,7 +149,7 @@ QVariantMap loadProject(const QString &path)
     if (!file.open(QIODevice::ReadOnly)) throw Error("无法打开工程：" + file.errorString());
     if (file.size() > 256 * 1024 * 1024) throw Error("工程包超过 256 MiB");
     const auto bytes = file.readAll();
-    if (!bytes.startsWith(Magic) || bytes.size() < Magic.size() + 4) throw Error("不是新版 COMTool-x 工程包");
+    if (!bytes.startsWith(Magic) || bytes.size() < Magic.size() + 4) throw Error("不是新版 CoRig 工程包");
     const auto compressed = bytes.mid(Magic.size());
     if (qFromBigEndian<quint32>(compressed.constData()) > 256u * 1024u * 1024u) throw Error("工程解压后超过 256 MiB");
     const auto payload = qUncompress(compressed);
@@ -156,41 +157,6 @@ QVariantMap loadProject(const QString &path)
     const auto cbor = QCborValue::fromCbor(payload, &error);
     if (error.error != QCborError::NoError || !cbor.isMap()) throw Error("工程包内容损坏");
     auto project = cbor.toVariant().toMap();
-    // BEGIN schema-3 canvas migration. Earlier native packages used their root
-    // as an auto-layout container. Preserve that layout as one canvas group and
-    // all child IDs; remove this migration when schema 3 is no longer readable.
-    auto ui = project.value("ui").toMap(); auto items = ui.value("items").toList();
-    for (qsizetype i=0;i<items.size();++i) {
-        auto root = items[i].toMap(); if (root.value("id") != ui.value("root") || root.value("plugin") == "layout.canvas") continue;
-        auto group = root; const auto groupId = newId("canvas_group"); group["id"] = groupId;
-        auto children = group.value("children").toList(); const bool pending = children.removeAll("pending")>0; group["children"] = children;
-        auto props = group.value("properties").toMap(); props["x"] = 24.; props["y"] = 24.; props["width"] = 1232.; props["height"] = 672.; group["properties"] = props;
-        QVariantList canvasChildren{groupId}; if (pending) canvasChildren.append("pending");
-        root["plugin"] = "layout.canvas"; root["children"] = canvasChildren; root["properties"] = QVariantMap{{"width",1280.},{"height",720.},{"background","#111923"}};
-        items[i] = root; items.append(group); break;
-    }
-    ui["items"] = items; project["ui"] = ui;
-    // END schema-3 canvas migration.
-    // BEGIN schema-3 boolean-control migration. Previous native designs stored
-    // button payloads and a separate control type. Preserve their node/port IDs;
-    // remove this normalization when pre-boolean schema-3 designs are retired.
-    const auto normalizeControl = [](QVariantMap node) {
-        const auto kind = node.value("plugin").toString(); auto config = node.value("config").toMap();
-        if (kind == "control.button") config.remove("payload");
-        if ((kind == "data.fork" || kind == "data.gate" || kind == "data.select") && config.value("data_type") == "trigger") config["data_type"] = "boolean";
-        node["config"] = config; return node;
-    };
-    auto nodes = project.value("nodes").toList();
-    for (auto &node : nodes) node = normalizeControl(node.toMap());
-    project["nodes"] = nodes;
-    auto normalizedUi = project.value("ui").toMap(); auto normalizedItems = normalizedUi.value("items").toList();
-    for (auto &entry : normalizedItems) {
-        auto item = entry.toMap();
-        if (item.contains("binding")) item["binding"] = normalizeControl(item.value("binding").toMap());
-        entry = item;
-    }
-    normalizedUi["items"] = normalizedItems; project["ui"] = normalizedUi;
-    // END schema-3 boolean-control migration.
     alignUiToGrid(project);
     return project;
 }
@@ -228,4 +194,4 @@ QByteArray resourceBytes(const QVariantMap &project, const QString &reference)
     return file.readAll();
 }
 
-} // namespace cx
+} // namespace corig

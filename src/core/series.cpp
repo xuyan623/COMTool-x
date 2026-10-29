@@ -4,7 +4,7 @@
 #include <complex>
 #include <numbers>
 
-namespace cx {
+namespace corig {
 
 Series::Series(qsizetype capacity) : capacity_(std::max<qsizetype>(1,capacity)) {}
 
@@ -110,4 +110,4 @@ QVariantList describePoints(const QVector<QPointF> &points)
     return result;
 }
 
-} // namespace cx
+} // namespace corig

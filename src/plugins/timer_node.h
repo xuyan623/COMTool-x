@@ -2,7 +2,7 @@
 
 #include "core/node.h"
 
-namespace cx {
+namespace corig {
 
 // Periodic and one-shot timing use engine time, so global pause freezes them.
 // Repeated starts always restart the full interval; stop wins within a batch.
@@ -27,4 +27,4 @@ private:
     quint64 ticks_ = 0;
 };
 
-} // namespace cx
+} // namespace corig

@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <limits>
 
-namespace cx {
+namespace corig {
 
 Engine::Engine(NodeHost host, QObject *parent) : QThread(parent), host_(std::move(host))
 {
@@ -547,4 +547,4 @@ void Engine::run()
     endSession(); nodes_.clear();
 }
 
-} // namespace cx
+} // namespace corig

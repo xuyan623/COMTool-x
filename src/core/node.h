@@ -6,7 +6,7 @@
 #include <functional>
 #include <memory>
 
-namespace cx {
+namespace corig {
 
 struct BatchContext {
     quint64 batch = 0;
@@ -76,4 +76,4 @@ protected:
 
 std::unique_ptr<Node> makeNode(const QVariantMap &design, const Catalog &catalog, const NodeHost &host);
 
-} // namespace cx
+} // namespace corig

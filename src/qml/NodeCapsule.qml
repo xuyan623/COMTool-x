@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import ComToolX.Native 1.0
+import CoRig.Native 1.0
 
 // A reusable capsule keeps library previews and real graph nodes identical.
 Item {

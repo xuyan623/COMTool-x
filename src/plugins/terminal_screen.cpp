@@ -1,7 +1,7 @@
 #include "terminal_screen.h"
 #include <algorithm>
 
-namespace cx {
+namespace corig {
 
 static QRgb terminalColor(int index)
 {
@@ -202,4 +202,4 @@ QVariantMap TerminalScreen::history(int offset, int limit, bool withStyles) cons
     return {{"lines",records},{"total",total},{"removed",QVariant::fromValue(removed_)}};
 }
 
-} // namespace cx
+} // namespace corig

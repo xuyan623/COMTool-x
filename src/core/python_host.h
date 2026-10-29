@@ -8,7 +8,7 @@
 #include <memory>
 #include <mutex>
 
-namespace cx {
+namespace corig {
 
 class PythonHost {
 public:
@@ -29,4 +29,4 @@ private:
     QByteArray stderrTail_;
 };
 
-} // namespace cx
+} // namespace corig

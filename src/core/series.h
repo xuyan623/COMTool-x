@@ -7,7 +7,7 @@
 #include <vector>
 #include <limits>
 
-namespace cx {
+namespace corig {
 
 class Series {
 public:
@@ -29,4 +29,4 @@ private:
 QVector<QPointF> spectrum(const QVector<QPointF> &points);
 QVariantList describePoints(const QVector<QPointF> &points);
 
-} // namespace cx
+} // namespace corig

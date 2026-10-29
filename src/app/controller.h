@@ -17,7 +17,7 @@
 
 class QQmlEngine;
 class QQuickItem;
-namespace cx {
+namespace corig {
 class Workspaces;
 class ApiServer;
 
@@ -155,4 +155,4 @@ private:
     std::atomic_bool closing_{false};
 };
 
-} // namespace cx
+} // namespace corig

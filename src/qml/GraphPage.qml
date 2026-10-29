@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Shapes
-import ComToolX.Native 1.0
+import CoRig.Native 1.0
 
 Item {
     id: root
@@ -266,7 +266,7 @@ Item {
                 }
                 Rectangle { id:rubber;visible:false;color:"#2266B4F4";border.color:"#66B4F4" }
                 Label { anchors.centerIn:parent;visible:!App.graphNodes.length;text:"右键搜索并添加节点\n从输出端口连接到输入端口";color:"#91A7BB";horizontalAlignment:Text.AlignHCenter;lineHeight:1.5 }
-                DropArea { anchors.fill:parent;keys:["application/x-comtoolx-plugin","application/x-comtoolx-object"];onDropped:drop=>{const p=root.worldPoint(drop.x,drop.y);if(drop.formats.indexOf("application/x-comtoolx-object")>=0){const payload=JSON.parse(drop.getDataAsString("application/x-comtoolx-object"));if(payload.page!=="graph")return;App.invoke("editor.place",{page:"graph",id:payload.id,position:[p.x,p.y]})}else App.invoke("graph.node.add",{plugin:drop.getDataAsString("application/x-comtoolx-plugin"),position:[p.x,p.y]});drop.acceptProposedAction()} }
+                DropArea { anchors.fill:parent;keys:["application/x-corig-plugin","application/x-corig-object"];onDropped:drop=>{const p=root.worldPoint(drop.x,drop.y);if(drop.formats.indexOf("application/x-corig-object")>=0){const payload=JSON.parse(drop.getDataAsString("application/x-corig-object"));if(payload.page!=="graph")return;App.invoke("editor.place",{page:"graph",id:payload.id,position:[p.x,p.y]})}else App.invoke("graph.node.add",{plugin:drop.getDataAsString("application/x-corig-plugin"),position:[p.x,p.y]});drop.acceptProposedAction()} }
             }
             // Keep the edge draggable after the inspector reaches zero width.
             Inspector {id:inspector;page:"graph";objectName:"graph.inspector";SplitView.preferredWidth:306;SplitView.minimumWidth:0;SplitView.maximumWidth:520;clip:true }

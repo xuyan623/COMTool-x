@@ -6,7 +6,7 @@
 #include <functional>
 #include <memory>
 
-namespace cx {
+namespace corig {
 
 // Independent typed recording files contain ordered capture times and original
 // values. Streaming temporary storage keeps history out of the project/model.
@@ -54,4 +54,4 @@ private:
     double duration_ = 0.;
 };
 
-} // namespace cx
+} // namespace corig

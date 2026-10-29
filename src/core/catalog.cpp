@@ -11,7 +11,7 @@ static void initializeCatalogResource()
     Q_INIT_RESOURCE(builtin_catalog);
 }
 
-namespace cx {
+namespace corig {
 
 QVariantMap Port::describe() const
 {
@@ -225,4 +225,4 @@ QVariantList Catalog::search(const QString &query, const QStringList &category) 
     return result;
 }
 
-} // namespace cx
+} // namespace corig

@@ -1,5 +1,6 @@
 {
   "api_version": 3,
+  "application": "CoRig",
   "async": "A job is complete only after its operation succeeds; poll job.get",
   "commands": {
     "app.quit": {
