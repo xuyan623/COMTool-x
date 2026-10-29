@@ -171,6 +171,26 @@ QVariantMap loadProject(const QString &path)
     }
     ui["items"] = items; project["ui"] = ui;
     // END schema-3 canvas migration.
+    // BEGIN schema-3 boolean-control migration. Previous native designs stored
+    // button payloads and a separate control type. Preserve their node/port IDs;
+    // remove this normalization when pre-boolean schema-3 designs are retired.
+    const auto normalizeControl = [](QVariantMap node) {
+        const auto kind = node.value("plugin").toString(); auto config = node.value("config").toMap();
+        if (kind == "control.button") config.remove("payload");
+        if ((kind == "data.fork" || kind == "data.gate" || kind == "data.select") && config.value("data_type") == "trigger") config["data_type"] = "boolean";
+        node["config"] = config; return node;
+    };
+    auto nodes = project.value("nodes").toList();
+    for (auto &node : nodes) node = normalizeControl(node.toMap());
+    project["nodes"] = nodes;
+    auto normalizedUi = project.value("ui").toMap(); auto normalizedItems = normalizedUi.value("items").toList();
+    for (auto &entry : normalizedItems) {
+        auto item = entry.toMap();
+        if (item.contains("binding")) item["binding"] = normalizeControl(item.value("binding").toMap());
+        entry = item;
+    }
+    normalizedUi["items"] = normalizedItems; project["ui"] = normalizedUi;
+    // END schema-3 boolean-control migration.
     alignUiToGrid(project);
     return project;
 }

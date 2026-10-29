@@ -3,6 +3,7 @@
 #include "controller.h"
 #include "workspaces.h"
 #include <QCoreApplication>
+#include <QGuiApplication>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -15,6 +16,9 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 
 namespace cx {
 namespace {
@@ -129,7 +133,7 @@ QVariantMap describeControl(const Control &control, const QString &id)
     }
     QStringList writable;
     for (const auto name : {"text","value","checked","currentIndex","editText","placeholderText","activeFocus","focus","inputMethodComposing",
-                            "readOnly","from","to","stepSize","count","currentText","currentValue","displayText","selectedText"}) {
+                            "readOnly","from","to","stepSize","count","currentText","currentValue","displayText","selectedText","pressed","down","hovered"}) {
         const auto index = object->metaObject()->indexOfProperty(name);
         if (index < 0) continue;
         auto value = object->property(name);
@@ -334,6 +338,15 @@ QVariant Controller::configureWindow(const QVariantMap &args)
     if (state == "minimized") window->showMinimized();
     if (state == "maximized") window->showMaximized();
     if (state == "fullscreen") window->showFullScreen();
+#ifdef Q_OS_WIN
+    // A process launched with SW_HIDE can leave the HWND hidden even when Qt
+    // already reports a normal visible window. Honor an explicit restore at
+    // the native window as well; offscreen test handles are never passed here.
+    if (QGuiApplication::platformName() == "windows" && (state == "normal" || state == "maximized" || state == "fullscreen")) {
+        const auto handle = reinterpret_cast<HWND>(window->winId());
+        if (IsWindow(handle) && !IsWindowVisible(handle)) ShowWindow(handle,state == "maximized" ? SW_SHOWMAXIMIZED : SW_SHOW);
+    }
+#endif
     if (args.value("focus").toBool()) { window->raise(); window->requestActivate(); }
     for (const auto &entry : workspaces_->windows()) if (entry.toMap().value("id") == id) return entry;
     throw Error("窗口已经关闭");

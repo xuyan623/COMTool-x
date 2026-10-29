@@ -17,7 +17,7 @@ Rectangle {
     property var renderedChildren:(record.children||[]).filter(id=>!App.uiItem(id).pending)
     property bool emptyContainer:container&&!freeCanvas&&!renderedChildren.length
     property real padding:freeCanvas?0:Math.max(0,DesignGrid.snap(props.padding===undefined?gridSize:props.padding,gridSize))
-    property real headerHeight:!container&&props.title?Math.ceil(28/gridSize)*gridSize:0
+    readonly property real headerHeight:0
     property alias contentArea:content
     objectName:"ui."+itemId
     implicitWidth:props.width||320;implicitHeight:props.height||200
@@ -27,7 +27,6 @@ Rectangle {
     radius:3
     border.width:designMode&&!freeCanvas?1:0
     border.color:App.selectedKind==="ui"&&App.selected===itemId?Theme.blue:Theme.border
-    Label{x:root.padding;y:4;width:Math.max(0,parent.width-root.padding*2);height:Math.max(0,root.headerHeight-8);text:root.container?"":root.props.title||"";visible:root.headerHeight>0;color:root.props.color||Theme.text;font.family:root.props.font_family||"Microsoft YaHei UI";font.pixelSize:root.props.font_size||13;elide:Text.ElideRight}
     Loader {
         id:content;x:root.padding;y:root.padding+root.headerHeight;width:Math.max(0,parent.width-root.padding*2);height:Math.max(0,parent.height-y-root.padding)
         visible:!root.emptyContainer||!root.designMode;enabled:!root.designMode

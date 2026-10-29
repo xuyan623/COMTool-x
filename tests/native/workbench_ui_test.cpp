@@ -31,6 +31,7 @@ private slots:
     void designAndRuntimeShareContainerLayout();
     void publicEditorPresentationRoundTrip();
     void externalControlEditsReachRealNodes();
+    void switchesPressedFeedbackAndCombinedEngineControl();
 private:
     QVariant run(const QString &op, const QVariantMap &args = {});
     QQuickItem *findItem(const QString &name, QQuickItem *from = nullptr);
@@ -298,6 +299,34 @@ void WorkbenchUiTest::externalControlEditsReachRealNodes()
     QTRY_COMPARE(app_->uiItem("root").value("properties").toMap().value("grid_size").toInt(),24);
     const auto controls = run("controls.list",{{"page","layout"}}).toList();
     QVERIFY(std::any_of(controls.begin(),controls.end(),[](const QVariant &value) { const auto item = value.toMap();return item.value("name").toString().isEmpty() && item.value("path").toString().startsWith("auto:layout:"); }));
+}
+
+void WorkbenchUiTest::switchesPressedFeedbackAndCombinedEngineControl()
+{
+    run("graph.node.add",{{"id","flag"},{"plugin","control.checkbox"}});
+    run("graph.node.add",{{"id","button"},{"plugin","control.button"},{"config",QVariantMap{{"label","触发"}}}});
+    run("ui.view.add",{{"id","flag_view"},{"node","flag"},{"view","control"},{"properties",QVariantMap{{"x",16.},{"y",16.},{"width",320.},{"height",64.},{"title","冗余标题"}}}});
+    run("ui.view.add",{{"id","button_view"},{"node","button"},{"view","control"},{"properties",QVariantMap{{"x",16.},{"y",96.},{"width",320.},{"height",64.},{"title","冗余标题"}}}});
+    run("workspace.open",{{"page","runtime"}}); run("runtime.start",{{"debug",false}}); QTest::qWait(60);
+    auto runtime = qobject_cast<cx::Workspaces *>(app_->workspaces())->page("runtime");
+    auto flag = findItem("control.flag",runtime); QVERIFY(flag); QVERIFY(flag->inherits("QQuickSwitch"));
+    const auto indicator = flag->property("indicator").value<QQuickItem *>(); QVERIFY(indicator); QVERIFY(indicator->width() > indicator->height());
+    run("controls.set",{{"id","control.flag"},{"page","runtime"},{"property","checked"},{"value",true}});
+    QTRY_VERIFY(app_->nodeState("flag").value("state").toMap().value("value").toBool());
+    auto view = findItem("ui.flag_view",runtime); QVERIFY(view); QCOMPARE(view->property("headerHeight").toDouble(),0.);
+    for (const auto child : view->findChildren<QObject *>()) QVERIFY(child->property("text").toString() != "冗余标题");
+    auto button = findItem("control.button",runtime); QVERIFY(button);
+    auto background = button->property("background").value<QQuickItem *>(); QVERIFY(background);
+    const auto color = background->property("color");
+    const auto position = button->mapToScene(button->boundingRect().center()).toPoint();
+    QTest::mousePress(runtime->window(),Qt::LeftButton,Qt::NoModifier,position);
+    QVERIFY(button->property("down").toBool()); QVERIFY(background->property("color") != color);
+    QTest::mouseRelease(runtime->window(),Qt::LeftButton,Qt::NoModifier,position);
+    QTRY_VERIFY(app_->nodeState("button").value("outputs").toMap().value("trigger").toBool());
+    QVERIFY(!findItem("execution.pause"));
+    run("controls.click",{{"id","execution.run"}}); QTRY_VERIFY(!app_->runtime().value("running").toBool());
+    QCOMPARE(findItem("execution.run")->property("symbol").toString(),QString("run"));
+    run("controls.click",{{"id","execution.run"}}); QTRY_VERIFY(app_->runtime().value("running").toBool());
 }
 
 QTEST_MAIN(WorkbenchUiTest)

@@ -157,7 +157,7 @@ def main():
     client.call("capture", {"target": "graph", "path": str(output / "graph.png")})
     controls = client.call("controls.list")
     names = {c["id"] for c in controls}
-    check(all("execution." + key in names for key in ("run", "pause", "debug", "batch", "node", "reset", "end", "source", "status")), "the full shared engine toolbar is exposed through actual controls")
+    check(all("execution." + key in names for key in ("run", "debug", "batch", "node", "reset", "end", "source", "status")) and "execution.pause" not in names, "the shared engine toolbar exposes one combined run/pause control and all debug controls")
 
     # Switching pages or detaching the only page must leave one global command
     # surface in the main shell, independent of each page's local tools.

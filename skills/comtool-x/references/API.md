@@ -60,7 +60,7 @@ view.read 省略 args 时使用界面当前范围；原始曲线用 read_data，
 
 `controls.list` 可按 page 筛选，发现已加载的具名及未命名 Qt Quick 对象。记录包含 id、handle、path、name、page、node、view、ui_item、visible、enabled、bounds、writable、actions 和可读值。显式 objectName 仍可用；每个实际对象还有自动 handle，在该对象存活期间保持不变，移动或兄弟排序不会将它指向另一对象。path 描述当前视觉层级，含页、QML id／类型及同级序号。视图重建或工程切换后重新发现；不要持久保存自动 handle。相同显式名称优先选择可见可用对象，使用 handle 可精确区分多份视图。
 
-`controls.get` 读取指定对象。`controls.set` 只接受其 writable 中的 text、editText、value、checked、currentIndex；滑块、SpinBox、下拉框和勾选框会触发实际用户操作回调。文本赋值后使用 `controls.commit` 按 Qt 的 Enter 提交规则执行校验与 accepted／editingFinished；`controls.focus`、`controls.click` 操作实际对象。公共引擎控件仍使用 execution.run/pause/debug/batch/node/reset/end/source/status。
+`controls.get` 读取指定对象，包括支持控件的 pressed、down、hovered。`controls.set` 只接受其 writable 中的 text、editText、value、checked、currentIndex；滑块、SpinBox、下拉框和开关会触发实际用户操作回调。文本赋值后使用 `controls.commit` 按 Qt 的 Enter 提交规则执行校验与 accepted／editingFinished；`controls.focus`、`controls.click` 操作实际对象。公共引擎控件使用 execution.run/debug/batch/node/reset/end/source/status；execution.run 按运行状态切换运行／暂停，明确的引擎命令仍为 runtime.start 和 runtime.pause。
 
 自绘或非标准 QML 控件可以使用 `controls.key` 和 `controls.pointer`，事件直接送入应用自身 Qt 窗口，不移动系统鼠标，也不发送操作系统键盘输入。key 使用 Qt 名称，如 Return、A；modifiers 可为 ControlModifier 或以 | 分隔的组合。text 支持 Unicode。pointer 的 type 为 click、press、move、release、double_click 或 wheel；x、y 是控件局部坐标，省略时使用中心；button／buttons 使用 LeftButton、RightButton、NoButton 等 Qt 名称，滚轮用 delta_x／delta_y。拖动通过 press、move、release 完成。对象需可见、启用且有所属窗口；业务操作优先使用已声明的 node.action。
 
@@ -69,6 +69,41 @@ capture 的 target 可为 window、graph、layout、runtime、logs、library 或
 workspace.open 定位已有页面。插件库始终以唯一精简子窗口打开；workspace.detach/move 保持共享会话，window.pin 控制置顶。标签栏位于顶部，公共引擎位于底部。功能设计和界面设计的对象栏、属性栏可用分隔条拖到 0 宽度隐藏，再拖回或用图标展开。插件库不能移入工作区标签。
 
 `window.configure` 按窗口 ID 设置 x、y、width、height、state 和 focus；state 为 normal、minimized、maximized 或 fullscreen。可将最小化窗口恢复为 normal，再内部截图。app.state 的 workspaces.windows 同时返回实际窗口位置、尺寸、state、focused 和 native_owned。分离页面为无原生 owner 的普通窗口，可与主窗口交替聚焦；始终置顶只由 window.pin 控制。
+
+窗口记录另提供 visible、native_visible、exposed 和 frame_count。隐藏启动的 Windows 窗口也可通过 window.configure 的 state=normal 恢复实际显示；截图前应确认 exposed 或绘制帧已更新。
+
+## 录制、回放与布尔控制
+
+控制信号采用 boolean；触发型输入只对本次新到达的 true 执行动作，false 忽略。相同值的新消息仍是一次更新，条件变化检测使用 logic.edge。control.button 保留 trigger 这个端口 ID，其数据类型为 boolean，每次点击输出 true，复杂操作由下游完成。
+
+| 插件 | 端口和配置 | 主要动作 |
+|---|---|---|
+| data.record | 同类型 in/out；布尔 start/pause；data_type 选择信号类型 | start、pause、save(path)、reset |
+| data.playback | 同类型 in/out；data_type；path 为默认外部文件 | load(path)、cutoff(value)、play、pause、seek(position)、step(direction)、set_speed(value) |
+| source.timer | 布尔 start/stop 输入、tick 输出；mode=periodic/countdown，interval_ms | start、stop |
+| data.fork | 同类型 in 与 2～8 个输出；outputs 名称列表，默认 a/b | 通过 node.configure 设置 outputs |
+| logic.and/or/not/nand/nor/xor/xnor | 布尔 a/b 输入（非门仅 a）、out 输出 | 输入更新时求值 |
+| logic.edge | 布尔 in/out；edge=rising/falling/both，初始状态 false | 指定变化发生时输出一次 true |
+
+录制状态包括 recording、saved、records、duration、written_bytes、saved_path 和 last_error。暂停时不累计录制时长，信号内容原样保存。save 使用独立的 .comtoolrec 文件并结束当前录制；之后 start 开始新的一次，reset 清空本次缓存。引擎重置直接清空尚未保存的内容。
+
+回放状态包括 loaded、path、position、duration、records、sample_index、speed、playing、cutoff 和 last_error。导入先验证完整文件及信号类型，失败保持原文件与状态；成功后暂停，截断开关仍由用户控制。关闭截断始终实时直通；打开截断保持待播放。暂停、播放结束或读文件错误均保留截断状态，关闭截断才恢复实时。
+
+position 为秒，direction 为 -1/1，倍速为 0.125～16。截断打开时，seek 输出目标时刻之前最近的一条记录并保持原播放／暂停状态，step 输出相邻记录并暂停；关闭截断时仅预选位置。跳转不重置、重算或恢复下游历史，原始信号内的时间字段保持不变。
+
+右栏 node.configure 的 path 是随工程保存的默认文件引用；node.action 的 load 是本次运行的临时文件。工程不包含录制内容。重置清空播放状态和临时导入，按设计重新加载默认文件；默认文件不可用时仍可实时直通。导入、保存、暂停、调整倍速与录制重置允许在引擎未运行时操作；开始录制、截断、播放、定位与逐条操作需要已建立运行会话，暂停的会话仍可单次定位。
+
+```json
+{"op":"node.action","args":{"node":"rec","action":"start","args":{}}}
+{"op":"node.action","args":{"node":"rec","action":"save","args":{"path":"D:/captures/test.comtoolrec"}}}
+{"op":"node.action","args":{"node":"play","action":"load","args":{"path":"D:/captures/test.comtoolrec"}}}
+{"op":"node.action","args":{"node":"play","action":"cutoff","args":{"value":true}}}
+{"op":"node.action","args":{"node":"play","action":"seek","args":{"position":1.5}}}
+{"op":"node.action","args":{"node":"play","action":"set_speed","args":{"value":2}}}
+{"op":"node.action","args":{"node":"play","action":"play","args":{}}}
+```
+
+以上例子要求先在工程中放置、连接相应节点，并按动作要求建立会话。完整无硬件示例见 examples/RecordPlayback.comtoolx；控件 ID 为 recording.<node>.toggle/save/reset 和 playback.<node>.load/toggle/rewind/previous/next/cutoff/position/speed。先查询 registry 或 view.actions 的真实动作契约，并逐个等待返回的任务完成。
 
 ## 命令字段
 

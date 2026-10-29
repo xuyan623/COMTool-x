@@ -1,4 +1,4 @@
-"""Rebuild the two public examples through the native application's commands.
+"""Rebuild public examples through the native application's commands.
 
 Use a dedicated, saved QA instance. These projects use official C++ plugins;
 neither example needs a Python interpreter when opened by an end user.
@@ -72,6 +72,11 @@ def main():
         destination = (args.output / (name + '.comtoolx')).resolve()
         c.call('project.save', {'path': str(destination)})
         print(destination, flush=True)
+    from native_recording_check import create_design
+    create_design(c)
+    destination = (args.output / 'RecordPlayback.comtoolx').resolve()
+    c.call('project.save', {'path': str(destination)})
+    print(destination, flush=True)
 
 
 if __name__ == '__main__':

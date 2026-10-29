@@ -23,7 +23,7 @@ Item {
             ComboBox{visible:root.host.design.plugin==="io.serial";objectName:"connection."+root.host.nodeId+".port";Layout.fillWidth:true;editable:true;model:root.ports;editText:root.host.config.port||"";enabled:!root.connectionState.connected&&!root.host.designMode;onAccepted:root.configure("port",editText);onActivated:root.configure("port",currentText)}
             TextField{visible:root.host.design.plugin!=="io.serial";Layout.fillWidth:true;text:root.host.config.host||"";placeholderText:"主机";enabled:!root.connectionState.connected&&!root.host.designMode;onEditingFinished:if(text!==root.host.config.host)root.configure("host",text)}
             TextField{Layout.preferredWidth:100;text:String(root.host.design.plugin==="io.serial"?root.host.config.baudrate:root.host.config.port);placeholderText:root.host.design.plugin==="io.serial"?"波特率":"端口";enabled:!root.connectionState.connected&&!root.host.designMode;onEditingFinished:root.configure(root.host.design.plugin==="io.serial"?"baudrate":"port",Number(text))}
-            Button{objectName:"connection."+root.host.nodeId+".connect";text:root.connectionState.connected?"断开":"连接";enabled:!root.host.designMode&&!App.busy;onClicked:{if(!App.runtime.active)App.invoke("runtime.start",{});root.host.action(root.connectionState.connected?"disconnect":"connect",{})}}
+            ActionButton{objectName:"connection."+root.host.nodeId+".connect";text:root.connectionState.connected?"断开":"连接";enabled:!root.host.designMode&&!App.busy;onClicked:{if(!App.runtime.active)App.invoke("runtime.start",{});root.host.action(root.connectionState.connected?"disconnect":"connect",{})}}
         }
         RowLayout{
             visible:root.host.design.plugin==="io.network"

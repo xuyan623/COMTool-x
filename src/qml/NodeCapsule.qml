@@ -19,7 +19,7 @@ Item {
     width: geometry.width; height: geometry.height
     function key(port) { return nodeId + "/" + port.id }
     function typeColor(type) { return ({number:"#8CBEEA",bytes:"#E4B581",string:"#BDA6E7",boolean:"#8AC9BE",object:"#B8C5D2",samples:"#8ACFA4",any:"#C4D0DB"})[type] || "#C4D0DB" }
-    function typeName(type) { return ({number:"Number",bytes:"Bytes",string:"String",boolean:"Boolean",object:"Object",samples:"Samples",trigger:"Trigger",any:"Any"})[type] || type }
+    function typeName(type) { return ({number:"Number",bytes:"Bytes",string:"String",boolean:"Boolean",object:"Object",samples:"Samples",any:"Any"})[type] || type }
     NodeSurface { anchors.fill: parent; geometry: root.geometry; outline: root.outline; emphasized: root.selected; dark: Theme.dark }
     Repeater {
         model: [{area:root.geometry.input_area||[],label:"Input"},{area:root.geometry.output_area||[],label:"Output"}]

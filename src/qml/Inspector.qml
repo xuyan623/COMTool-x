@@ -52,11 +52,23 @@ Rectangle {
                     Label { text: field.spec.label || root.title(field.modelData); color: Theme.muted; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                     Loader {
                         Layout.fillWidth: true
-                        sourceComponent: field.spec.choices ? choiceEditor : field.spec.type === "boolean" ? boolEditor : field.modelData === "code" || field.spec.type === "json" || typeof field.value === "object" ? jsonEditor : textEditor
+                        sourceComponent: field.spec.format === "port_count" ? countEditor : field.spec.choices ? choiceEditor : field.spec.type === "boolean" ? boolEditor : field.modelData === "code" || field.spec.type === "json" || typeof field.value === "object" ? jsonEditor : textEditor
+                    }
+                    Component {
+                        id: countEditor
+                        SpinBox {
+                            objectName:"property."+field.modelData
+                            from:field.spec.min_items;to:field.spec.max_items;value:(field.value||[]).length;editable:true;enabled:field.editable
+                            onValueModified:{
+                                let names=(field.value||[]).slice(0,value)
+                                for(let i=0;names.length<value&&i<8;++i){let name=String.fromCharCode(97+i);if(names.indexOf(name)<0)names.push(name)}
+                                root.change(field.modelData,names)
+                            }
+                        }
                     }
                     Component {
                         id: boolEditor
-                        CheckBox { checked: !!field.value; text: checked ? "开启" : "关闭"; enabled: field.editable; onClicked: root.change(field.modelData, checked) }
+                        ToggleSwitch { checked: !!field.value; text: checked ? "开启" : "关闭"; enabled: field.editable; onClicked: root.change(field.modelData, checked) }
                     }
                     Component {
                         id: choiceEditor
@@ -78,14 +90,14 @@ Rectangle {
                                     if (next !== field.value) root.change(field.modelData, next)
                                 }
                             }
-                            Button { visible: field.spec.format === "file"; text: "…"; implicitWidth: 30; enabled: field.editable; onClicked: { root.fileKey = field.modelData; resourceFile.open() } }
+                            ActionButton { visible: field.spec.format === "file" || field.spec.format === "external_file"; text: "…"; implicitWidth: 30; enabled: field.editable; onClicked: { root.fileKey = field.modelData; resourceFile.open() } }
                         }
                     }
                     Component {
                         id: jsonEditor
                         ColumnLayout {
                             TextArea { id: jsonText; objectName: "property." + field.modelData; Layout.fillWidth: true; Layout.preferredHeight: field.modelData === "code" ? 220 : 94; enabled: field.editable; text: typeof field.value === "string" ? field.value : JSON.stringify(field.value, null, 2); wrapMode: Text.WrapAnywhere; selectByMouse: true; font.family: "Consolas"; font.pixelSize: 12 }
-                            Button { text: "应用"; enabled: field.editable; onClicked: { try { root.change(field.modelData, field.spec.type === "json" ? JSON.parse(jsonText.text) : jsonText.text) } catch (e) { jsonText.focus = true } } }
+                            ActionButton { text: "应用"; enabled: field.editable; onClicked: { try { root.change(field.modelData, field.spec.type === "json" ? JSON.parse(jsonText.text) : jsonText.text) } catch (e) { jsonText.focus = true } } }
                         }
                     }
                 }
@@ -95,5 +107,5 @@ Rectangle {
             TextArea { visible: root.matching&&App.selectedKind === "node" && App.selected.length > 0; Layout.fillWidth: true; readOnly: true; selectByMouse: true; text: { App.runtime; return JSON.stringify(App.nodeState(App.selected), null, 2) } font.family: "Consolas"; font.pixelSize: 11; wrapMode: Text.WrapAnywhere; background: null }
         }
     }
-    FileDialog { id: resourceFile; title: "选择工程资源"; onAccepted: root.change(root.fileKey, decodeURIComponent(selectedFile.toString().replace(/^file:\/\/\//, ""))) }
+    FileDialog { id: resourceFile; title: "选择文件"; onAccepted: root.change(root.fileKey, decodeURIComponent(selectedFile.toString().replace(/^file:\/\/\//, ""))) }
 }

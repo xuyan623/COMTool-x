@@ -2,6 +2,7 @@
 #include "plugins/math_node.h"
 #include "plugins/logic_node.h"
 #include "plugins/timer_node.h"
+#include "plugins/recording_node.h"
 #include "plugins/data_node.h"
 #include "plugins/protocol_node.h"
 #include "plugins/instrument_node.h"
@@ -95,6 +96,8 @@ std::unique_ptr<Node> makeNode(const QVariantMap &design, const Catalog &catalog
         return makePythonNode(normalized, definition, ports, host);
     if (kind.startsWith("logic.")) return std::make_unique<LogicNode>(normalized, definition, ports, host);
     if (kind == "source.timer") return std::make_unique<TimerNode>(normalized, definition, ports, host);
+    if (kind == "data.record") return std::make_unique<RecorderNode>(normalized, definition, ports, host);
+    if (kind == "data.playback") return std::make_unique<PlaybackNode>(normalized, definition, ports, host);
     if (kind.startsWith("function.") || kind == "source.constant" || kind == "source.time")
         return std::make_unique<MathNode>(normalized, definition, ports, host);
     if (kind.startsWith("protocol.")) return std::make_unique<ProtocolNode>(normalized, definition, ports, host);

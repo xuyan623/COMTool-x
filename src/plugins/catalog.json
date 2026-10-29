@@ -95,7 +95,7 @@
       },
       "reconnect_interval": {
         "type": "number",
-        "default": 1,
+        "default": 1.0,
         "min": 0.1,
         "max": 300,
         "runtime_editable": true
@@ -235,7 +235,7 @@
       },
       "reconnect_interval": {
         "type": "number",
-        "default": 1,
+        "default": 1.0,
         "min": 0.1,
         "max": 300,
         "runtime_editable": true
@@ -351,7 +351,7 @@
       },
       "reconnect_interval": {
         "type": "number",
-        "default": 1,
+        "default": 1.0,
         "min": 0.1,
         "max": 300,
         "runtime_editable": true
@@ -481,7 +481,7 @@
       },
       "sample_rate_hz": {
         "type": "number",
-        "default": 100,
+        "default": 100.0,
         "min": 0.001,
         "max": 1000000,
         "label": "实际采样率 / Hz",
@@ -731,15 +731,15 @@
       },
       "value": {
         "type": "number",
-        "default": 0
+        "default": 0.0
       },
       "minimum": {
         "type": "number",
-        "default": -100
+        "default": -100.0
       },
       "maximum": {
         "type": "number",
-        "default": 100
+        "default": 100.0
       },
       "step": {
         "type": "number",
@@ -801,15 +801,15 @@
       },
       "value": {
         "type": "number",
-        "default": 0
+        "default": 0.0
       },
       "minimum": {
         "type": "number",
-        "default": -100
+        "default": -100.0
       },
       "maximum": {
         "type": "number",
-        "default": 100
+        "default": 100.0
       },
       "step": {
         "type": "number",
@@ -1029,7 +1029,7 @@
       "click": {
         "description": "触发按钮事件",
         "args": {},
-        "requires_active": true
+        "requires_running": true
       }
     },
     "breaks_cycle": false,
@@ -1261,50 +1261,63 @@
     "implementation": "native"
   },
   {
-    "id": "data.recorder",
-    "name": "数据记录",
+    "id": "data.record",
+    "name": "信号录制",
     "category": "调试",
-    "description": "记录原始字节或带时间戳的 HEX；原样继续传递",
+    "description": "单路原样传递并按需录制；暂停片段拼接，历史独立保存",
     "version": "3.0",
-    "ports": [
-      {
-        "id": "bytes",
-        "label": "输入字节",
-        "direction": "in",
-        "data_type": "bytes",
-        "unit": ""
-      },
-      {
-        "id": "through",
-        "label": "原样继续",
-        "direction": "out",
-        "data_type": "bytes",
-        "unit": ""
-      }
-    ],
+    "ports": [],
     "properties": {
-      "path": {
+      "data_type": {
         "type": "string",
-        "default": "records/receive.bin"
-      },
-      "append": {
-        "type": "boolean",
-        "default": true
-      },
-      "format": {
-        "type": "string",
-        "default": "binary",
+        "default": "samples",
         "choices": [
-          "binary",
-          "hex"
-        ]
+          "number",
+          "boolean",
+          "samples",
+          "bytes",
+          "string",
+          "object"
+        ],
+        "label": "信号类型"
       }
     },
-    "views": [],
-    "actions": {},
+    "views": [
+      "recorder"
+    ],
+    "actions": {
+      "start": {
+        "description": "开始或继续录制",
+        "args": {},
+        "requires_running": true
+      },
+      "pause": {
+        "description": "暂停录制",
+        "args": {},
+        "immediate": true,
+        "requires_running": false
+      },
+      "save": {
+        "description": "结束并保存独立录制文件",
+        "args": {
+          "path": {
+            "type": "string",
+            "required": true
+          }
+        },
+        "immediate": true,
+        "requires_running": false
+      },
+      "reset": {
+        "description": "清空当前录制",
+        "args": {},
+        "immediate": true,
+        "requires_running": false
+      }
+    },
     "breaks_cycle": false,
     "view_properties": {},
-    "dynamic_ports": false,
+    "dynamic_ports": true,
     "batch_boundary": false,
     "category_path": [],
     "keywords": [],
@@ -1354,7 +1367,11 @@
           "periodic",
           "countdown"
         ],
-        "label": "计时模式"
+        "label": "计时模式",
+        "choice_labels": {
+          "periodic": "周期触发",
+          "countdown": "单次倒计时"
+        }
       }
     },
     "views": [
@@ -1370,12 +1387,13 @@
             "max": 3600000
           }
         },
-        "requires_active": true
+        "requires_running": true
       },
       "stop": {
         "description": "停止定时器",
         "immediate": true,
-        "args": {}
+        "args": {},
+        "requires_running": false
       }
     },
     "breaks_cycle": false,
@@ -1396,7 +1414,7 @@
     "properties": {
       "period_ms": {
         "type": "number",
-        "default": 10,
+        "default": 10.0,
         "min": 0.1,
         "max": 60000,
         "label": "输出周期 / ms"
@@ -1405,13 +1423,13 @@
         "type": "json",
         "default": [
           {
-            "clock": "elapsed",
             "name": "t",
+            "clock": "elapsed",
             "unit": "s"
           },
           {
-            "clock": "system",
             "name": "system_ms",
+            "clock": "system",
             "unit": "ms"
           }
         ],
@@ -1441,7 +1459,7 @@
       "values": {
         "type": "json",
         "default": {
-          "value": 0
+          "value": 0.0
         },
         "label": "命名常量",
         "runtime_editable": true
@@ -3137,7 +3155,7 @@
     "properties": {
       "initial": {
         "type": "number",
-        "default": 0,
+        "default": 0.0,
         "label": "重置初值"
       },
       "time_unit": {
@@ -3218,7 +3236,7 @@
     "properties": {
       "initial": {
         "type": "number",
-        "default": 0,
+        "default": 0.0,
         "label": "重置初值"
       },
       "time_unit": {
@@ -3283,7 +3301,7 @@
     "properties": {
       "initial": {
         "type": "number",
-        "default": 0,
+        "default": 0.0,
         "label": "重置初值"
       },
       "window": {
@@ -3349,7 +3367,7 @@
     "properties": {
       "initial": {
         "type": "number",
-        "default": 0,
+        "default": 0.0,
         "label": "重置初值"
       },
       "time_unit": {
@@ -3367,7 +3385,7 @@
       },
       "cutoff_hz": {
         "type": "number",
-        "default": 5,
+        "default": 5.0,
         "min": 1e-06,
         "max": 1000000,
         "label": "截止频率 / Hz"
@@ -3502,7 +3520,7 @@
     "properties": {
       "window_seconds": {
         "type": "number",
-        "default": 10,
+        "default": 10.0,
         "min": 0.01,
         "max": 86400,
         "runtime_editable": true
@@ -3528,7 +3546,7 @@
       },
       "line_width": {
         "type": "number",
-        "default": 1,
+        "default": 1.0,
         "min": 0.5,
         "max": 5,
         "runtime_editable": true
@@ -3821,9 +3839,9 @@
       "model_rotation_deg": {
         "type": "json",
         "default": [
-          0,
-          0,
-          0
+          0.0,
+          0.0,
+          0.0
         ],
         "label": "模型安装旋转 XYZ / deg",
         "runtime_editable": true
@@ -3831,16 +3849,16 @@
       "model_offset": {
         "type": "json",
         "default": [
-          0,
-          0,
-          0
+          0.0,
+          0.0,
+          0.0
         ],
         "label": "模型位移 XYZ（模型单位）",
         "runtime_editable": true
       },
       "model_scale": {
         "type": "number",
-        "default": 1,
+        "default": 1.0,
         "min": 0.001,
         "max": 1000,
         "label": "模型缩放",
@@ -3849,10 +3867,10 @@
       "reference_quaternion": {
         "type": "json",
         "default": [
-          1,
-          0,
-          0,
-          0
+          1.0,
+          0.0,
+          0.0,
+          0.0
         ],
         "label": "显示参考四元数 wxyz",
         "runtime_editable": true
@@ -3873,7 +3891,7 @@
       },
       "background_opacity": {
         "type": "number",
-        "default": 1,
+        "default": 1.0,
         "min": 0,
         "max": 1,
         "label": "背景不透明度",
@@ -3899,7 +3917,7 @@
       },
       "camera_azimuth": {
         "type": "number",
-        "default": 38,
+        "default": 38.0,
         "min": -36000,
         "max": 36000,
         "label": "观察方位角 / deg",
@@ -3907,7 +3925,7 @@
       },
       "camera_elevation": {
         "type": "number",
-        "default": 24,
+        "default": 24.0,
         "min": -90,
         "max": 90,
         "label": "观察仰角 / deg",
@@ -3924,8 +3942,8 @@
       "camera_pan": {
         "type": "json",
         "default": [
-          0,
-          0
+          0.0,
+          0.0
         ],
         "label": "观察平移 XY",
         "runtime_editable": true
@@ -3933,9 +3951,9 @@
       "camera_target": {
         "type": "json",
         "default": [
-          0,
-          0,
-          0
+          0.0,
+          0.0,
+          0.0
         ],
         "label": "观察中心 XYZ",
         "runtime_editable": true
@@ -4486,7 +4504,12 @@
           "falling",
           "both"
         ],
-        "label": "检测边沿"
+        "label": "检测边沿",
+        "choice_labels": {
+          "rising": "上升沿",
+          "falling": "下降沿",
+          "both": "双边沿"
+        }
       }
     },
     "views": [],
@@ -4504,6 +4527,174 @@
       "falling",
       "边沿"
     ],
+    "implementation": "native"
+  },
+  {
+    "id": "data.playback",
+    "name": "信号回放",
+    "category": "调试",
+    "description": "未截断时实时直通；截断后按进度和倍速回放独立文件",
+    "version": "3.0",
+    "ports": [],
+    "properties": {
+      "data_type": {
+        "type": "string",
+        "default": "samples",
+        "choices": [
+          "number",
+          "boolean",
+          "samples",
+          "bytes",
+          "string",
+          "object"
+        ],
+        "label": "信号类型"
+      },
+      "path": {
+        "type": "string",
+        "default": "",
+        "label": "默认录制文件",
+        "format": "external_file",
+        "runtime_editable": true
+      }
+    },
+    "views": [
+      "playback"
+    ],
+    "actions": {
+      "load": {
+        "description": "临时导入录制文件，重置后恢复设计默认文件",
+        "args": {
+          "path": {
+            "type": "string",
+            "required": true
+          }
+        },
+        "immediate": true,
+        "requires_running": false
+      },
+      "cutoff": {
+        "description": "切换截断开关；打开后保持待播放",
+        "args": {
+          "value": {
+            "type": "boolean",
+            "required": true
+          }
+        },
+        "requires_running": true
+      },
+      "play": {
+        "description": "从当前进度播放",
+        "args": {},
+        "requires_running": true
+      },
+      "pause": {
+        "description": "暂停回放并保持截断状态",
+        "args": {},
+        "immediate": true,
+        "requires_running": false
+      },
+      "seek": {
+        "description": "定位进度；截断时输出目标数据一次",
+        "args": {
+          "position": {
+            "type": "number",
+            "min": 0,
+            "required": true
+          }
+        },
+        "requires_running": true
+      },
+      "step": {
+        "description": "暂停并前后逐条定位",
+        "args": {
+          "direction": {
+            "type": "integer",
+            "choices": [
+              -1,
+              1
+            ],
+            "required": true
+          }
+        },
+        "requires_running": true
+      },
+      "set_speed": {
+        "description": "修改回放倍速",
+        "args": {
+          "value": {
+            "type": "number",
+            "min": 0.125,
+            "max": 16,
+            "required": true
+          }
+        },
+        "immediate": true,
+        "requires_running": false
+      }
+    },
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": true,
+    "batch_boundary": false,
+    "category_path": [
+      "调试"
+    ],
+    "keywords": [
+      "回放",
+      "播放",
+      "playback"
+    ],
+    "implementation": "native"
+  },
+  {
+    "id": "data.recorder",
+    "name": "字节记录",
+    "category": "调试",
+    "description": "记录原始字节或带时间戳的 HEX；原样继续传递",
+    "version": "3.0",
+    "ports": [
+      {
+        "id": "bytes",
+        "label": "输入字节",
+        "direction": "in",
+        "data_type": "bytes",
+        "unit": ""
+      },
+      {
+        "id": "through",
+        "label": "原样继续",
+        "direction": "out",
+        "data_type": "bytes",
+        "unit": ""
+      }
+    ],
+    "properties": {
+      "path": {
+        "type": "string",
+        "default": "records/receive.bin"
+      },
+      "append": {
+        "type": "boolean",
+        "default": true
+      },
+      "format": {
+        "type": "string",
+        "default": "binary",
+        "choices": [
+          "binary",
+          "hex"
+        ]
+      }
+    },
+    "views": [],
+    "actions": {},
+    "breaks_cycle": false,
+    "view_properties": {},
+    "dynamic_ports": false,
+    "batch_boundary": false,
+    "category_path": [],
+    "keywords": [],
     "implementation": "native"
   }
 ]

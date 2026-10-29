@@ -24,7 +24,7 @@ quint64 Engine::submit(const QString &operation, const QVariantMap &arguments)
         std::lock_guard guard(queueMutex_);
         if (quitting_) throw Error("计算引擎正在退出");
         if (requests_.size() >= 4096) throw Error("操作请求过多，请等待已有操作完成");
-        if (operation == "runtime.stop" || operation == "runtime.reset") stopRequested_ = true;
+        if (operation == "runtime.pause" || operation == "runtime.stop" || operation == "runtime.reset") stopRequested_ = true;
         if (operation == "node.action" && arguments.value("action") == "cancel_file") cancellations_.insert(arguments.value("node").toString());
         requests_.push_back({id,operation,arguments});
     }
@@ -154,7 +154,7 @@ void Engine::rebuildSources(Clock::time_point now)
     for (const auto &item : project_.value("nodes").toList()) { const auto node = item.toMap(); titles[node.value("id").toString()] = node.value("title",node.value("id")).toString(); }
     for (const auto &[id,node] : nodes_) {
         const auto interval = node->sourceInterval();
-        if (interval >= 0. || node->kind() == "source.timer") availableSources_.append(QVariantMap{{"id",id},{"name",titles.value(id,id)}});
+        if (interval >= 0. || node->kind() == "source.timer" || node->kind() == "data.playback") availableSources_.append(QVariantMap{{"id",id},{"name",titles.value(id,id)}});
         if (interval == 0. && outgoing_.contains(id)) readySources_.append(id);
         else if (interval > 0.) deadlines_.insert(id, previous.value(id,now));
     }
@@ -371,6 +371,7 @@ QVariant Engine::dispatch(const Request &request)
         running_ = false;
         for (auto &[id,node] : nodes_) node->pause();
         { std::lock_guard guard(queueMutex_); inputQueue_.clear(); queuedBytes_ = 0; }
+        stopRequested_ = false;
         record("info","运行已暂停，状态与设备连接保留"); return QVariantMap{{"running",false}};
     }
     if (op == "runtime.stop") { endSession(); return QVariantMap{{"active",false}}; }
@@ -420,7 +421,6 @@ QVariant Engine::dispatch(const Request &request)
         if (contract.value("requires_running",true).toBool() && !active_) throw Error("请先建立运行会话");
         if (contract.value("requires_paused",false).toBool() && running_) throw Error("请先暂停运行");
         auto arguments = fromJsonValue(args.value("args")).toMap();
-        if (contract.value("requires_active").toBool() && !active_) throw Error("请先启动引擎，再操作此插件");
         const auto schema = contract.value("args").toMap();
         for (auto i = schema.cbegin(); i != schema.cend(); ++i) if (i.value().toMap().value("required").toBool() && !arguments.contains(i.key())) throw Error("动作缺少参数：" + i.key());
         arguments = checkedProperties(schema,arguments,{});
@@ -532,8 +532,16 @@ void Engine::run()
             }
         } catch (const std::exception &error) {
             const auto node = currentNode_;
-            ++failed_; elapsedBase_ = elapsed(Clock::now()); running_ = false; accepting_ = false;
-            nodeErrors_[node] = QString::fromUtf8(error.what()); record("error",QString::fromUtf8(error.what()),node,{{"kind","execution_error"}}); batch_.reset(); publishObservation(Clock::now(),true);
+            elapsedBase_ = elapsed(Clock::now()); running_ = false; accepting_ = false;
+            if (stopRequested_ || quitting_) {
+                // Global controls intentionally interrupt long plugin calls;
+                // retained completed state is not an algorithm execution error.
+                record("info","引擎控制已中断未完成批次，已执行状态保留",node,{{"kind","execution_interrupted"}});
+            } else {
+                ++failed_; nodeErrors_[node] = QString::fromUtf8(error.what());
+                record("error",QString::fromUtf8(error.what()),node,{{"kind","execution_error"}});
+            }
+            batch_.reset(); publishObservation(Clock::now(),true);
         }
     }
     endSession(); nodes_.clear();

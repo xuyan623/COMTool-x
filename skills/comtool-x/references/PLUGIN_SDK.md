@@ -26,9 +26,19 @@
 }
 ```
 
-`process(inputs, state)` 读取完整输入，返回输出端口名称到值的字典；返回 None 表示本次不发布。`inputs['__config__']` 是当前参数，`inputs['__context__']` 包含 time（秒）、batch 和 resumed。state 是可序列化的私有状态，失败调用不提交新值。
+`process(inputs, state)` 读取完整输入，返回输出端口名称到值的字典；返回 None 表示本次不发布。`inputs['__config__']` 是当前参数，`inputs['__context__']` 包含 time（引擎时间，秒）、batch、resumed、changed（本次新到达的输入名列表）和 source_tick（是否为自主信号源调度）。state 是可序列化的私有状态，失败调用不提交新值。
 
-输入/输出类型为 number、bytes、string、boolean、object、samples、trigger 或 any。samples 为 `{'time':秒,'values':{'通道名':数值}}`；bytes 在 Python 内为 bytes，外部 JSON 用 `{type:'bytes',base64:'...',length:N}`。
+输入/输出类型为 number、bytes、string、boolean、object、samples 或 any。samples 为 `{'time':秒,'values':{'通道名':数值}}`；bytes 在 Python 内为 bytes，外部 JSON 用 `{type:'bytes',base64:'...',length:N}`。
+
+控制输入统一用 boolean 声明。动作型控制只在端口属于本次 changed 且值为 true 时执行；其他输入更新时，完整输入中保留的 true 不能重复当成新命令。重复到达的 true 仍各算一次命令；只识别状态变化时接边沿触发插件。用户动作的上下文中 changed 为空、source_tick 为 false。
+
+```python
+def process(inputs, state):
+    changed = inputs['__context__']['changed']
+    if 'start' in changed and inputs['start']:
+        state['starts'] = state.get('starts', 0) + 1
+    return {'count': state.get('starts', 0)}
+```
 
 ```python
 def process(inputs, state):

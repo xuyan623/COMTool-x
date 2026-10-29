@@ -10,6 +10,10 @@ IconProvider::IconProvider() : QQuickImageProvider(QQuickImageProvider::Image) {
 QImage IconProvider::requestImage(const QString &id, QSize *size, const QSize &requested)
 {
     static const QHash<QString,QString> paths{
+        {"record",R"(<circle cx="12" cy="12" r="7" fill="{c}" stroke="none"/>)"},
+        {"save",R"(<path d="M4 3h13l4 4v14H3V3Z"/><path d="M7 3v6h10V3M7 21v-8h10v8"/>)"},
+        {"open",R"(<path d="M3 7V4h7l3 3h8v3M3 7h9l2 3h7l-3 10H3Z"/>)"},
+        {"rewind",R"(<path d="M5 4v16M19 5l-11 7 11 7Z"/>)"},
         {"export",R"(<path d="M12 15V3m-4 4 4-4 4 4M4 13v8h16v-8"/>)"},
         {"follow",R"(<path d="M3 7h18M3 17h18M7 3v18m10-18v18"/><circle cx="12" cy="12" r="3"/>)"},
         {"spectrum",R"(<path d="M3 21V3m0 18h19M7 21v-6m4 6V6m4 15V10m4 11v-5"/>)"},

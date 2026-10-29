@@ -49,6 +49,8 @@ private slots:
     void geometryAndRotations();
     void terminal();
     void localPython();
+    void localPythonBooleanUpdates();
+    void enginePauseInterruptsPython();
 };
 
 void ExecutionTest::nativeCatalogConstructs()
@@ -198,6 +200,44 @@ void ExecutionTest::localPython()
     QVERIFY_EXCEPTION_THROWN(python.call(call),cx::Error);
     call["code"] = "def process(inputs,state): return 7\n"; call["timeout_ms"] = 1000;
     QCOMPARE(python.call(call).value("result").toInt(),7); python.close();
+}
+
+void ExecutionTest::localPythonBooleanUpdates()
+{
+    const auto path = qEnvironmentVariable("COMTOOLX_TEST_PYTHON");
+    if (path.isEmpty()) QSKIP("Set COMTOOLX_TEST_PYTHON to verify real Python control inputs");
+    cx::PythonHost python([] { return false; }); python.selectInterpreter(path);
+    cx::Catalog catalog;
+    catalog.addPython({{"plugin_api",3},{"id","user.control"},{"name","控制更新验证"},
+        {"code","def process(inputs,state):\n    if 'start' in inputs['__context__']['changed'] and inputs['start']:\n        state['starts']=state.get('starts',0)+1\n    return {'out':state.get('starts',0)}\n"},
+        {"ports",QVariantList{QVariantMap{{"id","start"},{"direction","in"},{"data_type","boolean"}},QVariantMap{{"id","value"},{"direction","in"},{"data_type","number"}},QVariantMap{{"id","out"},{"direction","out"},{"data_type","number"}}}},
+        {"properties",QVariantMap{}}});
+    cx::NodeHost host; host.python = [&](const QVariantMap &request) { return python.call(request); };
+    auto control = cx::makeNode(node("control","user.control"),catalog,host); control->setConnections({"start","value"});
+    control->execute({{"start",true},{"value",1.}}, {},{1,0.}); QCOMPARE(control->outputs().value("out").toInt(),1);
+    control->execute({{"value",2.}}, {},{2,.1}); QCOMPARE(control->outputs().value("out").toInt(),1);
+    control->execute({{"start",true}}, {},{3,.2}); QCOMPARE(control->outputs().value("out").toInt(),2);
+    control->execute({{"start",false}}, {},{4,.3}); QCOMPARE(control->outputs().value("out").toInt(),2);
+    control->execute({{"start",true}}, {},{5,.4}); QCOMPARE(control->outputs().value("out").toInt(),3);
+    python.close();
+}
+
+void ExecutionTest::enginePauseInterruptsPython()
+{
+    const auto path = qEnvironmentVariable("COMTOOLX_TEST_PYTHON");
+    if (path.isEmpty()) QSKIP("Set COMTOOLX_TEST_PYTHON to verify engine priority over Python work");
+    cx::Engine *running = nullptr;
+    cx::PythonHost python([&] { return running && running->interrupted(); }); python.selectInterpreter(path);
+    cx::NodeHost host; host.python = [&](const QVariantMap &call) { return python.call(call); }; host.stopExtensions = [&] { python.close(); };
+    cx::Engine engine(host); running = &engine;
+    auto project = cx::emptyProject();
+    project["nodes"] = QVariantList{node("source","source.constant"),node("python","function.python",{{"code","def process(inputs,state):\n    while True: pass\n"},{"timeout_ms",2000}})};
+    project["wires"] = QVariantList{wire("input","source","value","python","x")};
+    request(engine,"project.apply",{{"project",project}}); request(engine,"runtime.start"); QTest::qWait(30);
+    request(engine,"runtime.pause");
+    QVERIFY(!engine.observation().value("running").toBool()); QCOMPARE(engine.observation().value("failed").toULongLong(),0ull);
+    QVERIFY(engine.observation().value("errors").toMap().isEmpty());
+    request(engine,"runtime.reset"); engine.shutdown(); running = nullptr;
 }
 
 QTEST_GUILESS_MAIN(ExecutionTest)

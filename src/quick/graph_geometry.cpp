@@ -66,6 +66,10 @@ QVariantMap nodeGeometry(const QVariantMap &node, const Catalog &catalog)
     add(inputs,true); add(outputs,false);
     static const QHash<QString,QString> symbols{{"sin","sin x"},{"cos","cos x"},{"tan","tan x"},{"asin","sin⁻¹"},{"acos","cos⁻¹"},{"atan","tan⁻¹"},{"abs","|x|"},{"sqrt","√x"},{"exp","eˣ"},{"log","ln x"},{"log10","log₁₀"},{"floor","⌊x⌋"},{"ceil","⌈x⌉"},{"negate","−x"},{"sign","sgn x"},{"degrees","rad / °"},{"radians","° / rad"},{"add","Σ"},{"subtract","a − b"},{"multiply","a × b"},{"divide","a / b"},{"minimum","min"},{"maximum","max"},{"power","aᵇ"},{"atan2","atan2"},{"greater","a > b"},{"less","a < b"},{"equal","a = b"},{"integral","∫ x dt"},{"derivative","dx / dt"},{"expression","ƒ(x)"},{"python","Py"},{"limit","clamp"},{"linear_map","map"}};
     QString symbol = kind.startsWith("function.") ? symbols.value(kind.mid(9)) : QString{};
+    if (kind.startsWith("logic.")) {
+        static const QHash<QString,QString> logicSymbols{{"and","∧"},{"or","∨"},{"not","¬"},{"nand","¬∧"},{"nor","¬∨"},{"xor","⊕"},{"xnor","⊙"},{"edge","↑↓"}};
+        symbol = logicSymbols.value(kind.mid(6));
+    }
     if (kind == "source.constant") { const auto values = node.value("config").toMap().value("values").toMap(); symbol = values.size()==1 ? QString::number(values.first().toDouble(),'g',5) : "{…}"; }
     QString icon = kind.startsWith("io.") ? "connection" : kind == "control.button" ? "button" : kind == "control.text" ? "text-input" : kind.startsWith("control.") ? "sliders" : kind == "plot.curves" ? "wave" : kind == "plot.attitude" ? "attitude" : kind.startsWith("source.") ? "clock" : kind.startsWith("protocol.") ? "decode" : kind == "data.fork" ? "fork" : kind == "data.gate" || kind == "data.select" ? "switch" : kind == "terminal.ansi" || kind == "debug.console" ? "terminal" : "wave";
     if (kind == "display.value") icon = "display";

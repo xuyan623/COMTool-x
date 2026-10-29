@@ -45,18 +45,18 @@ Item {
         RowLayout{
             Layout.fillWidth:true
             ScrollView{Layout.fillWidth:true;Layout.preferredHeight:60;TextArea{id:outgoing;objectName:"console."+root.host.nodeId+".send";placeholderText:"输入发送内容";selectByMouse:true;wrapMode:Text.WrapAnywhere;enabled:!root.host.designMode;Keys.onPressed:event=>{if(event.key===Qt.Key_Return&&event.modifiers&Qt.ControlModifier){root.send();event.accepted=true}}}}
-            Button{objectName:"console."+root.host.nodeId+".sendButton";text:"发送";enabled:!root.host.designMode&&!!App.runtime.active;onClicked:root.send()}
+            ActionButton{objectName:"console."+root.host.nodeId+".sendButton";text:"发送";enabled:!root.host.designMode&&!!App.runtime.active;onClicked:root.send()}
         }
         Flow{
             Layout.fillWidth:true;spacing:4
-            Repeater{model:root.host.config.quick_commands||[];Button{required property var modelData;text:typeof modelData==="string"?modelData:modelData.label||modelData.text;enabled:!root.host.designMode&&!!App.runtime.active;onClicked:{outgoing.text=typeof modelData==="string"?modelData:modelData.text||"";root.send()}}}
+            Repeater{model:root.host.config.quick_commands||[];ActionButton{required property var modelData;text:typeof modelData==="string"?modelData:modelData.label||modelData.text;enabled:!root.host.designMode&&!!App.runtime.active;onClicked:{outgoing.text=typeof modelData==="string"?modelData:modelData.text||"";root.send()}}}
         }
         RowLayout{
             Layout.fillWidth:true
             SpinBox{id:period;from:1;to:3600000;value:1000;editable:true;Layout.preferredWidth:120}
             Label{text:"ms";color:Theme.muted}
-            Button{text:(root.host.snapshot.state||{}).periodic?"停止定时":"定时发送";enabled:!root.host.designMode&&!!App.runtime.active;onClicked:{if((root.host.snapshot.state||{}).periodic)root.host.action("periodic_stop",{});else{let args=root.options();args.interval_ms=period.value;root.host.action("periodic_start",args)}}}
-            Button{text:root.fileJob?"取消发送":"发送文件…";enabled:!root.host.designMode&&!!App.runtime.active;onClicked:{if(root.fileJob)root.host.action("cancel_file",{});else{root.fileOperation="send";dataFile.fileMode=FileDialog.OpenFile;dataFile.open()}}}
+            ActionButton{text:(root.host.snapshot.state||{}).periodic?"停止定时":"定时发送";enabled:!root.host.designMode&&!!App.runtime.active;onClicked:{if((root.host.snapshot.state||{}).periodic)root.host.action("periodic_stop",{});else{let args=root.options();args.interval_ms=period.value;root.host.action("periodic_start",args)}}}
+            ActionButton{text:root.fileJob?"取消发送":"发送文件…";enabled:!root.host.designMode&&!!App.runtime.active;onClicked:{if(root.fileJob)root.host.action("cancel_file",{});else{root.fileOperation="send";dataFile.fileMode=FileDialog.OpenFile;dataFile.open()}}}
             Item{Layout.fillWidth:true}
             Label{text:"收 "+((root.host.snapshot.state||{}).rx_bytes||0)+" B";color:Theme.muted;font.pixelSize:11}
         }

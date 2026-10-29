@@ -8,8 +8,8 @@ ColumnLayout {
     spacing:5
     RowLayout{
         visible:root.host.design.plugin==="source.timer"
-        Button{text:(root.host.snapshot.state||{}).enabled?"停止定时器":"启动定时器";enabled:!root.host.designMode&&!!App.runtime.active;onClicked:root.host.action((root.host.snapshot.state||{}).enabled?"stop":"start",{})}
-        Label{text:root.host.config.interval_ms+" ms";color:Theme.muted}
+        IconButton{symbol:(root.host.snapshot.state||{}).enabled?"pause":"run";text:(root.host.snapshot.state||{}).enabled?"停止计时":"启动计时";enabled:!root.host.designMode&&!!App.runtime.active;onClicked:root.host.action((root.host.snapshot.state||{}).enabled?"stop":"start",{})}
+        Label{text:Number((root.host.snapshot.state||{}).remaining_seconds||0).toFixed(2)+" s · "+((root.host.snapshot.state||{}).ticks||0)+" 次";color:Theme.muted}
     }
     Repeater{
         model:Object.keys(root.host.snapshot.outputs||{})

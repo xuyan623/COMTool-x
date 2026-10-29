@@ -201,6 +201,8 @@ QVariantList Workspaces::windows() const
           for (auto i = count - (count > 0) - retained; i < count - (count > 0); ++i) intervals.append(host.frames->intervals[i % host.frames->intervals.size()]); }
         result.append(QVariantMap{{"id",host.id},{"active",host.active},{"tabs",host.tabs},{"child",host.child},{"pinned",host.pinned},
         {"focused",host.window->isActive()},
+        {"visible",host.window->isVisible()},{"exposed",host.window->isExposed()},
+        {"native_visible",QGuiApplication::platformName() == "windows" ? bool(IsWindowVisible(reinterpret_cast<HWND>(host.window->winId()))) : host.window->isVisible()},
         {"native_owned",GetWindow(reinterpret_cast<HWND>(host.window->winId()),GW_OWNER) != nullptr},
         {"native_topmost",bool(GetWindowLongPtr(reinterpret_cast<HWND>(host.window->winId()),GWL_EXSTYLE) & WS_EX_TOPMOST)},
         {"frame_count",QVariant::fromValue(count)},{"frame_intervals_ms",intervals},

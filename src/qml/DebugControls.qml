@@ -8,8 +8,7 @@ RowLayout {
     property var sources:[{id:"",name:"自动数据源"}].concat(App.runtime.sources||[])
     spacing:3
     function step(kind){let args={mode:kind};if(source.currentValue)args.source=source.currentValue;App.invoke("runtime.step",args)}
-    IconButton{objectName:root.prefix+".run";symbol:"run";ink:Theme.green;text:"运行／继续（F5 调试运行，Ctrl+F5 普通运行）";enabled:!App.runtime.running&&!App.executionPending&&!App.busy;onClicked:App.invoke("runtime.start",{debug:!!App.runtime.debug})}
-    IconButton{objectName:root.prefix+".pause";symbol:"pause";text:"暂停（F6）";enabled:!!App.runtime.running;onClicked:App.invoke("runtime.pause",{})}
+    IconButton{objectName:root.prefix+".run";symbol:App.runtime.running?"pause":"run";ink:App.runtime.running?Theme.blue:Theme.green;text:App.runtime.running?"暂停（F6）":"运行／继续（F5 调试运行，Ctrl+F5 普通运行）";enabled:App.runtime.running||(!App.executionPending&&!App.busy);onClicked:App.invoke(App.runtime.running?"runtime.pause":"runtime.start",App.runtime.running?{}:{debug:!!App.runtime.debug})}
     IconButton{objectName:root.prefix+".debug";symbol:"debug";text:"调试模式";checkable:true;checked:!!App.runtime.debug;enabled:!App.executionPending;onClicked:App.invoke("runtime.debug",{enabled:checked})}
     IconButton{objectName:root.prefix+".batch";symbol:"batch";text:"整图下一步：完成一个采样批次（F10）";enabled:!!App.runtime.debug&&!App.runtime.running&&!App.executionPending&&!App.busy;onClicked:root.step("batch")}
     IconButton{objectName:root.prefix+".node";symbol:"node";text:"节点单步（F11）";enabled:!!App.runtime.debug&&!App.runtime.running&&!App.executionPending&&!App.busy;onClicked:root.step("node")}

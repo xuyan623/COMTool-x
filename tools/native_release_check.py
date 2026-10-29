@@ -64,8 +64,8 @@ def main():
     try:
         c = launch()
         check(c.call('app.state')['python'] == '', 'deployed application starts without a Python interpreter')
-        check(len(c.call('registry')) == 76, 'all 76 official plugin declarations are available in deployment')
-        for name in ('SerialPlot', 'FunctionLab'):
+        check(len(c.call('registry')) == 78, 'all 78 official plugin declarations are available in deployment')
+        for name in ('SerialPlot', 'FunctionLab', 'RecordPlayback'):
             c.call('project.open', {'path': str(deployment / 'examples' / (name + '.comtoolx'))})
             check(c.call('project.validate')['valid'], name + ' opens as a native v3 project')
             c.call('workspace.open', {'page': 'runtime'})
@@ -76,7 +76,7 @@ def main():
             time.sleep(.6)
             state = c.call('runtime.state')
             check(not state['errors'] and not state['failed'], name + ' computes with no Python selected')
-            if name in ('FunctionLab',):
+            if name in ('FunctionLab', 'RecordPlayback'):
                 check(state['nodes']['plot']['executions'] >= 30 and state['nodes']['attitude']['state']['valid'],
                       'deployed curve and aircraft receive live native data')
             else:
@@ -94,7 +94,7 @@ def main():
         check(json.loads(cli.stdout)['ok'], 'native CLI recovers when the default discovery record is absent')
         other.call('app.quit')
         processes[-1].wait(timeout=10)
-        check(c.call('app.state')['project'] == 'FunctionLab', 'closing another instance preserves the original session and API')
+        check(c.call('app.state')['project'] == 'RecordPlayback', 'closing another instance preserves the original session and API')
         c.call('app.quit')
         processes[0].wait(timeout=10)
         c = launch()
@@ -105,7 +105,8 @@ def main():
             ('native_ui_check.py', 'interface', []),
             ('native_workbench_check.py', 'workbench', []),
             ('native_instrument_check.py', 'instruments', ['--python', sys.executable]),
-            ('native_animation_check.py', 'animation', [])):
+            ('native_animation_check.py', 'animation', []),
+            ('native_recording_check.py', 'recording', [])):
             subprocess.run([sys.executable, str(tools / script), '--data-dir', str(data), '--output', str(output / subfolder)] + extra,
                            env=environment, check=True)
             check(True, script + ' passes against the deployed executable')

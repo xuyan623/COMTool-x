@@ -179,9 +179,9 @@ ApplicationWindow {
         id: unsaved; title: "工程有未保存修改"; modal: true; anchors.centerIn: parent; width: 400
         contentItem: Label { text: "保存当前工程后再继续？"; color: Theme.text; padding: 12 }
         footer: DialogButtonBox {
-            Button { text: "保存"; DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole; onClicked: { unsaved.close(); win.save() } }
-            Button { text: "丢弃修改"; DialogButtonBox.buttonRole: DialogButtonBox.DestructiveRole; onClicked: { unsaved.close(); win.continueAction() } }
-            Button { text: "取消"; DialogButtonBox.buttonRole: DialogButtonBox.RejectRole; onClicked: { win.pendingAction = ""; unsaved.close() } }
+            ActionButton { text: "保存"; DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole; onClicked: { unsaved.close(); win.save() } }
+            ActionButton { text: "丢弃修改"; DialogButtonBox.buttonRole: DialogButtonBox.DestructiveRole; onClicked: { unsaved.close(); win.continueAction() } }
+            ActionButton { text: "取消"; DialogButtonBox.buttonRole: DialogButtonBox.RejectRole; onClicked: { win.pendingAction = ""; unsaved.close() } }
         }
     }
     Dialog {
@@ -189,8 +189,8 @@ ApplicationWindow {
         ColumnLayout {
             anchors.fill: parent; spacing: 12
             Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "选择本机或虚拟环境中的 Python 3.10 及以上版本。官方功能无需 Python；软件不会修改所选环境。"; color: Theme.muted }
-            RowLayout { Layout.fillWidth: true; TextField { id: pythonInput; objectName: "settings.python"; Layout.fillWidth: true; placeholderText: "选择 python.exe" } Button { text: "浏览…"; onClicked: pythonFile.open() } }
-            RowLayout { Button { text: "保存选择"; onClicked: App.invoke("preferences.set", {python:pythonInput.text}) } Button { text: "检查环境"; onClicked: { pythonProbe.jobId = App.invoke("python.probe", {}).job || "" } } }
+            RowLayout { Layout.fillWidth: true; TextField { id: pythonInput; objectName: "settings.python"; Layout.fillWidth: true; placeholderText: "选择 python.exe" } ActionButton { text: "浏览…"; onClicked: pythonFile.open() } }
+            RowLayout { ActionButton { text: "保存选择"; onClicked: App.invoke("preferences.set", {python:pythonInput.text}) } ActionButton { text: "检查环境"; onClicked: { pythonProbe.jobId = App.invoke("python.probe", {}).job || "" } } }
             TextArea { id: pythonProbe; property string jobId: ""; Layout.fillWidth: true; Layout.preferredHeight: 120; readOnly: true; wrapMode: Text.WrapAnywhere; text: App.pythonPath ? "已选择：" + App.pythonPath : "尚未选择本地解释器" }
             Connections { target: App; function onJobFinished(id) { if (id === pythonProbe.jobId) pythonProbe.text = JSON.stringify(App.job(id), null, 2) } }
         }

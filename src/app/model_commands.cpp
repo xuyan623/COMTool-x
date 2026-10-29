@@ -1,8 +1,25 @@
 #include "model_commands.h"
 #include "quick/graph_geometry.h"
+#include <QFileInfo>
+#include <QUrl>
 #include <algorithm>
 
 namespace cx {
+
+// Design assets are embedded; captured data stays external and only its local
+// path is normalized. Both node creation and configuration use this policy.
+static void prepareFileProperties(QVariantMap &project, QVariantMap &config, const QVariantMap &schema)
+{
+    for (auto i = schema.cbegin(); i != schema.cend(); ++i) {
+        const auto format = i.value().toMap().value("format").toString();
+        const auto value = config.value(i.key()).toString();
+        if (format == "file") config[i.key()] = importResource(project,value);
+        else if (format == "external_file" && !value.isEmpty()) {
+            const QUrl url(value);
+            config[i.key()] = QFileInfo(url.isLocalFile() ? url.toLocalFile() : value).absoluteFilePath();
+        }
+    }
+}
 
 static qsizetype findItem(const QVariantList &items, const QString &id)
 {
@@ -63,7 +80,7 @@ EditResult editProject(QVariantMap project, const Catalog &catalog, const QStrin
         const auto plugin = args.value("plugin").toString();
         auto config = catalog.checkedConfig(plugin,args.value("config").toMap());
         const auto schema = catalog.definition(plugin).value("properties").toMap();
-        for (auto i = schema.cbegin(); i != schema.cend(); ++i) if (i.value().toMap().value("format") == "file") config[i.key()] = importResource(project,config.value(i.key()).toString());
+        prepareFileProperties(project,config,schema);
         const auto id = args.value("id",newId("node")).toString();
         QVariantMap node{{"id",id},{"plugin",plugin},{"title",args.value("title",catalog.definition(plugin).value("name"))},
             {"config",config},{"position",args.value("position",QVariantList{80.,80.})},{"orientation",args.value("orientation",0)},{"placed",args.value("placed",true)}};
@@ -85,7 +102,7 @@ EditResult editProject(QVariantMap project, const Catalog &catalog, const QStrin
         } else if (operation == "node.configure") {
             auto config = catalog.checkedConfig(node.value("plugin").toString(),args.value("changes").toMap(),node.value("config").toMap());
             const auto schema = catalog.definition(node.value("plugin").toString()).value("properties").toMap();
-            for (auto i = schema.cbegin(); i != schema.cend(); ++i) if (i.value().toMap().value("format") == "file") config[i.key()] = importResource(project,config.value(i.key()).toString());
+            prepareFileProperties(project,config,schema);
             node["config"] = config; edit.engineChanged = true;
         } else {
             const auto changes = args.value("changes").toMap();

@@ -15,6 +15,7 @@ add_library(cx_core STATIC
     src/core/value.cpp src/core/value.h
     src/core/catalog.cpp src/core/catalog.h
     src/core/project.cpp src/core/project.h
+    src/core/recording.cpp src/core/recording.h
 )
 target_include_directories(cx_core PUBLIC src)
 target_link_libraries(cx_core PUBLIC Qt6::Core)
@@ -27,6 +28,7 @@ if(CX_BUILD_APP)
         src/plugins/math_node.cpp src/plugins/math_node.h
         src/plugins/logic_node.cpp src/plugins/logic_node.h
         src/plugins/timer_node.cpp src/plugins/timer_node.h
+        src/plugins/recording_node.cpp src/plugins/recording_node.h
         src/plugins/data_node.cpp src/plugins/data_node.h
         src/plugins/protocol_node.cpp src/plugins/protocol_node.h
         src/plugins/instrument_node.cpp src/plugins/instrument_node.h
@@ -97,6 +99,9 @@ if(CX_BUILD_APP)
     qt_add_executable(cx_control_test tests/native/control_test.cpp)
     target_link_libraries(cx_control_test PRIVATE cx_core Qt6::Test)
     add_test(NAME control COMMAND cx_control_test)
+    qt_add_executable(cx_recording_test tests/native/recording_test.cpp)
+    target_link_libraries(cx_recording_test PRIVATE cx_design Qt6::Test)
+    add_test(NAME recording COMMAND cx_recording_test)
     qt_add_executable(cx_io_test tests/native/io_test.cpp)
     target_link_libraries(cx_io_test PRIVATE cx_io Qt6::Test)
     add_test(NAME io COMMAND cx_io_test)

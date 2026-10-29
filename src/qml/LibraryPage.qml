@@ -99,7 +99,7 @@ Item {
                     Label{visible:!!root.picked.id&&!!root.reason(root.picked);text:root.reason(root.picked);color:"#D8B56C";Layout.fillWidth:true;wrapMode:Text.WordWrap}
                     RowLayout {
                         visible:!!root.picked.id
-                        Button{objectName:"library.add";text:"添加到待放置区";enabled:!App.readOnly&&!App.busy&&!root.reason(root.picked)&&(App.libraryTarget==="layout"||!App.runtime.running);onClicked:root.place()}
+                        ActionButton{objectName:"library.add";text:"添加到待放置区";enabled:!App.readOnly&&!App.busy&&!root.reason(root.picked)&&(App.libraryTarget==="layout"||!App.runtime.running);onClicked:root.place()}
                         IconButton{symbol:"star";text:"收藏／取消收藏";visible:!!root.picked.id&&!root.picked.id.startsWith("layout.");checked:(App.libraryPreferences.favorites||[]).indexOf(root.picked.id)>=0;checkable:true;onClicked:App.invoke("library.favorite",{plugin:root.picked.id,enabled:checked})}
                     }
                     Item{Layout.preferredHeight:10}

@@ -26,7 +26,7 @@ Item {
     Connections{target:App;function onViewChanged(key){if(key===root.nodeId+"/"+root.viewKey)root.observation=App.viewState(root.nodeId,root.viewKey)}}
     Loader {
         id:content;anchors.fill:parent;enabled:!root.designMode&&!!root.nodeId&&App.nodeDesign(root.nodeId).placed!==false&&App.nodeDesign(root.nodeId).plugin===root.design.plugin
-        sourceComponent:root.definition.implementation==="python"?userComponent:root.design.plugin==="plot.curves"?plotComponent:root.design.plugin==="plot.attitude"?attitudeComponent:root.design.plugin==="terminal.ansi"?terminalComponent:root.design.plugin==="debug.console"?consoleComponent:root.design.plugin&&root.design.plugin.startsWith("io.")?connectionComponent:root.viewKey==="values"||root.viewKey==="timer"?valuesComponent:controlComponent
+        sourceComponent:root.definition.implementation==="python"?userComponent:root.viewKey==="recorder"?recorderComponent:root.viewKey==="playback"?playbackComponent:root.design.plugin==="plot.curves"?plotComponent:root.design.plugin==="plot.attitude"?attitudeComponent:root.design.plugin==="terminal.ansi"?terminalComponent:root.design.plugin==="debug.console"?consoleComponent:root.design.plugin&&root.design.plugin.startsWith("io.")?connectionComponent:root.viewKey==="values"||root.viewKey==="timer"?valuesComponent:controlComponent
     }
     Component{id:plotComponent;PlotView{host:root}}
     Component{id:attitudeComponent;AttitudeView{host:root}}
@@ -35,6 +35,8 @@ Item {
     Component{id:connectionComponent;ConnectionView{host:root}}
     Component{id:controlComponent;ControlView{host:root}}
     Component{id:valuesComponent;ValueView{host:root}}
+    Component{id:recorderComponent;RecorderView{host:root}}
+    Component{id:playbackComponent;PlaybackView{host:root}}
     Component{
         id:userComponent
         Loader{

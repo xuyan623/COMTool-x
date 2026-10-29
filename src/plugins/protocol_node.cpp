@@ -224,7 +224,7 @@ public:
         if (definition_.value("implementation") == "python") {
             // Actions receive the same current inputs/configuration as process,
             // so a UI/API action can compute against the active experiment.
-            QVariantMap inputs{{"args",args},{"__config__",config_},{"__context__",QVariantMap{{"time",context.time},{"batch",QVariant::fromValue(context.batch)}}}};
+            QVariantMap inputs{{"args",args},{"__config__",config_},{"__context__",QVariantMap{{"time",context.time},{"batch",QVariant::fromValue(context.batch)},{"changed",QStringList{}},{"source_tick",false}}}};
             for (auto i = inputs_.cbegin(); i != inputs_.cend(); ++i) inputs.insert(i.key(),i.value());
             const auto response = call("action_" + name, inputs);
             const auto returned = response.value("result").toMap(); result = returned.value("result");
@@ -236,11 +236,14 @@ public:
         return Node::action(name,args,context,result);
     }
 protected:
-    NodeResult process(const Values &changes, const BatchContext &context, bool) override
+    NodeResult process(const Values &changes, const BatchContext &context, bool tick) override
     {
         QVariantMap inputs;
         for (auto i = inputs_.cbegin(); i != inputs_.cend(); ++i) inputs.insert(i.key(),i.value());
-        inputs["__context__"] = QVariantMap{{"time",context.time}, {"resumed",context.resumed}, {"batch",QVariant::fromValue(context.batch)}};
+        // Retained levels and newly delivered commands are distinct even when
+        // both carry true. Scripts see the same changed ports as native nodes.
+        inputs["__context__"] = QVariantMap{{"time",context.time}, {"resumed",context.resumed}, {"batch",QVariant::fromValue(context.batch)},
+            {"changed",changes.keys()},{"source_tick",tick}};
         inputs["__config__"] = config_;
         auto entry = definition_.value("entry","process").toString();
         if (kind_ == "protocol.python") {

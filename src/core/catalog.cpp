@@ -136,6 +136,10 @@ QVector<Port> Catalog::ports(const QString &id, const QVariantMap &config) const
         if (outputs.size() < 2 || outputs.size() > 8) throw Error("数据分发需要 2～8 个输出端口");
         named("in", "in", config.value("data_type").toString());
         for (const auto &name : outputs) named(name.toString(), "out", config.value("data_type").toString());
+    } else if (id == "data.record" || id == "data.playback") {
+        named("in","in",config.value("data_type").toString());
+        if (id == "data.record") { named("start","in","boolean"); named("pause","in","boolean"); }
+        named("out","out",config.value("data_type").toString());
     } else if (id == "data.gate" || id == "data.select") {
         const auto type = config.value("data_type").toString();
         if (id == "data.gate") named("in", "in", type);

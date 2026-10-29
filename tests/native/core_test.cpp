@@ -12,6 +12,7 @@ private slots:
     void typedValues();
     void projectRoundTrip();
     void graphValidation();
+    void booleanControlProjectMigration();
 };
 
 void CoreTest::declarations()
@@ -80,6 +81,29 @@ void CoreTest::graphValidation()
     p["wires"] = QVariantList{QVariantMap{{"id","ab"}, {"source",QVariantList{"a","out"}}, {"target",QVariantList{"b","x"}}},
                               QVariantMap{{"id","ba"}, {"source",QVariantList{"b","out"}}, {"target",QVariantList{"a","x"}}}};
     QVERIFY_EXCEPTION_THROWN(cx::validateProject(p, catalog), cx::Error);
+}
+
+void CoreTest::booleanControlProjectMigration()
+{
+    QTemporaryDir folder; auto project = cx::emptyProject();
+    const QVariantMap button{{"id","button"},{"plugin","control.button"},{"position",QVariantList{0.,0.}},
+        {"config",QVariantMap{{"label","执行"},{"payload","old content"}}}};
+    const QVariantMap fork{{"id","fork"},{"plugin","data.fork"},{"position",QVariantList{300.,0.}},
+        {"config",QVariantMap{{"data_type","trigger"},{"outputs",QVariantList{"left","right"}}}}};
+    project["nodes"] = QVariantList{button,fork};
+    project["wires"] = QVariantList{QVariantMap{{"id","control"},{"source",QVariantList{"button","trigger"}},{"target",QVariantList{"fork","in"}}}};
+    auto ui = project.value("ui").toMap(); auto items = ui.value("items").toList(); auto root = items.front().toMap();
+    root["children"] = QVariantList{"button_view"}; items[0] = root;
+    items.append(QVariantMap{{"id","button_view"},{"node","button"},{"view","control"},{"binding",button},{"properties",QVariantMap{}}});
+    ui["items"] = items; project["ui"] = ui;
+    const auto path = folder.filePath("previous-native.comtoolx"); cx::saveProject(path,project);
+    const auto restored = cx::loadProject(path); cx::Catalog catalog; cx::validateProject(restored,catalog);
+    const auto nodes = restored.value("nodes").toList();
+    QVERIFY(!nodes[0].toMap().value("config").toMap().contains("payload"));
+    QCOMPARE(nodes[1].toMap().value("config").toMap().value("data_type").toString(),QString("boolean"));
+    QCOMPARE(nodes[1].toMap().value("config").toMap().value("outputs").toList(),QVariantList({"left","right"}));
+    QCOMPARE(restored.value("wires"),project.value("wires"));
+    QVERIFY(!restored.value("ui").toMap().value("items").toList()[1].toMap().value("binding").toMap().value("config").toMap().contains("payload"));
 }
 
 QTEST_GUILESS_MAIN(CoreTest)

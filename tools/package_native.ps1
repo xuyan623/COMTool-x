@@ -33,8 +33,8 @@ foreach ($name in @('docs','skills','licenses')) {
 }
 foreach ($name in @('README.md','LICENSE','THIRD_PARTY_NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination $releaseRoot -Force }
 New-Item -ItemType Directory -Path (Join-Path $releaseRoot 'examples'),(Join-Path $releaseRoot 'project'),(Join-Path $releaseRoot 'verification') -Force | Out-Null
-foreach ($name in @('SerialPlot.comtoolx','FunctionLab.comtoolx')) { Copy-Item -LiteralPath (Join-Path $repoRoot "examples\$name") -Destination (Join-Path $releaseRoot 'examples') -Force }
-foreach ($name in @('native-ui','native-workbench','native-ai','native-library-horizontal','native-instruments','native-animation','native-performance','native-packaged','native-documentation')) {
+foreach ($name in @('SerialPlot.comtoolx','FunctionLab.comtoolx','RecordPlayback.comtoolx')) { Copy-Item -LiteralPath (Join-Path $repoRoot "examples\$name") -Destination (Join-Path $releaseRoot 'examples') -Force }
+foreach ($name in @('native-ui','native-workbench','native-ai','native-recording','native-library-horizontal','native-instruments','native-animation','native-performance','native-packaged','native-documentation')) {
     $report = Join-Path $repoRoot "verification\$name\report.json"
     if (!(Test-Path -LiteralPath $report) -and $name -eq 'native-ui') { $report = Join-Path $repoRoot "verification\$name\result.json" }
     if (Test-Path -LiteralPath $report) { Copy-Item -LiteralPath $report -Destination (Join-Path $releaseRoot "verification\$name.json") -Force }
@@ -48,7 +48,10 @@ $packagedAiReport = Join-Path $repoRoot 'verification\native-packaged\ai\report.
 if (Test-Path -LiteralPath $packagedAiReport) {
     Copy-Item -LiteralPath $packagedAiReport -Destination (Join-Path $releaseRoot 'verification\native-packaged-ai.json') -Force
 }
-
+$packagedRecordingReport = Join-Path $repoRoot 'verification\native-packaged\recording\report.json'
+if (Test-Path -LiteralPath $packagedRecordingReport) {
+    Copy-Item -LiteralPath $packagedRecordingReport -Destination (Join-Path $releaseRoot 'verification\native-packaged-recording.json') -Force
+}
 $pythonFiles = Get-ChildItem -LiteralPath $releaseRoot -Recurse -File | Where-Object { $_.Name -match '^python\d*\.exe$|^python\d*\.dll$|^PySide|^pyqtgraph' -or $_.FullName -match '[\\/]_internal[\\/]' }
 if ($pythonFiles) { throw 'The release unexpectedly contains an old Python runtime' }
 $publishDirectory = Join-Path $repoRoot 'dist'
@@ -69,7 +72,7 @@ foreach ($name in @('src','python','third_party','tests','tools','docs','skills'
     Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination $sourceRoot -Recurse -Force
 }
 New-Item -ItemType Directory -Path (Join-Path $sourceRoot 'examples') -Force | Out-Null
-foreach ($name in @('SerialPlot.comtoolx','FunctionLab.comtoolx')) { Copy-Item -LiteralPath (Join-Path $repoRoot "examples\$name") -Destination (Join-Path $sourceRoot 'examples') }
+foreach ($name in @('SerialPlot.comtoolx','FunctionLab.comtoolx','RecordPlayback.comtoolx')) { Copy-Item -LiteralPath (Join-Path $repoRoot "examples\$name") -Destination (Join-Path $sourceRoot 'examples') }
 Get-ChildItem -LiteralPath $sourceRoot -Recurse -File | Where-Object { $_.Extension -eq '.pyc' } | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
 $sourceArchive = Join-Path $publishDirectory 'COMTool-x-source.zip'
 Compress-Archive -LiteralPath $sourceRoot -DestinationPath $sourceArchive -CompressionLevel Optimal -Force
