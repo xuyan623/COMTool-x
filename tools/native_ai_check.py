@@ -211,7 +211,7 @@ def main():
         client.call('runtime.stop')
         client.call('runtime.reset')
         check(client.call('project.validate')['valid'], 'edited project validates before saving')
-        saved = output / 'AiDesign.corig'
+        saved = output / 'AiDesign.crpj'
         client.call('project.save', {'path': str(saved)})
         project = client.call('project.get')
         client.call('project.open', {'path': str(saved)})
@@ -296,7 +296,7 @@ Item {
         check(client.call('node.state', {'node': 'user'})['outputs']['out'] == 12, 'declared extension action publishes its actual computed result')
         client.call('capture', {'target': 'runtime', 'path': str(output / 'user-controls.png')})
         client.call('runtime.stop')
-        client.call('project.save', {'path': str(output / 'UserControls.corig')})
+        client.call('project.save', {'path': str(output / 'UserControls.crpj')})
         client.call('graph.node.remove', {'id': 'user'})
         client.call('ui.item.remove', {'id': view['id']})
         client.call('plugin.remove', {'plugin': manifest['id']})
@@ -304,7 +304,7 @@ Item {
 
         # Native instruments exercise the public view operations and debugger.
         examples = Path(__file__).resolve().parent.parent / 'examples'
-        client.call('project.open', {'path': str(examples / 'FunctionLab.corig')})
+        client.call('project.open', {'path': str(examples / 'FunctionLab.crpj')})
         client.call('workspace.open', {'page': 'runtime'})
         client.call('runtime.start', {'debug': False})
         time.sleep(.3)
@@ -349,7 +349,7 @@ Item {
             try:
                 client.call('runtime.stop')
                 if client.call('app.state')['dirty']:
-                    client.call('project.save', {'path': str(output / 'InterruptedCheck.corig')})
+                    client.call('project.save', {'path': str(output / 'InterruptedCheck.crpj')})
                 client.call('app.quit')
             except (OSError, RuntimeError):
                 pass

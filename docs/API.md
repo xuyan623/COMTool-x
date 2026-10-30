@@ -33,7 +33,7 @@ CLI 不依赖 Python；默认记录失效或缺失时会探测仍可认证的进
 
 bytes 使用 `{type:'bytes',base64:'...',length:N}`；采样帧为 `{time:秒,values:{通道名:数值}}`。端口、属性、动作由 registry 声明，先读取真实 ID 和默认配置。
 
-功能设计是实际执行来源。`editor.add` 接收 page=graph 或 layout，新增对象先待放置；`editor.place` 单击落位，`editor.withdraw` 撤下并保留配置。未放置的功能节点不参与计算。`graph.node.add` 是显式建图接口，默认直接放置，也可指定 placed=false。结构修改前暂停；未保存修改不能直接丢弃。project.save 未指定路径时默认写入 `<data-dir>/project/<工程名>.corig`。
+功能设计是实际执行来源。`editor.add` 接收 page=graph 或 layout，新增对象先待放置；`editor.place` 单击落位，`editor.withdraw` 撤下并保留配置。未放置的功能节点不参与计算。`graph.node.add` 是显式建图接口，默认直接放置，也可指定 placed=false。结构修改前暂停；未保存修改不能直接丢弃。project.save 未指定路径时默认写入 `<data-dir>/project/<工程名>.crpj`。
 
 双向同步先调用 `sync.plan`，direction 为 graph_to_ui 或 ui_to_graph。返回 changes、revision；显示变更清单后，将用户选中的 key 和同一个 revision 交给 `sync.apply`。目标页多余对象会列入删除项，取消勾选即可保留；新增对象进入待放置区，已有摆放、层序和 ID 不变。旧 `ui.update` 仅补充缺失视图，新增仍待放置；完整双向同步使用清单接口。
 
@@ -85,7 +85,7 @@ workspace.open 定位已有页面。插件库始终以唯一精简子窗口打�
 | logic.and/or/not/nand/nor/xor/xnor | 布尔 a/b 输入（非门仅 a）、out 输出 | 输入更新时求值 |
 | logic.edge | 布尔 in/out；edge=rising/falling/both，初始状态 false | 指定变化发生时输出一次 true |
 
-录制状态包括 recording、saved、records、duration、written_bytes、saved_path 和 last_error。暂停时不累计录制时长，信号内容原样保存。save 使用独立的 .corigrec 文件并结束当前录制；之后 start 开始新的一次，reset 清空本次缓存。引擎重置直接清空尚未保存的内容。
+录制状态包括 recording、saved、records、duration、written_bytes、saved_path 和 last_error。暂停时不累计录制时长，信号内容原样保存。save 使用独立的 .crrc 文件并结束当前录制；之后 start 开始新的一次，reset 清空本次缓存。引擎重置直接清空尚未保存的内容。
 
 回放状态包括 loaded、path、position、duration、records、sample_index、speed、playing、cutoff 和 last_error。导入先验证完整文件及信号类型，失败保持原文件与状态；成功后暂停，截断开关仍由用户控制。关闭截断始终实时直通；打开截断保持待播放。暂停、播放结束或读文件错误均保留截断状态，关闭截断才恢复实时。
 
@@ -95,15 +95,15 @@ position 为秒，direction 为 -1/1，倍速为 0.125～16。截断打开时，
 
 ```json
 {"op":"node.action","args":{"node":"rec","action":"start","args":{}}}
-{"op":"node.action","args":{"node":"rec","action":"save","args":{"path":"D:/captures/test.corigrec"}}}
-{"op":"node.action","args":{"node":"play","action":"load","args":{"path":"D:/captures/test.corigrec"}}}
+{"op":"node.action","args":{"node":"rec","action":"save","args":{"path":"D:/captures/test.crrc"}}}
+{"op":"node.action","args":{"node":"play","action":"load","args":{"path":"D:/captures/test.crrc"}}}
 {"op":"node.action","args":{"node":"play","action":"cutoff","args":{"value":true}}}
 {"op":"node.action","args":{"node":"play","action":"seek","args":{"position":1.5}}}
 {"op":"node.action","args":{"node":"play","action":"set_speed","args":{"value":2}}}
 {"op":"node.action","args":{"node":"play","action":"play","args":{}}}
 ```
 
-以上例子要求先在工程中放置、连接相应节点，并按动作要求建立会话。完整无硬件示例见 examples/RecordPlayback.corig；控件 ID 为 recording.<node>.toggle/save/reset 和 playback.<node>.load/toggle/rewind/previous/next/cutoff/position/speed。先查询 registry 或 view.actions 的真实动作契约，并逐个等待返回的任务完成。
+以上例子要求先在工程中放置、连接相应节点，并按动作要求建立会话。完整无硬件示例见 examples/RecordPlayback.crpj；控件 ID 为 recording.<node>.toggle/save/reset 和 playback.<node>.load/toggle/rewind/previous/next/cutoff/position/speed。先查询 registry 或 view.actions 的真实动作契约，并逐个等待返回的任务完成。
 
 ## 命令字段
 

@@ -18,7 +18,7 @@ AI 可以通过本地接口参与设计、运行、读取数据和检查结果�
 
 ![CoRig 运行界面：曲线、三维姿态与录制回放](docs/images/runtime.png)
 
-以上为随包提供的 `RecordPlayback.corig` 软件信号示例，无需连接硬件。
+以上为随包提供的 `RecordPlayback.crpj` 软件信号示例，无需连接硬件。
 
 ## 能做什么
 
@@ -38,10 +38,10 @@ AI 可以通过本地接口参与设计、运行、读取数据和检查结果�
 
 1. 从 [Releases](https://github.com/xuyan623/CoRig/releases/latest) 下载 `CoRig-Windows-x64.zip`，完整解压。
 2. 双击解压目录中的 `CoRig.exe`，保留旁边的 DLL、`plugins/` 和 `qml/` 等目录。
-3. 打开 `examples/FunctionLab.corig`，点击底部运行按钮，即可看到持续变化的曲线和三维姿态。
-4. 尝试 `RecordPlayback.corig` 体验录制与回放，或打开 `SerialPlot.corig` 验证软件串口回环，再按需要选择实际串口。
+3. 打开 `examples/FunctionLab.crpj`，点击底部运行按钮，即可看到持续变化的曲线和三维姿态。
+4. 尝试 `RecordPlayback.crpj` 体验录制与回放，或打开 `SerialPlot.crpj` 验证软件串口回环，再按需要选择实际串口。
 
-打开工程后，由你启动运行和连接。工程使用 `.corig`，录制使用 `.corigrec`；工程保存设计和配置，录制数据另存为独立文件。完整操作、快捷键和保存规则见[使用手册](docs/USER_GUIDE.md)。
+打开工程后，由你启动运行和连接。工程使用 `.crpj`，录制使用 `.crrc`；工程保存设计和配置，录制数据另存为独立文件。完整操作、快捷键和保存规则见[使用手册](docs/USER_GUIDE.md)。
 
 ## 与 AI 一起使用
 

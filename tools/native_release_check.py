@@ -68,7 +68,7 @@ def main():
         check(c.call('app.state')['python'] == '', 'deployed application starts without a Python interpreter')
         check(len(c.call('registry')) == 78, 'all 78 official plugin declarations are available in deployment')
         for name in ('SerialPlot', 'FunctionLab', 'RecordPlayback'):
-            c.call('project.open', {'path': str(deployment / 'examples' / (name + '.corig'))})
+            c.call('project.open', {'path': str(deployment / 'examples' / (name + '.crpj'))})
             check(c.call('project.validate')['valid'], name + ' opens as a native v3 project')
             check(not c.call('graph.overlaps'), name + ' has no node spacing warnings')
             c.call('workspace.open', {'page': 'runtime'})
@@ -144,7 +144,7 @@ def main():
         if c is not None:
             try:
                 if c.call('app.state')['dirty']:
-                    c.call('project.save', {'path': str(output / 'LastCheck.corig')})
+                    c.call('project.save', {'path': str(output / 'LastCheck.crpj')})
                 c.call('runtime.stop')
                 c.call('app.quit')
             except (OSError, RuntimeError):

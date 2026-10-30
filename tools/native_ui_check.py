@@ -189,7 +189,7 @@ def main():
     client.call("workspace.move", {"page": "runtime", "window": main_id})
     check(client.call("runtime.state")["active"], "moving and closing child windows preserves the shared session")
     client.call("runtime.stop")
-    client.call("project.save", {"path": str(output / "InterfaceAcceptance.corig")})
+    client.call("project.save", {"path": str(output / "InterfaceAcceptance.crpj")})
     client.call("workspace.open", {"page": "graph"})
     client.call("graph.select", {"id": "sine"})
     (output / "result.json").write_text(json.dumps({"checks": checks, "count": len(checks)}, ensure_ascii=False, indent=2), "utf-8")

@@ -58,7 +58,7 @@ Item {
         Item{Layout.fillHeight:true}
     }
     FileDialog{
-        id:openFile;title:"导入录制文件";fileMode:FileDialog.OpenFile;nameFilters:["CoRig 录制 (*.corigrec)","所有文件 (*)"]
+        id:openFile;title:"导入录制文件";fileMode:FileDialog.OpenFile;nameFilters:["CoRig 录制 (*.crrc)","所有文件 (*)"]
         onAccepted:{const job=root.host.action("load",{path:selectedFile.toString()});root.fileJob=job.job||""}
     }
 }

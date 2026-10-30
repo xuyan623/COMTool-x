@@ -49,7 +49,7 @@ void RecordingTest::typedFilesAndRandomAccess()
         {"samples",QVariantMap{{"time",123.456},{"values",QVariantMap{{"angle",.75}}}}}};
     for (const auto &[type,value] : values) {
         corig::RecordingWriter writer; writer.begin(type); writer.append(.1,value); writer.append(.3,value);
-        const auto path = dir.filePath(type + ".corigrec"); writer.save(path,.5);
+        const auto path = dir.filePath(type + ".crrc"); writer.save(path,.5);
         corig::RecordingReader reader(path);
         QCOMPARE(reader.dataType(),type); QCOMPARE(reader.count(),2); QCOMPARE(reader.duration(),.5);
         QCOMPARE(reader.valueAt(0),value); QCOMPARE(reader.valueAt(1),value);
@@ -60,21 +60,21 @@ void RecordingTest::typedFilesAndRandomAccess()
 
 void RecordingTest::damagedFilesAndAtomicSave()
 {
-    QTemporaryDir dir; const auto path = dir.filePath("capture.corigrec");
+    QTemporaryDir dir; const auto path = dir.filePath("capture.crrc");
     corig::RecordingWriter writer; writer.begin("number"); writer.append(0.,1.); writer.append(.1,2.); writer.save(path,.2);
     QFile original(path); QVERIFY(original.open(QIODevice::ReadOnly)); const auto bytes = original.readAll(); original.close();
     QVERIFY(bytes.startsWith(QByteArrayLiteral("CoRig\0REC1\n")));
     // A renamed previous-product recording must not become a CoRig capture.
     const auto previous = QByteArrayLiteral("COMTool-x\0REC1\n") + bytes.mid(QByteArrayLiteral("CoRig\0REC1\n").size());
     for (const auto &bad : {previous,bytes.left(bytes.size() - 5),bytes + QByteArray("extra"),QByteArray("invalid")}) {
-        const auto broken = dir.filePath("broken.corigrec"); QFile file(broken); QVERIFY(file.open(QIODevice::WriteOnly)); file.write(bad); file.close();
+        const auto broken = dir.filePath("broken.crrc"); QFile file(broken); QVERIFY(file.open(QIODevice::WriteOnly)); file.write(bad); file.close();
         QVERIFY_THROWS_EXCEPTION(corig::Error,corig::RecordingReader{broken});
     }
     QVERIFY_THROWS_EXCEPTION(corig::Error,writer.save(path,.2,[] { return true; }));
     QVERIFY(original.open(QIODevice::ReadOnly)); QCOMPARE(original.readAll(),bytes); original.close();
     QCOMPARE(writer.count(),2ull);
     QVERIFY_THROWS_EXCEPTION(corig::Error,writer.append(.05,3.));
-    const auto recovery = dir.filePath("recovery.corigrec"); writer.save(recovery,.2);
+    const auto recovery = dir.filePath("recovery.crrc"); writer.save(recovery,.2);
     QCOMPARE(corig::RecordingReader(recovery).count(),2);
 }
 
@@ -89,7 +89,7 @@ void RecordingTest::recorderPauseAndPassthrough()
     QCOMPARE(recorder->execute({{"in",2.}}, {},{4,5.}).emissions.front().value("out").toDouble(),2.);
     recorder->execute({{"start",true}}, {},{5,10.2});
     recorder->execute({{"in",3.}}, {},{6,10.3});
-    const auto path = dir.filePath("joined.corigrec"); recorder->action("save",{{"path",path}}, {7,10.4},result);
+    const auto path = dir.filePath("joined.crrc"); recorder->action("save",{{"path",path}}, {7,10.4},result);
     corig::RecordingReader reader(path);
     QCOMPARE(reader.count(),2); QCOMPARE(reader.valueAt(0).toDouble(),1.); QCOMPARE(reader.valueAt(1).toDouble(),3.);
     QCOMPARE(reader.timeAt(0),.1); QCOMPARE(reader.timeAt(1),.3); QCOMPARE(reader.duration(),.4);
@@ -100,7 +100,7 @@ void RecordingTest::recorderPauseAndPassthrough()
 
 void RecordingTest::playbackSelectionSeekAndSpeed()
 {
-    QTemporaryDir dir; corig::Catalog catalog; const auto path = dir.filePath("play.corigrec");
+    QTemporaryDir dir; corig::Catalog catalog; const auto path = dir.filePath("play.crrc");
     corig::RecordingWriter writer; writer.begin("number"); writer.append(.1,10.); writer.append(.3,30.); writer.save(path,.4);
     auto player = corig::makeNode(design("play","data.playback",{{"data_type","number"},{"path",path}}),catalog,{});
     player->setConnections({"in"}); QVariant result;
@@ -126,12 +126,12 @@ void RecordingTest::playbackSelectionSeekAndSpeed()
 
 void RecordingTest::designContainsOnlyExternalReference()
 {
-    QTemporaryDir dir; corig::Catalog catalog; const auto path = dir.filePath("external.corigrec");
+    QTemporaryDir dir; corig::Catalog catalog; const auto path = dir.filePath("external.crrc");
     corig::RecordingWriter writer; writer.begin("number"); writer.append(0.,1.); writer.save(path,.1);
     const auto edited = corig::editProject(corig::emptyProject(),catalog,"graph.node.add",{{"id","play"},{"plugin","data.playback"},{"config",QVariantMap{{"data_type","number"},{"path",QUrl::fromLocalFile(path).toString()}}}});
     QVERIFY(edited.project.value("resources").toMap().isEmpty());
     QCOMPARE(edited.project.value("nodes").toList().front().toMap().value("config").toMap().value("path").toString(),path);
-    const auto projectPath = dir.filePath("design.corig"); corig::saveProject(projectPath,edited.project);
+    const auto projectPath = dir.filePath("design.crpj"); corig::saveProject(projectPath,edited.project);
     QVERIFY(QFile::remove(path));
     const auto restored = corig::loadProject(projectPath); corig::validateProject(restored,catalog);
     QVERIFY(restored.value("resources").toMap().isEmpty());
@@ -142,7 +142,7 @@ void RecordingTest::designContainsOnlyExternalReference()
 
 void RecordingTest::engineResetOwnsAllRuntimeState()
 {
-    QTemporaryDir dir; const auto defaultPath = dir.filePath("default.corigrec"), runtimePath = dir.filePath("runtime.corigrec");
+    QTemporaryDir dir; const auto defaultPath = dir.filePath("default.crrc"), runtimePath = dir.filePath("runtime.crrc");
     corig::RecordingWriter writer; writer.begin("number"); writer.append(0.,1.); writer.append(.1,2.); writer.save(defaultPath,.2); writer.save(runtimePath,.2);
     auto project = corig::emptyProject();
     project["nodes"] = QVariantList{design("source","control.number"),design("rec","data.record",{{"data_type","number"}}),design("play","data.playback",{{"data_type","number"},{"path",defaultPath}})};
@@ -175,7 +175,7 @@ void RecordingTest::rawByteLoggingRemainsIndependent()
 
 void RecordingTest::globalPauseInterruptsImport()
 {
-    QTemporaryDir dir; const auto path = dir.filePath("interrupt.corigrec");
+    QTemporaryDir dir; const auto path = dir.filePath("interrupt.crrc");
     corig::RecordingWriter writer; writer.begin("number");
     for (int i = 0; i < 20000; ++i) writer.append(i * .001,double(i));
     writer.save(path,20.);

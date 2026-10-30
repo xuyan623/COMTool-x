@@ -173,8 +173,8 @@ ApplicationWindow {
         MenuItem { text: "移至新窗口"; onTriggered: App.workspaces.detach(tabMenu.key) }
         MenuItem { text: "关闭标签"; onTriggered: App.workspaces.closePage(tabMenu.key) }
     }
-    FileDialog { id: openProject; title: "打开工程"; nameFilters: ["CoRig 工程 (*.corig)"]; onAccepted: App.invoke("project.open", {path: selectedFile.toString(), discard:true}) }
-    FileDialog { id: saveProject; title: "保存工程"; fileMode: FileDialog.SaveFile; defaultSuffix: "corig"; nameFilters: ["CoRig 工程 (*.corig)"]; onAccepted: { win.savingJob = App.invoke("project.save", {path: selectedFile.toString()}).job || "" } }
+    FileDialog { id: openProject; title: "打开工程"; nameFilters: ["CoRig 工程 (*.crpj)"]; onAccepted: App.invoke("project.open", {path: selectedFile.toString(), discard:true}) }
+    FileDialog { id: saveProject; title: "保存工程"; fileMode: FileDialog.SaveFile; defaultSuffix: "corig"; nameFilters: ["CoRig 工程 (*.crpj)"]; onAccepted: { win.savingJob = App.invoke("project.save", {path: selectedFile.toString()}).job || "" } }
     Dialog {
         id: unsaved; title: "工程有未保存修改"; modal: true; anchors.centerIn: parent; width: 400
         contentItem: Label { text: "保存当前工程后再继续？"; color: Theme.text; padding: 12 }

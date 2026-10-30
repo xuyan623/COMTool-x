@@ -33,7 +33,7 @@ foreach ($name in @('docs','skills','licenses')) {
 }
 foreach ($name in @('README.md','LICENSE','THIRD_PARTY_NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination $releaseRoot -Force }
 New-Item -ItemType Directory -Path (Join-Path $releaseRoot 'examples'),(Join-Path $releaseRoot 'project'),(Join-Path $releaseRoot 'verification') -Force | Out-Null
-foreach ($name in @('SerialPlot.corig','FunctionLab.corig','RecordPlayback.corig')) { Copy-Item -LiteralPath (Join-Path $repoRoot "examples\$name") -Destination (Join-Path $releaseRoot 'examples') -Force }
+foreach ($name in @('SerialPlot.crpj','FunctionLab.crpj','RecordPlayback.crpj')) { Copy-Item -LiteralPath (Join-Path $repoRoot "examples\$name") -Destination (Join-Path $releaseRoot 'examples') -Force }
 # Ship evidence produced by the CoRig build, keeping historical runs local.
 $verificationRoot = Join-Path $repoRoot 'verification\corig-packaged'
 $releaseReport = Join-Path $verificationRoot 'report.json'
@@ -73,7 +73,7 @@ foreach ($name in @('src','python','third_party','tests','tools','docs','skills'
     Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination $sourceRoot -Recurse -Force
 }
 New-Item -ItemType Directory -Path (Join-Path $sourceRoot 'examples') -Force | Out-Null
-foreach ($name in @('SerialPlot.corig','FunctionLab.corig','RecordPlayback.corig')) { Copy-Item -LiteralPath (Join-Path $repoRoot "examples\$name") -Destination (Join-Path $sourceRoot 'examples') }
+foreach ($name in @('SerialPlot.crpj','FunctionLab.crpj','RecordPlayback.crpj')) { Copy-Item -LiteralPath (Join-Path $repoRoot "examples\$name") -Destination (Join-Path $sourceRoot 'examples') }
 Get-ChildItem -LiteralPath $sourceRoot -Recurse -File | Where-Object { $_.Extension -eq '.pyc' } | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
 $sourceArchive = Join-Path $publishDirectory 'CoRig-source.zip'
 Compress-Archive -LiteralPath $sourceRoot -DestinationPath $sourceArchive -CompressionLevel Optimal -Force

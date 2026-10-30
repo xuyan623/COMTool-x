@@ -69,7 +69,7 @@ def main():
     c.call('runtime.stop')
     time.sleep(.08)
     check(all(not w['bar_positions_px'] for w in c.call('graph.activity')['wires'].values()), 'ending the session clears remaining motion')
-    c.call('project.save', {'path': str((args.output / 'Animation.corig').resolve())})
+    c.call('project.save', {'path': str((args.output / 'Animation.crpj').resolve())})
     (args.output / 'report.json').write_text(json.dumps({'checks': checks, 'count': len(checks), 'slow': slow, 'fast': fast}, ensure_ascii=False, indent=2), 'utf-8')
 
 

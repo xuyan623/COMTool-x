@@ -53,7 +53,7 @@ void CoreTest::projectRoundTrip()
     const auto ref = corig::importResource(project, original);
     QVERIFY(ref.startsWith("asset://"));
     QVERIFY(QFile::remove(original));
-    const auto path = folder.filePath("test.corig");
+    const auto path = folder.filePath("test.crpj");
     corig::saveProject(path, project);
     const auto restored = corig::loadProject(path);
     QCOMPARE(restored.value("name").toString(), QString("便携测试"));
@@ -87,7 +87,7 @@ void CoreTest::graphValidation()
 void CoreTest::rejectPreviousProjectFormats()
 {
     QTemporaryDir folder; auto project = corig::emptyProject(); corig::Catalog catalog;
-    const auto path = folder.filePath("format.corig");
+    const auto path = folder.filePath("format.crpj");
     corig::saveProject(path,project);
     QFile current(path); QVERIFY(current.open(QIODevice::ReadOnly));
     QVERIFY(current.readAll().startsWith(QByteArrayLiteral("CoRig\0CPP3\n"))); current.close();

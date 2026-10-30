@@ -119,7 +119,7 @@ def main():
     time.sleep(.2)
     client.call("capture", {"target": "runtime", "path": str(output / "runtime.png")})
     project = client.call("project.get")
-    saved = output / "Workbench.corig"
+    saved = output / "Workbench.crpj"
     client.call("project.save", {"path": str(saved)})
     client.call("project.open", {"path": str(saved)})
     check(client.call("project.get") == project, "placement, layers and bindings survive save/reopen")

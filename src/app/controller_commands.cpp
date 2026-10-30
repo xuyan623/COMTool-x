@@ -134,8 +134,8 @@ QVariant Controller::command(const QString &op, const QVariantMap &args)
     if (op == "project.save") {
         if (busy_) throw Error("工程操作尚未完成");
         auto path = args.value("path",projectPath_).toString(); if (QUrl(path).isLocalFile()) path = QUrl(path).toLocalFile();
-        if (path.isEmpty()) path = dataDirectory_ + "/project/" + project_.value("name").toString().replace(QRegularExpression("[\\\\/:*?\"<>|]"),"_") + ".corig";
-        if (!path.endsWith(".corig",Qt::CaseInsensitive)) path += ".corig";
+        if (path.isEmpty()) path = dataDirectory_ + "/project/" + project_.value("name").toString().replace(QRegularExpression("[\\\\/:*?\"<>|]"),"_") + ".crpj";
+        if (!path.endsWith(".crpj",Qt::CaseInsensitive)) path += ".crpj";
         path = QFileInfo(path).absoluteFilePath(); const auto snapshot = project_;
         busy_ = true; emit busyChanged();
         return launchTask(op,[path,snapshot] { QDir().mkpath(QFileInfo(path).absolutePath()); saveProject(path,snapshot); return QVariantMap{{"path",path}}; },

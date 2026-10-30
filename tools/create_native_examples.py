@@ -71,14 +71,14 @@ def main():
             raise AssertionError(name + ' does not validate')
         if c.call('graph.overlaps'):
             raise AssertionError(name + ' has node spacing warnings')
-        destination = (args.output / (name + '.corig')).resolve()
+        destination = (args.output / (name + '.crpj')).resolve()
         c.call('project.save', {'path': str(destination)})
         print(destination, flush=True)
     from native_recording_check import create_design
     create_design(c)
     if c.call('graph.overlaps'):
         raise AssertionError('RecordPlayback has node spacing warnings')
-    destination = (args.output / 'RecordPlayback.corig').resolve()
+    destination = (args.output / 'RecordPlayback.crpj').resolve()
     c.call('project.save', {'path': str(destination)})
     print(destination, flush=True)
 

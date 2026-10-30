@@ -41,8 +41,8 @@ void EditorTest::pendingAndPlacement()
     QVERIFY(p.value("wires").toList().isEmpty());
     QCOMPARE(p.value("nodes").toList().size(),2);
     QCOMPARE(corig::executionOrder(p,corig::Catalog{}),QVector<QString>{"sink"});
-    QTemporaryDir folder;corig::saveProject(folder.filePath("pending.corig"),p);
-    QCOMPARE(corig::loadProject(folder.filePath("pending.corig")),p);
+    QTemporaryDir folder;corig::saveProject(folder.filePath("pending.crpj"),p);
+    QCOMPARE(corig::loadProject(folder.filePath("pending.crpj")),p);
 }
 
 void EditorTest::syncSelectionAndIdentity()

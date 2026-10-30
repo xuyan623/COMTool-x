@@ -98,7 +98,7 @@ def main():
             break
         time.sleep(.02)
     check(client.call('app.state')['workspaces']['windows'][0]['frame_count'] > 0, 'native window restoration starts actual rendering before capture')
-    client.call('project.save', {'path': str(output / 'RecordPlayback.corig')})
+    client.call('project.save', {'path': str(output / 'RecordPlayback.crpj')})
     client.call('workspace.open', {'page': 'runtime'})
     client.call('controls.click', {'id': 'execution.run'})
     time.sleep(.15)
@@ -117,7 +117,7 @@ def main():
     check(live['outputs']['out'] == live['inputs']['in'], 'recorder and unloaded playback preserve the original live stream')
     client.call('controls.click', {'id': 'recording.rec.toggle'})
     wait_for('rec', lambda s: s['records'] > paused['records'] + 8)
-    capture = output / 'capture.corigrec'
+    capture = output / 'capture.crrc'
     saved = client.call('node.action', {'node': 'rec', 'action': 'save', 'args': {'path': capture.as_uri()}})
     check(capture.is_file() and saved['saved'] and not saved['recording'], 'finish-and-save creates an independent recording file')
     check(saved['duration'] < time.monotonic() - wall_start - .12, 'paused wall time is excluded from the capture timeline')
@@ -181,14 +181,14 @@ def main():
     restored = state('play')
     check(restored['path'] == str(capture).replace('\\', '/') and not restored['cutoff'] and not restored['playing'], 'engine reset reloads the design default in bypass and standby')
     check(state('rec')['records'] == 0 and not state('rec')['recording'], 'engine reset clears unfinished recording without plugin exceptions')
-    temporary = output / 'temporary.corigrec'
+    temporary = output / 'temporary.crrc'
     shutil.copyfile(capture, temporary)
     client.call('node.action', {'node': 'play', 'action': 'load', 'args': {'path': temporary.as_uri()}})
     check(Path(state('play')['path']) == temporary, 'runtime file import is allowed while the engine is idle')
     client.call('runtime.reset')
     check(Path(state('play')['path']) == capture, 'temporary import is discarded by reset in favor of the design default')
     client.call('node.configure', {'node': 'play', 'changes': {'path': ''}, 'persist': True})
-    destination = args.example.resolve() if args.example else output / 'RecordPlayback.corig'
+    destination = args.example.resolve() if args.example else output / 'RecordPlayback.crpj'
     destination.parent.mkdir(parents=True, exist_ok=True)
     client.call('project.save', {'path': str(destination)})
     project = client.call('project.get')

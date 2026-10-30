@@ -27,7 +27,7 @@ project.validate 检查工程结构；graph.overlaps 单独查询节点重叠与
 
 用 ui.item.schema 查询外观字段，ui.view.bind 修改已有视图绑定并保留布局。graph.connection.options 查询端口兼容性。editor.state/configure 按 page=graph/layout 查询／设置画布 zoom、pan_x、pan_y、left_width、right_width；侧栏宽度 0 表示收起，fit=true 适应画布，graph 的 animation 控制数据活动显示。它们只改显示状态。window.configure 设置窗口几何与 normal/minimized/maximized/fullscreen，可先恢复窗口再截图。
 
-project.save 保存用户指定的单文件 .corig，未指定路径时默认写入程序数据目录的 project/。v3 工程携带用户插件、辅助文件、QML 和模型资源；官方 C++ 插件由程序提供，解释器路径仅在本机设置中。只读取 CoRig 新格式，不迁移旧工程或录制文件。打开工程不自动运行、连接或发送。
+project.save 保存用户指定的单文件 .crpj，未指定路径时默认写入程序数据目录的 project/。v3 工程携带用户插件、辅助文件、QML 和模型资源；官方 C++ 插件由程序提供，解释器路径仅在本机设置中。只读取 CoRig 新格式，不迁移旧工程或录制文件。打开工程不自动运行、连接或发送。
 
 ## 运行与观测
 
@@ -37,7 +37,7 @@ runtime.pause 保留实验，runtime.stop 释放连接并保留参数，runtime.
 
 控制信号统一为 boolean。按钮只发布 true；接收动作只处理本次新到达的 true，边沿识别由 logic.edge 完成。logic.and/or/not/nand/nor/xor/xnor 是七种逻辑门；source.timer 支持 periodic/countdown，start 重新计时，stop 停止。data.fork 默认 a/b 两路，outputs 名称列表限制 2～8；右栏使用数量控件。
 
-信号录制使用 data.record（原始字节日志仍为 data.recorder），同类型 in/out 始终直通，布尔 start/pause 控制采集；动作 start/pause/save(path)/reset。暂停时长从录制时间轴中扣除，信号内容原样保存为独立 .corigrec 文件，工程只保存设计。引擎重置清空未保存录制，插件不能豁免全局控制。
+信号录制使用 data.record（原始字节日志仍为 data.recorder），同类型 in/out 始终直通，布尔 start/pause 控制采集；动作 start/pause/save(path)/reset。暂停时长从录制时间轴中扣除，信号内容原样保存为独立 .crrc 文件，工程只保存设计。引擎重置清空未保存录制，插件不能豁免全局控制。
 
 data.playback 的设计 path 是默认外部文件引用；load(path) 仅临时导入。导入保持待播放，不自动切换截断开关；cutoff(value=true) 屏蔽实时输入但不自动播放，play/pause 控制进度。seek(position秒) 截断时输出目标记录一次，step(direction=-1/1) 逐条并暂停，set_speed(value=0.125～16) 调倍速。关闭截断恢复直通并暂停文件；暂停、结束和读取错误保持截断。回放只发布信号，不恢复下游历史。reset 清除临时文件和进度，再按设计加载默认引用；外部文件内容不写入工程。
 
