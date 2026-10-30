@@ -3,6 +3,7 @@
 #include "controller.h"
 #include "quick/renderers.h"
 #include "quick/icon_provider.h"
+#include "core/paths.h"
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
@@ -35,7 +36,7 @@ int main(int argc, char **argv)
     application.setApplicationDisplayName(QStringLiteral("联调 · CoRig"));
     application.setQuitOnLastWindowClosed(false);
     QCommandLineParser parser; parser.setApplicationDescription("联调 · CoRig 工程调试工作台"); parser.addHelpOption(); parser.addVersionOption();
-    parser.addOption({"data-dir","工程、设置和本地连接信息的目录","directory",QCoreApplication::applicationDirPath()});
+    parser.addOption({"data-dir","工程、设置和本地连接信息的目录","directory",corig::defaultDataDirectory()});
     parser.addOption({"plugin-selections","重启后恢复本次工程的插件版本选择","base64-json"});
     parser.addPositionalArgument("project","启动后打开的新版工程文件（不会自动运行）"); parser.process(application);
     const auto directory = QDir(parser.value("data-dir")).absolutePath(); QDir().mkpath(directory); logPath = directory + "/native.log"; qInstallMessageHandler(messageHandler);

@@ -1,6 +1,7 @@
 #include "controller.h"
 #include "workspaces.h"
 #include "quick/graph_geometry.h"
+#include "updates.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -25,6 +26,7 @@ QVariantMap Controller::schema() const
 {
     const QMap<QString,QStringList> fields{
         {"app.state",{}},{"app.quit",{"discard"}},{"app.restart",{"discard","path","plugin_selections"}},{"preferences.set",{"theme","python","read_only"}},
+        {"update.state",{}},{"update.check",{}},{"update.install",{}},
         {"registry",{}},{"schema",{}},{"project.get",{}},{"project.validate",{}},{"project.new",{"name","discard"}},
         {"project.open",{"path","discard","plugin_selections"}},{"project.save",{"path","include_plugins"}},
         {"project.export",{"path","include_plugins"}},{"project.options",{"include_plugins"}},{"project.rename",{"name"}},
@@ -86,6 +88,16 @@ QVariant Controller::command(const QString &op, const QVariantMap &args)
     if (op == "plugin.export.dialog") { emit pluginExportRequested(args.value("scope","project").toString(),args.value("plugin").toString()); return QVariantMap{{"opened",true}}; }
     if (op == "plugin.directory") { if (!QDesktopServices::openUrl(QUrl::fromLocalFile(pluginState().value("directory").toString()))) throw Error("无法打开插件文件夹"); return QVariantMap{{"opened",true}}; }
     if (op == "plugin.settings") { emit pluginSettingsRequested(); return QVariantMap{{"opened",true}}; }
+    if (op == "update.state") return QVariantMap{{"supported",!maintenanceTool().isEmpty()},{"version","0.4.0"}};
+    if (op == "update.check") return launchTask(op,[this] { return checkUpdates([this] { return closing_.load(); }); });
+    if (op == "update.install") {
+        if (dirty_) throw Error("请先保存当前工程，再开始更新");
+        if (busy_) throw Error("请等待当前工程操作完成");
+        const auto tool = maintenanceTool(); if (tool.isEmpty()) throw Error("请使用安装版 CoRig 进行安装式更新");
+        if (!QProcess::startDetached(tool,{"--start-updater"})) throw Error("无法启动安装式更新");
+        exitDiscarded_ = true; QTimer::singleShot(50,qApp,&QCoreApplication::quit);
+        return QVariantMap{{"updating",true}};
+    }
     if (op == "graph.connection.options") {
         const auto node = args.value("node").toString(), port = args.value("port").toString();
         if (nodeDesign(node).isEmpty()) throw Error("节点不存在：" + node);

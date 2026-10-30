@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Installer>
+    <Name>CoRig</Name>
+    <Version>__VERSION__</Version>
+    <Title>联调 · CoRig 安装向导</Title>
+    <Publisher>xuyan623</Publisher>
+    <ProductUrl>https://github.com/xuyan623/CoRig</ProductUrl>
+    <StartMenuDir>CoRig</StartMenuDir>
+    <TargetDir>@HomeDir@/AppData/Local/Programs/CoRig</TargetDir>
+    <AdminTargetDir>@ApplicationsDirX64@/CoRig</AdminTargetDir>
+    <MaintenanceToolName>CoRigMaintenanceTool</MaintenanceToolName>
+    <MaintenanceToolIniFile>CoRigMaintenanceTool.ini</MaintenanceToolIniFile>
+    <RemoveTargetDir>false</RemoveTargetDir>
+    <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>
+    <AllowSpaceInPath>true</AllowSpaceInPath>
+    <RunProgram>@TargetDir@/CoRig.exe</RunProgram>
+    <RunProgramDescription>启动联调 · CoRig</RunProgramDescription>
+    <RemoteRepositories>
+        <Repository><Url>__REPOSITORY__</Url><Enabled>1</Enabled><DisplayName>CoRig 正式更新</DisplayName></Repository>
+    </RemoteRepositories>
+</Installer>

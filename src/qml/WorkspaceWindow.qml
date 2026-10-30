@@ -103,6 +103,7 @@ ApplicationWindow {
         }
         Menu {
             title: "帮助"
+            Action{text:"检查更新…";onTriggered:updateDialog.open()}
             Action { text: "关于与本地接口"; onTriggered: about.open() }
         }
     }
@@ -191,6 +192,7 @@ ApplicationWindow {
     PluginExportDialog{id:pluginExporter}
     PluginManager{id:pluginSettings}
     PluginVersionDialog{id:pluginVersions}
+    UpdateDialog{id:updateDialog}
     Dialog {
         id: unsaved; title: "工程有未保存修改"; modal: true; anchors.centerIn: parent; width: 400
         contentItem: Label { text: "保存当前工程后再继续？"; color: Theme.text; padding: 12 }

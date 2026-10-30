@@ -1,6 +1,7 @@
 // A native client keeps automation usable on machines without Python. It reads
 // current instance credentials locally and never prints the secret token.
 #include "core/value.h"
+#include "core/paths.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QElapsedTimer>
@@ -47,11 +48,11 @@ static QVariantMap request(const QVariantMap &record, const QString &operation, 
 
 int main(int argc, char **argv)
 {
-    QCoreApplication application(argc,argv); const auto args = application.arguments();
+    QCoreApplication application(argc,argv); QCoreApplication::setOrganizationName("CoRig"); QCoreApplication::setApplicationName("CoRig"); const auto args = application.arguments();
     QVariantMap output; int exitCode = 0;
     try {
         if (args.size() < 3 || args[1] != "api") throw corig::Error("用法：CoRig-cli api 操作 --json '{...}' [--wait] [--data-dir 目录]");
-        QString directory = QCoreApplication::applicationDirPath(), discovery; QVariantMap arguments; int timeout = 30000; bool wait = false;
+        QString directory = corig::defaultDataDirectory(), discovery; QVariantMap arguments; int timeout = 30000; bool wait = false;
         for (int i = 3; i < args.size(); ++i) {
             const auto option = args[i];
             if (option == "--wait") { wait = true; continue; }

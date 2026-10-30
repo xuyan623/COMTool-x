@@ -90,6 +90,7 @@ def main():
         client.call('preferences.set', {'theme': 'light', 'read_only': False, 'python': str(args.python.resolve())})
         client.call('preferences.set', {'theme': 'dark'})
         client.call('python.probe', {'dependencies': ['math', 'json']})
+        client.call('update.state')
         client.call('plugin.state')
         client.call('plugin.tree', {'scope':'library'})
         client.call('plugin.settings')
@@ -358,7 +359,7 @@ Item {
         missing = sorted(set(schema['commands']) - client.covered)
         # Restart, OS folder opening and actual installation maintenance have
         # dedicated process/installer checks; never pretend they ran here.
-        separate = {'app.restart','plugin.directory'}
+        separate = {'app.restart','plugin.directory','update.check','update.install'}
         check(set(missing) <= separate, 'every design/plugin command completed successfully: ' + str(len(client.covered)))
         report = {'count': len(checks), 'checks': checks, 'command_count': len(schema['commands']),
                   'covered_commands': sorted(client.covered), 'missing_commands': missing, 'separate_environment_commands': sorted(separate),

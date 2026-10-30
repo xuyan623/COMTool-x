@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>InstallScope</class>
+ <widget class="QWidget" name="InstallScope">
+  <property name="windowTitle"><string>选择安装范围</string></property>
+  <layout class="QVBoxLayout" name="scopeLayout">
+   <item><widget class="QLabel" name="Heading"><property name="text"><string>选择哪些 Windows 用户可以使用 CoRig。</string></property><property name="wordWrap"><bool>true</bool></property></widget></item>
+   <item><widget class="QRadioButton" name="CurrentUser"><property name="text"><string>仅当前用户（通常无需管理员权限）</string></property><property name="checked"><bool>true</bool></property></widget></item>
+   <item><widget class="QRadioButton" name="AllUsers"><property name="text"><string>这台电脑的所有用户（需要管理员权限）</string></property></widget></item>
+   <item><widget class="QLabel" name="DataNotice"><property name="text"><string>个人工程、插件与设置保存在各自用户的数据目录中，安装和更新保留这些内容。</string></property><property name="wordWrap"><bool>true</bool></property></widget></item>
+   <item><spacer name="bottomSpace"><property name="orientation"><enum>Qt::Vertical</enum></property><property name="sizeHint" stdset="0"><size><width>20</width><height>80</height></size></property></spacer></item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

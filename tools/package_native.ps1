@@ -76,7 +76,7 @@ if (Test-Path -LiteralPath $sourceStage) {
 }
 $sourceRoot = Join-Path $sourceStage 'CoRig'
 New-Item -ItemType Directory -Path $sourceRoot -Force | Out-Null
-foreach ($name in @('src','python','third_party','tests','tools','docs','skills','sdk','licenses','CMakeLists.txt','build.ps1','CONTEXT.md','README.md','LICENSE','THIRD_PARTY_NOTICES.md','.gitignore')) {
+foreach ($name in @('src','python','third_party','tests','tools','docs','skills','sdk','installer','licenses','CMakeLists.txt','build.ps1','CONTEXT.md','README.md','LICENSE','THIRD_PARTY_NOTICES.md','.gitignore')) {
     Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination $sourceRoot -Recurse -Force
 }
 New-Item -ItemType Directory -Path (Join-Path $sourceRoot 'examples') -Force | Out-Null

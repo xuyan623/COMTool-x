@@ -14,6 +14,7 @@ add_library(corig_core SHARED
     src/core/project.cpp src/core/project.h
     src/core/recording.cpp src/core/recording.h
     src/core/plugin_package.cpp src/core/plugin_package.h
+    src/core/paths.cpp src/core/paths.h
 )
 set_target_properties(corig_core PROPERTIES OUTPUT_NAME CoRigSdk WINDOWS_EXPORT_ALL_SYMBOLS ON)
 target_compile_definitions(corig_core PRIVATE CORIG_CORE_BUILD)
@@ -88,6 +89,7 @@ endforeach()
 if(CORIG_BUILD_APP)
     add_library(corig_app STATIC src/app/controller.cpp src/app/controller_commands.cpp src/app/ui_commands.cpp src/app/controller.h
         src/app/plugin_store.cpp src/app/plugin_store.h
+        src/app/updates.cpp src/app/updates.h
         src/app/api_server.cpp src/app/api_server.h src/app/workspaces.cpp src/app/workspaces.h)
     target_link_libraries(corig_app PUBLIC corig_design Qt6::Quick Qt6::QuickControls2 Qt6::Svg)
     add_library(corig_quick STATIC src/quick/renderers.cpp src/quick/renderers.h src/quick/icon_provider.cpp src/quick/icon_provider.h)
