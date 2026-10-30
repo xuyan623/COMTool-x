@@ -17,13 +17,18 @@ if (!$ArchiveOnly) {
         Remove-Item -LiteralPath $resolvedTarget -Recurse -Force
     }
     New-Item -ItemType Directory -Path $releaseRoot -Force | Out-Null
-    foreach ($program in @('CoRig.exe','CoRig-cli.exe')) {
+    foreach ($program in @('CoRig.exe','CoRig-cli.exe','CoRigSdk.dll')) {
         Copy-Item -LiteralPath (Join-Path $repoRoot "build\native\$program") -Destination $releaseRoot
     }
     # Qt's dependency scanner includes the actual QML imports and the C++
     # runtime. The application and official plugins carry no Python runtime.
     & (Join-Path $QtPrefix 'bin\windeployqt.exe') --release --qmldir (Join-Path $repoRoot 'src\qml') --no-translations --no-opengl-sw (Join-Path $releaseRoot 'CoRig.exe')
     if ($LASTEXITCODE -ne 0) { throw 'Qt deployment failed' }
+    & (Join-Path $QtPrefix 'bin\windeployqt.exe') --release --dir $releaseRoot --no-translations --no-opengl-sw (Join-Path $repoRoot 'build\native\corig_official.dll')
+    if ($LASTEXITCODE -ne 0) { throw 'Official plugin Qt deployment failed' }
+    New-Item -ItemType Directory -Path (Join-Path $releaseRoot 'plugins') -Force | Out-Null
+    Get-ChildItem -LiteralPath (Join-Path $repoRoot 'build\native\plugins') -Directory | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $releaseRoot 'plugins') -Recurse -Force }
+    Set-Content -LiteralPath (Join-Path $releaseRoot 'portable.ini') -Value "[CoRig]`nportable=true" -Encoding ascii
 }
 if (!(Test-Path -LiteralPath (Join-Path $releaseRoot 'CoRig.exe'))) { throw 'Build and deploy before archiving' }
 $references = Join-Path $repoRoot 'skills\corig\references'
@@ -47,7 +52,7 @@ foreach ($name in @('interface','workbench','instruments','animation','recording
         Copy-Item -LiteralPath $report -Destination (Join-Path $releaseRoot "verification\$name.json") -Force
     }
 }
-foreach ($name in @('native','documentation')) {
+foreach ($name in @('native','documentation','plugins','installer')) {
     $report = Join-Path $repoRoot "verification\corig-$name\report.json"
     if (Test-Path -LiteralPath $report) {
         Copy-Item -LiteralPath $report -Destination (Join-Path $releaseRoot "verification\$name.json") -Force
@@ -59,6 +64,8 @@ $publishDirectory = Join-Path $repoRoot 'dist'
 New-Item -ItemType Directory -Path $publishDirectory -Force | Out-Null
 $binaryArchive = Join-Path $publishDirectory 'CoRig-Windows-x64.zip'
 Compress-Archive -LiteralPath $releaseRoot -DestinationPath $binaryArchive -CompressionLevel Optimal -Force
+$sdkArchive = Join-Path $publishDirectory 'CoRig-SDK-Windows-x64.zip'
+Compress-Archive -LiteralPath (Join-Path $repoRoot 'build\native\sdk\CoRigSdk') -DestinationPath $sdkArchive -CompressionLevel Optimal -Force
 
 # Corresponding source contains the native modules and vendored libssh2, but
 # never local settings, private projects, virtual environments or API tokens.
@@ -69,7 +76,7 @@ if (Test-Path -LiteralPath $sourceStage) {
 }
 $sourceRoot = Join-Path $sourceStage 'CoRig'
 New-Item -ItemType Directory -Path $sourceRoot -Force | Out-Null
-foreach ($name in @('src','python','third_party','tests','tools','docs','skills','licenses','CMakeLists.txt','build.ps1','CONTEXT.md','README.md','LICENSE','THIRD_PARTY_NOTICES.md','.gitignore')) {
+foreach ($name in @('src','python','third_party','tests','tools','docs','skills','sdk','licenses','CMakeLists.txt','build.ps1','CONTEXT.md','README.md','LICENSE','THIRD_PARTY_NOTICES.md','.gitignore')) {
     Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination $sourceRoot -Recurse -Force
 }
 New-Item -ItemType Directory -Path (Join-Path $sourceRoot 'examples') -Force | Out-Null
@@ -77,4 +84,4 @@ foreach ($name in @('SerialPlot.crpj','FunctionLab.crpj','RecordPlayback.crpj'))
 Get-ChildItem -LiteralPath $sourceRoot -Recurse -File | Where-Object { $_.Extension -eq '.pyc' } | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
 $sourceArchive = Join-Path $publishDirectory 'CoRig-source.zip'
 Compress-Archive -LiteralPath $sourceRoot -DestinationPath $sourceArchive -CompressionLevel Optimal -Force
-Get-Item -LiteralPath $binaryArchive,$sourceArchive | Select-Object FullName,Length
+Get-Item -LiteralPath $binaryArchive,$sdkArchive,$sourceArchive | Select-Object FullName,Length

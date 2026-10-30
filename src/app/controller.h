@@ -5,8 +5,9 @@
 // refreshes use immutable observations and never lock the graph worker.
 #include "core/engine.h"
 #include "core/python_host.h"
-#include "plugins/io_hub.h"
+#include "core/native_plugin.h"
 #include "model_commands.h"
+#include "plugin_store.h"
 #include <QObject>
 #include <QSettings>
 #include <QTimer>
@@ -44,8 +45,10 @@ class Controller final : public QObject {
     Q_PROPERTY(QVariantMap libraryPreferences READ libraryPreferences NOTIFY preferencesChanged)
     Q_PROPERTY(QString dataDirectory READ dataDirectory CONSTANT)
     Q_PROPERTY(QString libraryTarget READ libraryTarget NOTIFY preferencesChanged)
+    Q_PROPERTY(QVariantMap pluginState READ pluginState NOTIFY pluginsChanged)
+    Q_PROPERTY(QVariantMap pendingPluginOpen READ pendingPluginOpen NOTIFY pluginOpenRequested)
 public:
-    explicit Controller(QString dataDirectory, QObject *parent = nullptr);
+    explicit Controller(QString dataDirectory, QObject *parent = nullptr, const QVariantMap &initialCatalog = {});
     ~Controller() override;
     void attachUi(QQmlEngine *engine);
     void shutdown();
@@ -72,6 +75,8 @@ public:
     QObject *workspaces() const;
     QVariantMap libraryPreferences() const;
     QString libraryTarget() const { return libraryTarget_; }
+    QVariantMap pluginState() const { return plugins_->state(project_); }
+    QVariantMap pendingPluginOpen() const { return pendingPluginOpen_; }
 
     Q_INVOKABLE QVariant invoke(const QString &operation, const QVariantMap &arguments = {});
     Q_INVOKABLE QVariantMap job(const QString &id) const;
@@ -94,6 +99,7 @@ public:
     Q_INVOKABLE QVariantMap viewState(const QString &node, const QString &view) const;
     Q_INVOKABLE void registerView(QObject *item, const QString &node, const QString &view);
     Q_INVOKABLE QString userViewUrl(const QString &node, const QString &view);
+    Q_INVOKABLE QString pluginViewUrl(const QString &plugin, const QString &view);
     Q_INVOKABLE QObject *userViewBridge(const QString &node, const QString &view);
 signals:
     void projectChanged();
@@ -107,6 +113,10 @@ signals:
     void jobFinished(const QString &id);
     void exitConfirmation(const QString &window);
     void graphFocusRequested(const QString &node);
+    void pluginsChanged();
+    void pluginOpenRequested();
+    void pluginSettingsRequested();
+    void pluginExportRequested(const QString &scope, const QString &plugin);
 private:
     friend class Workspaces;
     QVariantMap appState() const;
@@ -124,16 +134,20 @@ private:
     QVariant viewCall(const QVariantMap &arguments);
     QVariantList viewActions(const QString &node, const QString &view) const;
     QVariantMap importPlugin(const QString &path) const;
+    QVariantMap pluginService(const PluginPackage &package, const QString &node, const QString &operation, const QVariantMap &arguments);
     void requireEditable(bool layout = false) const;
     QString dataDirectory_, projectPath_, selected_, selectedKind_ = "node", theme_ = "dark", notice_ = "就绪", noticeLevel_ = "info";
     QStringList selectedNodes_;
     QString libraryTarget_ = "graph";
     QVariantMap project_, runtime_;
     QVariantList graphNodes_;
-    Catalog catalog_;
+    Catalog catalog_{QList<PluginPackage>{}};
     std::unique_ptr<QSettings> settings_;
+    std::unique_ptr<PluginStore> plugins_;
+    QVariantMap pendingPluginOpen_;
     std::unique_ptr<PythonHost> python_;
-    std::unique_ptr<IoHub> io_;
+    QMap<QString,std::shared_ptr<PluginService>> services_;
+    std::mutex servicesMutex_;
     std::unique_ptr<Engine> engine_;
     std::unique_ptr<Workspaces> workspaces_;
     std::unique_ptr<ApiServer> api_;

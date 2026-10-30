@@ -9,7 +9,7 @@ Item {
     property string scope:"all"
     property var picked:({})
     property var containers:[{id:"layout.row",name:"横向容器",description:"在局部区域横向排列子对象",category_path:["布局容器"],views:[]},{id:"layout.column",name:"纵向容器",description:"在局部区域纵向排列子对象",category_path:["布局容器"],views:[]},{id:"layout.grid",name:"网格容器",description:"在局部区域按网格排列子对象",category_path:["布局容器"],views:[]},{id:"layout.tabs",name:"分页容器",description:"在局部区域切换分页",category_path:["布局容器"],views:[]}]
-    property var entries:{App.registry;App.libraryPreferences;let result=App.catalogEntries(query.text,category&&category!=="布局容器"?category.split("/"):[],scope);if(category==="布局容器")result=[];if(App.libraryTarget==="layout"&&scope==="all"&&(!category||category==="布局容器"))result=result.concat(containers.filter(p=>(p.name+" "+p.id).toLowerCase().indexOf(query.text.toLowerCase())>=0));return result}
+    property var entries:{App.registry;App.libraryPreferences;let result=App.catalogEntries(query.text,category?category.split("/"):[],scope);if(App.libraryTarget==="layout"&&scope==="all"&&(!category||category==="布局容器"))result=result.concat(containers.filter(p=>(p.name+" "+p.id).toLowerCase().indexOf(query.text.toLowerCase())>=0));return result}
     property var previewViews:picked.views?(Array.isArray(picked.views)?picked.views:Object.keys(picked.views)):[]
     property var previewConfig:{const result={},schema=picked.properties||{};Object.keys(schema).forEach(key=>result[key]=schema[key].default);return result}
     function reason(spec){return App.libraryTarget==="graph"?(spec.id&&spec.id.startsWith("layout.")?"容器只用于界面设计":""):(spec.id&&spec.id.startsWith("layout.")?"":spec.views&&Object.keys(spec.views).length?"":"该插件没有界面视图，请在功能设计添加")}
@@ -23,23 +23,30 @@ Item {
             IconButton{symbol:"layout";text:"界面设计插件库";checkable:true;checked:App.libraryTarget==="layout";onClicked:{root.category="";App.openLibrary("layout")}}
             TextField{id:query;objectName:"library.search";Layout.fillWidth:true;placeholderText:"搜索插件名称、用途或别名";selectByMouse:true}
             IconButton{symbol:App.libraryPreferences.view==="grid"?"logs":"library";text:"切换列表／预览";onClicked:App.invoke("library.configure",{view:App.libraryPreferences.view==="grid"?"list":"grid"})}
-            IconButton{symbol:"plus";text:"导入用户插件";Layout.rightMargin:10;enabled:!App.readOnly&&!App.runtime.running;onClicked:pluginFile.open()}
+            IconButton{symbol:"plus";text:"导入插件";enabled:!App.readOnly&&!App.runtime.running;onClicked:pluginFile.open()}
+            IconButton{symbol:"settings";text:"插件管理";Layout.rightMargin:10;onClicked:App.invoke("plugin.settings",{})}
         }
         Rectangle{Layout.fillWidth:true;height:1;color:Theme.border}
         SplitView {
             Layout.fillWidth:true;Layout.fillHeight:true
             handle:Rectangle{implicitWidth:6;color:SplitHandle.hovered?Theme.border:Theme.canvas}
-            ScrollView {
-                SplitView.preferredWidth:154;SplitView.minimumWidth:80;clip:true
-                ColumnLayout {
-                    width:150;spacing:2
-                    ItemDelegate{Layout.fillWidth:true;text:"全部插件";highlighted:root.scope==="all"&&!root.category;onClicked:{root.category="";root.scope="all"}}
-                    ItemDelegate{Layout.fillWidth:true;text:"收藏";highlighted:root.scope==="favorites";onClicked:{root.category="";root.scope="favorites"}}
-                    ItemDelegate{Layout.fillWidth:true;text:"最近使用";highlighted:root.scope==="recent";onClicked:{root.category="";root.scope="recent"}}
-                    Repeater {
-                        model:{const paths=[];App.registry.forEach(p=>{const path=p.category_path&&p.category_path.length?p.category_path:[p.category||"其他"];for(let i=1;i<=path.length;i++){const key=path.slice(0,i).join("/");if(paths.indexOf(key)<0)paths.push(key)}});if(App.libraryTarget==="layout")paths.push("布局容器");return paths.sort()}
-                        ItemDelegate{required property string modelData;Layout.fillWidth:true;leftPadding:12+(modelData.split("/").length-1)*12;text:modelData.split("/").pop();highlighted:root.category===modelData;onClicked:{root.category=modelData;root.scope="all"}}
+            ColumnLayout {
+                SplitView.preferredWidth:154;SplitView.minimumWidth:80;spacing:2
+                ItemDelegate{Layout.fillWidth:true;text:"全部插件";highlighted:root.scope==="all"&&!root.category;onClicked:{root.category="";root.scope="all"}}
+                ItemDelegate{Layout.fillWidth:true;text:"收藏";highlighted:root.scope==="favorites";onClicked:{root.category="";root.scope="favorites"}}
+                ItemDelegate{Layout.fillWidth:true;text:"最近使用";highlighted:root.scope==="recent";onClicked:{root.category="";root.scope="recent"}}
+                PluginTree {
+                    Layout.fillWidth:true;Layout.fillHeight:true;showPlugins:false;activePath:root.category
+                    // Available nodes include project copies. Local management
+                    // keeps its own filesystem tree instead of merging them.
+                    treeData:{
+                        const roots=[],folders={}
+                        const paths=App.registry.map(p=>p.category_path&&p.category_path.length?p.category_path:["其他"])
+                        if(App.libraryTarget==="layout")paths.push(["布局容器"])
+                        paths.forEach(parts=>{let children=roots;parts.forEach((name,index)=>{const path=parts.slice(0,index+1).join("/");if(!folders[path]){folders[path]={kind:"folder",name:name,path:path,children:[]};children.push(folders[path])}children=folders[path].children})})
+                        function sort(nodes){nodes.sort((a,b)=>a.path.localeCompare(b.path));nodes.forEach(n=>sort(n.children))}sort(roots);return roots
                     }
+                    onCategoryChosen:path=>{root.category=path;root.scope="all"}
                 }
             }
             Item {
@@ -107,5 +114,5 @@ Item {
             }
         }
     }
-    FileDialog{id:pluginFile;title:"导入用户插件声明";nameFilters:["CoRig 插件声明 (*.json)"];onAccepted:App.invoke("plugin.import",{path:selectedFile.toString()})}
+    FileDialog{id:pluginFile;title:"导入插件";nameFilters:["CoRig 插件包 (*.crpl)","Python 插件声明 (*.json)"];onAccepted:App.invoke("plugin.import",{path:selectedFile.toString()})}
 }

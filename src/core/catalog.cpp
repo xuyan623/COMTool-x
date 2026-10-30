@@ -1,15 +1,13 @@
 #include "catalog.h"
+#include "native_plugin.h"
 #include <QFile>
+#include <QDir>
+#include <QCoreApplication>
 #include <QJsonDocument>
 #include <QRegularExpression>
 #include <QSet>
 #include <cmath>
 #include <algorithm>
-
-static void initializeCatalogResource()
-{
-    Q_INIT_RESOURCE(builtin_catalog);
-}
 
 namespace corig {
 
@@ -48,18 +46,111 @@ QVariantMap checkedProperties(const QVariantMap &schema, const QVariantMap &chan
     return result;
 }
 
-Catalog::Catalog()
+Catalog::Catalog() : Catalog(packagesInDirectory(QCoreApplication::applicationDirPath() + "/plugins")) {}
+
+Catalog::Catalog(const QList<PluginPackage> &packages)
 {
-    static const bool initialized = [] { initializeCatalogResource(); return true; }();
-    Q_UNUSED(initialized);
-    QFile file(":/catalog.json");
-    if (!file.open(QIODevice::ReadOnly)) throw Error("内置插件声明无法读取");
-    const auto nodes = QJsonDocument::fromJson(file.readAll()).toVariant().toList();
-    for (const auto &item : nodes) {
-        auto spec = item.toMap();
-        spec.insert("builtin", true);
-        definitions_.insert(spec.value("id").toString(), spec);
+    for (const auto &package : packages) addPackage(package);
+}
+
+Catalog::Catalog(const QMap<QString,PluginPackage> &packages)
+{
+    for (auto i = packages.cbegin(); i != packages.cend(); ++i) addPackage(i.value(),false,i.key());
+}
+
+void Catalog::addPackage(const PluginPackage &package, bool replace, const QString &relativePath)
+{
+    if (packages_.contains(package.id())) {
+        if (packages_.value(package.id()).hash() == package.hash()) return;
+        if (!replace) throw Error("插件包标识已被使用：" + package.id());
     }
+    const auto location = PluginPackage::checkedPath(relativePath.isEmpty() ? package.id()+".crpl" : relativePath);
+    auto category = QFileInfo(location).path();
+    const auto parts = category == "." ? QStringList{"其他"} : category.split('/');
+    auto next = definitions_;
+    if (replace) for (auto i = next.begin(); i != next.end();) {
+        if (i.value().value("package_id") == package.id()) i = next.erase(i); else ++i;
+    }
+    for (const auto &entry : package.definitions()) {
+        auto spec = entry.toMap(); const auto id = spec.value("id").toString();
+        spec["category_path"] = parts; spec["package_path"] = location;
+        if (next.contains(id)) throw Error("插件标识已被使用：" + id);
+        next.insert(id,spec);
+    }
+    definitions_ = std::move(next); packages_.insert(package.id(),package); locations_.insert(package.id(),location);
+}
+
+void Catalog::remove(const QString &id) { definitions_.remove(id); }
+
+void Catalog::applyProject(const QVariantMap &project)
+{
+    const auto choices = project.value("plugin_selections").toMap();
+    QMap<QString,PluginPackage> embedded;
+    QMap<QString,QString> paths;
+    auto dependencies = project.value("plugin_dependencies").toList();
+    for (const auto &entry : project.value("plugin_packages").toList()) {
+        const auto item = entry.toMap(); const auto package = PluginPackage::read(item.value("data").toByteArray());
+        if (package.id() != item.value("id").toString() || package.hash() != item.value("sha256").toString()) throw Error("工程内插件包标识或校验值不一致");
+        embedded.insert(package.id(),package); paths.insert(package.id(),item.value("relative_path",package.id()+".crpl").toString());
+        if (project.value("plugin_dependencies").toList().isEmpty()) dependencies.append(item);
+    }
+    for (const auto &entry : dependencies) {
+        const auto expected = entry.toMap(); const auto id = expected.value("id").toString();
+        const auto choice = choices.value(id).toString();
+        const bool local = packages_.contains(id), attached = embedded.contains(id);
+        if (!local && !attached) throw Error("工程缺少插件：" + id + " " + expected.value("version").toString());
+        const bool different = local && packages_.value(id).hash() != expected.value("sha256").toString();
+        if (different && choice != "project" && choice != "local") throw Error("请选择工程内或本机插件版本：" + id);
+        if (choice == "project" && !attached) throw Error("工程没有携带此插件，请导入需要的版本：" + id);
+        if (attached && (!local || choice == "project")) addPackage(embedded.value(id),true,paths.value(id));
+    }
+    // Existing CoRig v3 Python declarations remain readable. Their old category
+    // fields are discarded when converted into portable package contents.
+    for (const auto &entry : project.value("user_plugins").toList()) {
+        const auto package = PluginPackage::fromPython(entry.toMap());
+        if (!packages_.contains(package.id())) addPackage(package);
+    }
+}
+
+PluginPackage Catalog::package(const QString &plugin) const
+{
+    const auto id = packages_.contains(plugin) ? plugin : definition(plugin).value("package_id").toString();
+    if (!packages_.contains(id)) throw Error("插件没有可导出的插件包：" + plugin);
+    return packages_.value(id);
+}
+
+PluginPackage Catalog::servicePackage(const QString &capability) const
+{
+    for (const auto &package : packages_) if (package.manifest().value("capabilities").toStringList().contains(capability)) return package;
+    throw Error("未安装提供此功能的插件：" + capability);
+}
+
+QString Catalog::packagePath(const QString &plugin) const
+{
+    return locations_.value(package(plugin).id());
+}
+
+QVariantMap Catalog::embed(const QVariantMap &project, bool includePlugins) const
+{
+    QSet<QString> used;
+    for (const auto &entry : project.value("nodes").toList()) used.insert(entry.toMap().value("plugin").toString());
+    for (const auto &entry : project.value("ui").toMap().value("items").toList()) {
+        const auto item = entry.toMap();
+        const auto snapshot = item.value("binding").toMap();
+        if (!snapshot.value("plugin").toString().isEmpty()) used.insert(snapshot.value("plugin").toString());
+    }
+    QMap<QString,PluginPackage> selected;
+    for (const auto &plugin : used) { const auto p = package(plugin); selected.insert(p.id(),p); }
+    QVariantList embedded, dependencies;
+    for (const auto &p : selected) {
+        QVariantMap info{{"id",p.id()},{"version",p.version()},{"sha256",p.hash()},{"relative_path",locations_.value(p.id())}};
+        dependencies.append(info);
+        if (includePlugins) { info["data"] = p.archive(); embedded.append(info); }
+    }
+    auto result = project; result["plugin_packages"] = embedded; result["plugin_dependencies"] = dependencies;
+    result["save_options"] = QVariantMap{{"include_plugins",includePlugins}};
+    result["user_plugins"] = QVariantList{}; result.remove("plugin_selections");
+    return result;
 }
 
 QVariantMap Catalog::definition(const QString &id) const
@@ -74,8 +165,14 @@ QVariantList Catalog::describe() const
     for (auto i = definitions_.cbegin(); i != definitions_.cend(); ++i) {
         auto spec = i.value();
         QVariantList resolved;
-        const auto config = checkedConfig(i.key(), {});
-        for (const auto &port : ports(i.key(), config)) resolved.append(port.describe());
+        try {
+            const auto config = checkedConfig(i.key(), {});
+            for (const auto &port : ports(i.key(), config)) resolved.append(port.describe());
+        } catch (const std::exception &error) {
+            // A missing native dependency must remain visible and removable
+            // through discovery without taking down the application settings.
+            spec["load_error"] = QString::fromUtf8(error.what());
+        }
         spec.insert("ports", resolved);
         result.append(spec);
     }
@@ -85,23 +182,10 @@ QVariantList Catalog::describe() const
 QVariantMap Catalog::checkedConfig(const QString &id, const QVariantMap &changes, const QVariantMap &previous) const
 {
     const auto spec = definition(id);
-    auto config = checkedProperties(spec.value("properties").toMap(), changes, previous);
+    auto config = spec.value("implementation") == "native"
+        ? nativePlugin(package(id)).configuration(spec,changes,previous)
+        : checkedProperties(spec.value("properties").toMap(),changes,previous);
     ports(id, config);
-    if (config.contains("time_unit")) timeUnit(config.value("time_unit").toString());
-    if (id == "function.limit" && config.contains("minimum") && config.value("minimum").toDouble() > config.value("maximum").toDouble())
-        throw Error("最小值不能大于最大值");
-    if (id == "source.constant") {
-        const auto values = config.value("values").toMap();
-        if (values.isEmpty()) throw Error("常量需要至少一个命名数值");
-        for (auto i = values.cbegin(); i != values.cend(); ++i) finiteNumber(i.value(), i.key());
-    }
-    if (id == "source.time") {
-        for (const auto &item : config.value("outputs").toList()) {
-            const auto output = item.toMap();
-            if (output.value("clock") != "elapsed" && output.value("clock") != "system") throw Error("时间源时钟需要 elapsed 或 system");
-            timeUnit(output.value("unit").toString());
-        }
-    }
     return config;
 }
 
@@ -111,61 +195,9 @@ QVector<Port> Catalog::ports(const QString &id, const QVariantMap &config) const
     QVector<Port> result;
     for (const auto &item : spec.value("ports").toList()) {
         const auto p = item.toMap();
-        result.append({p.value("id").toString(), spec.value("builtin").toBool() ? p.value("id").toString() : p.value("label").toString(), p.value("direction").toString(), p.value("data_type").toString(), p.value("unit").toString()});
+        result.append({p.value("id").toString(), spec.value("official").toBool() ? p.value("id").toString() : p.value("label").toString(), p.value("direction").toString(), p.value("data_type").toString(), p.value("unit").toString()});
     }
-    const auto named = [&](const QString &name, const QString &direction, const QString &type = "number", const QString &label = QString{}, const QString &unit = QString{}) {
-        result.append({name, label.isEmpty() ? name : label, direction, type, unit});
-    };
-    if (id == "source.constant") {
-        const auto values = config.value("values").toMap();
-        for (auto i = values.cbegin(); i != values.cend(); ++i) named(i.key(), "out");
-    } else if (id == "source.time") {
-        for (const auto &item : config.value("outputs").toList()) {
-            const auto p = item.toMap();
-            named(p.value("name").toString(), "out", "number", p.value("name").toString() + " / " + p.value("unit").toString(), p.value("unit").toString());
-        }
-    } else if (id == "data.extract") {
-        const auto channels = config.value("channels").toMap();
-        if (channels.isEmpty()) throw Error("需要配置提取通道");
-        for (auto i = channels.cbegin(); i != channels.cend(); ++i) {
-            if (i.value().toString().isEmpty()) throw Error("来源通道名不能为空");
-            named(i.key(), "out");
-        }
-    } else if (id == "data.fork") {
-        const auto outputs = config.value("outputs").toList();
-        if (outputs.size() < 2 || outputs.size() > 8) throw Error("数据分发需要 2～8 个输出端口");
-        named("in", "in", config.value("data_type").toString());
-        for (const auto &name : outputs) named(name.toString(), "out", config.value("data_type").toString());
-    } else if (id == "data.record" || id == "data.playback") {
-        named("in","in",config.value("data_type").toString());
-        if (id == "data.record") { named("start","in","boolean"); named("pause","in","boolean"); }
-        named("out","out",config.value("data_type").toString());
-    } else if (id == "data.gate" || id == "data.select") {
-        const auto type = config.value("data_type").toString();
-        if (id == "data.gate") named("in", "in", type);
-        else { named("a", "in", type); named("b", "in", type); }
-        named("out", "out", type);
-    } else if (id == "function.expression" || id == "function.python") {
-        for (const auto &name : config.value("inputs").toList()) named(name.toString(), "in");
-        if (id == "function.python") {
-            for (const auto &name : config.value("outputs").toList()) named(name.toString(), "out");
-        } else {
-            const auto outputs = config.value("outputs").toMap();
-            for (auto i = outputs.cbegin(); i != outputs.cend(); ++i) named(i.key(), "out");
-        }
-        named("samples", "out", "samples");
-    } else if (id == "plot.curves") {
-        const auto labels = config.value("input_labels").toMap();
-        for (const auto &name : config.value("inputs").toList()) named(name.toString(), "in", "number", labels.value(name.toString(), name).toString());
-    } else if (id == "plot.attitude") {
-        if (config.value("mode") == "quaternion") {
-            for (const auto &name : {"w","x","y","z"}) named(name, "in");
-        } else {
-            for (const auto &name : {"roll","pitch","yaw"}) named(name, "in", "number", name, config.value("angle_unit").toString());
-        }
-    } else if (spec.value("dynamic_ports").toBool() && id.startsWith("function.")) {
-        for (const auto &name : config.value("inputs").toList()) named(name.toString(), "in");
-    }
+    if (spec.value("implementation") == "native") result = nativePlugin(package(id)).ports(spec,config,std::move(result));
     static const QRegularExpression identifier("^[A-Za-z_][A-Za-z0-9_.-]*$");
     static const QSet<QString> types{"number","bytes","string","boolean","object","samples","any"};
     QSet<QString> seen;
@@ -186,19 +218,17 @@ void Catalog::addPython(const QVariantMap &manifest)
         throw Error("用户插件需要 plugin_api=3 和有效 id");
     if (definitions_.contains(id)) throw Error("插件标识已被使用：" + id);
     if (spec.value("name").toString().isEmpty() || spec.value("code").toString().isEmpty()) throw Error("用户插件缺少名称或 Python 代码");
-    spec.insert("builtin", false);
-    spec.insert("implementation", "python");
     spec.insert("category", spec.value("category", "用户插件"));
     spec.insert("version", spec.value("version", "1.0"));
     if (spec.contains("source_interval_ms")) { const auto interval = finiteNumber(spec.value("source_interval_ms"),"用户信号源周期"); if (interval < 0. || interval > 60000.) throw Error("用户信号源周期需要 0～60000 ms"); }
-    definitions_.insert(id, spec);
-    try { checkedConfig(id, {}); } catch (...) { definitions_.remove(id); throw; }
+    auto trial = *this; trial.addPackage(PluginPackage::fromPython(spec));
+    trial.checkedConfig(id, {}); *this = std::move(trial);
 }
 
 void Catalog::clearPython()
 {
     for (auto i = definitions_.begin(); i != definitions_.end();) {
-        if (!i.value().value("builtin").toBool()) i = definitions_.erase(i); else ++i;
+        if (i.value().value("implementation") == "python") i = definitions_.erase(i); else ++i;
     }
 }
 
@@ -211,7 +241,7 @@ QVariantList Catalog::search(const QString &query, const QStringList &category) 
         auto spec = i.value();
         auto path = spec.value("category_path").toStringList();
         if (path.isEmpty()) path.append(spec.value("category").toString());
-        if (words.isEmpty() && !category.isEmpty() && path.mid(0, category.size()) != category) continue;
+        if (!category.isEmpty() && path.mid(0, category.size()) != category) continue;
         const auto name = spec.value("name").toString().toLower();
         const auto haystack = (name + " " + i.key() + " " + spec.value("description").toString() + " " + path.join(' ') + " " + spec.value("keywords").toStringList().join(' ')).toLower();
         bool found = true;

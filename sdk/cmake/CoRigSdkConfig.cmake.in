@@ -1,0 +1,17 @@
+@PACKAGE_INIT@
+set(CoRigSdk_PREFIX "${PACKAGE_PREFIX_DIR}")
+include(CMakeFindDependencyMacro)
+find_dependency(Qt6 @Qt6Core_VERSION@ EXACT COMPONENTS Core)
+if(NOT MSVC OR NOT MSVC_VERSION EQUAL @MSVC_VERSION@ OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+    message(FATAL_ERROR "This CoRig SDK requires matching MSVC @MSVC_VERSION@ x64.")
+endif()
+if(NOT TARGET CoRig::Sdk)
+    add_library(CoRig::Sdk SHARED IMPORTED)
+    set_target_properties(CoRig::Sdk PROPERTIES
+        IMPORTED_IMPLIB "${CoRigSdk_PREFIX}/lib/CoRigSdk.lib"
+        IMPORTED_LOCATION "${CoRigSdk_PREFIX}/bin/CoRigSdk.dll"
+        INTERFACE_INCLUDE_DIRECTORIES "${CoRigSdk_PREFIX}/include"
+        INTERFACE_LINK_LIBRARIES Qt6::Core)
+endif()
+set(CoRigSdk_PACKER "${CoRigSdk_PREFIX}/bin/CoRig-pack.exe")
+include("${CMAKE_CURRENT_LIST_DIR}/CoRigPlugin.cmake")

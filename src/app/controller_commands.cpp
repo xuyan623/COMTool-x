@@ -13,6 +13,8 @@
 #include <QRegularExpression>
 #include <QClipboard>
 #include <QGuiApplication>
+#include <QDesktopServices>
+#include <QProcess>
 #include <algorithm>
 
 namespace corig {
@@ -22,9 +24,10 @@ namespace corig {
 QVariantMap Controller::schema() const
 {
     const QMap<QString,QStringList> fields{
-        {"app.state",{}},{"app.quit",{"discard"}},{"preferences.set",{"theme","python","read_only"}},
+        {"app.state",{}},{"app.quit",{"discard"}},{"app.restart",{"discard","path","plugin_selections"}},{"preferences.set",{"theme","python","read_only"}},
         {"registry",{}},{"schema",{}},{"project.get",{}},{"project.validate",{}},{"project.new",{"name","discard"}},
-        {"project.open",{"path","discard"}},{"project.save",{"path"}},{"project.rename",{"name"}},
+        {"project.open",{"path","discard","plugin_selections"}},{"project.save",{"path","include_plugins"}},
+        {"project.export",{"path","include_plugins"}},{"project.options",{"include_plugins"}},{"project.rename",{"name"}},
         {"history.undo",{}},{"history.redo",{}},{"batch",{"commands"}},
         {"graph.node.add",{"id","plugin","title","config","position","orientation","placed"}},
         {"graph.node.remove",{"id","ids"}},{"graph.node.move",{"id","position"}},{"graph.node.rotate",{"id","degrees"}},
@@ -47,7 +50,9 @@ QVariantMap Controller::schema() const
         {"sync.plan",{"direction"}},{"sync.apply",{"direction","keys","revision"}},
         {"library.search",{"query","category","scope"}},{"library.state",{}},{"library.favorite",{"plugin","enabled"}},
         {"library.configure",{"view","size"}},{"library.preview",{"plugin"}},{"plugin.import",{"path","manifest"}},
-        {"plugin.remove",{"plugin"}},{"python.probe",{"dependencies"}},{"job.get",{"id"}},
+        {"plugin.state",{}},{"plugin.tree",{"scope"}},{"plugin.settings",{}},{"plugin.directory",{}},{"plugin.enable",{"plugin","enabled"}},
+        {"plugin.export",{"plugin","path","plugins","directory","overwrite","scope"}},{"plugin.export.dialog",{"scope","plugin"}},
+        {"plugin.remove",{"plugin","package"}},{"python.probe",{"dependencies"}},{"job.get",{"id"}},
         {"workspace.open",{"page","window"}},{"workspace.close",{"page","discard"}},{"workspace.detach",{"page","x","y"}},
         {"workspace.move",{"page","window","index"}},{"window.close",{"window","discard"}},{"window.pin",{"window","enabled"}},
         {"window.configure",{"window","x","y","width","height","state","focus"}},
@@ -60,7 +65,7 @@ QVariantMap Controller::schema() const
     };
     QVariantMap commands;
     for (auto i = fields.cbegin(); i != fields.cend(); ++i) commands.insert(i.key(),QVariantMap{{"arguments",i.value()}});
-    return {{"application","CoRig"},{"api_version",3},{"version","0.3.0"},{"commands",commands},{"async","A job is complete only after its operation succeeds; poll job.get"},
+    return {{"application","CoRig"},{"api_version",3},{"version","0.4.0"},{"commands",commands},{"async","A job is complete only after its operation succeeds; poll job.get"},
         {"values",QVariantMap{{"bytes","{type:bytes,base64:...,length:N}"},{"samples","{time:seconds,values:{name:number}}"}}}};
 }
 
@@ -76,6 +81,11 @@ QVariant Controller::command(const QString &op, const QVariantMap &args)
     if (op == "job.get") return job(args.value("id").toString());
     if (op == "runtime.state") return engine_->observation();
     if (op == "project.get") return project_;
+    if (op == "plugin.state") return pluginState();
+    if (op == "plugin.tree") return plugins_->tree(project_,args.value("scope","project").toString());
+    if (op == "plugin.export.dialog") { emit pluginExportRequested(args.value("scope","project").toString(),args.value("plugin").toString()); return QVariantMap{{"opened",true}}; }
+    if (op == "plugin.directory") { if (!QDesktopServices::openUrl(QUrl::fromLocalFile(pluginState().value("directory").toString()))) throw Error("无法打开插件文件夹"); return QVariantMap{{"opened",true}}; }
+    if (op == "plugin.settings") { emit pluginSettingsRequested(); return QVariantMap{{"opened",true}}; }
     if (op == "graph.connection.options") {
         const auto node = args.value("node").toString(), port = args.value("port").toString();
         if (nodeDesign(node).isEmpty()) throw Error("节点不存在：" + node);
@@ -100,7 +110,7 @@ QVariant Controller::command(const QString &op, const QVariantMap &args)
         return QVariantMap{{"copied",args.value("ids")}};
     }
     if (op == "clipboard.read") return QVariantMap{{"text",QGuiApplication::clipboard()->text()}};
-    if (op == "io.ports") return launchTask(op,[this] { return io_->transact({},"list_ports",{}); });
+    if (op == "io.ports") { const auto package = catalog_.servicePackage("io"); return launchTask(op,[this,package] { return pluginService(package,{},"list_ports",{}); }); }
     if (op == "project.validate") { validateProject(project_,catalog_); return QVariantMap{{"valid",true}}; }
     if (op == "preferences.set") {
         if (args.contains("theme")) { const auto theme = args.value("theme").toString(); if (theme != "dark" && theme != "light") throw Error("主题需要 dark 或 light"); theme_ = theme; settings_->setValue("theme",theme); }
@@ -115,15 +125,34 @@ QVariant Controller::command(const QString &op, const QVariantMap &args)
         exitDiscarded_ = true;
         QTimer::singleShot(50,qApp,&QCoreApplication::quit); return QVariantMap{{"quitting",true}};
     }
+    if (op == "app.restart") {
+        if (dirty_ && !args.value("discard").toBool()) throw Error("请先保存当前工程，再重启 CoRig");
+        if (busy_) throw Error("请等待工程操作完成");
+        QStringList arguments{"--data-dir",dataDirectory_};
+        const auto path = args.value("path",projectPath_).toString();
+        if (!path.isEmpty()) arguments.append(path);
+        if (args.contains("plugin_selections")) arguments << "--plugin-selections" << QString::fromLatin1(QJsonDocument::fromVariant(args.value("plugin_selections")).toJson(QJsonDocument::Compact).toBase64());
+        if (!QProcess::startDetached(QCoreApplication::applicationFilePath(),arguments)) throw Error("无法重新启动 CoRig");
+        exitDiscarded_ = true; QTimer::singleShot(50,qApp,&QCoreApplication::quit);
+        return QVariantMap{{"restarting",true}};
+    }
     if (op == "project.open" || op == "project.new") {
         requireEditable();
         if (dirty_ && !args.value("discard").toBool()) throw Error("请先保存当前工程，或明确丢弃修改");
         auto path = args.value("path").toString(); if (QUrl(path).isLocalFile()) path = QUrl(path).toLocalFile();
         if (op == "project.open" && path.isEmpty()) throw Error("请选择工程文件");
         busy_ = true; emit busyChanged();
-        return launchEngine(op == "project.open" ? "project.load" : "project.replace",op == "project.open" ? QVariantMap{{"path",path}} : QVariantMap{{"project",emptyProject(args.value("name","未命名工程").toString())}},
-            [this,path](const QVariant &result, const QString &error) {
+        QVariantMap request = op == "project.open" ? QVariantMap{{"path",path},{"plugin_selections",args.value("plugin_selections",QVariantMap{})}} : QVariantMap{{"project",emptyProject(args.value("name","未命名工程").toString())}};
+        return launchEngine(op == "project.open" ? "project.load" : "project.replace",request,
+            [this,path,args](const QVariant &result, const QString &error) {
                 busy_ = false; emit busyChanged(); if (!error.isEmpty()) return;
+                const auto readiness = result.toMap();
+                if (readiness.value("requires_plugin_selection").toBool() || readiness.value("requires_restart").toBool() || readiness.value("requires_plugins").toBool()) {
+                    pendingPluginOpen_ = readiness; pendingPluginOpen_["path"] = path;
+                    pendingPluginOpen_["plugin_selections"] = args.value("plugin_selections",QVariantMap{});
+                    emit pluginOpenRequested(); return;
+                }
+                pendingPluginOpen_.clear();
                 projectPath_ = path; undo_.clear(); redo_.clear(); views_.clear();
                 // Qt can reuse layout items when another project has the same
                 // item IDs. Keep their subscriptions, reset per-project ranges.
@@ -131,15 +160,43 @@ QVariant Controller::command(const QString &op, const QVariantMap &args)
                 pluginDirectories_.clear(); selected_.clear(); selectedNodes_.clear(); emit selectionChanged(); adopt(result.toMap(),false); tell("工程已打开");
             });
     }
-    if (op == "project.save") {
+    if (op == "project.options") {
+        if (args.contains("include_plugins")) {
+            requireEditable(true);
+            if (args.value("include_plugins").metaType().id() != QMetaType::Bool) throw Error("include_plugins 需要布尔值");
+            auto next = project_; next["save_options"] = QVariantMap{{"include_plugins",args.value("include_plugins")}};
+            return commit({next,{}, {},false},"工程保存选项已修改");
+        }
+        return project_.value("save_options",QVariantMap{{"include_plugins",true}});
+    }
+    if (op == "project.save" || op == "project.export") {
         if (busy_) throw Error("工程操作尚未完成");
+        const bool exporting = op == "project.export";
+        const auto includeValue = args.value("include_plugins",project_.value("save_options").toMap().value("include_plugins",true));
+        if (includeValue.metaType().id() != QMetaType::Bool) throw Error("include_plugins 需要布尔值");
+        const bool include = includeValue.toBool();
         auto path = args.value("path",projectPath_).toString(); if (QUrl(path).isLocalFile()) path = QUrl(path).toLocalFile();
+        if (exporting && !args.contains("path")) throw Error("请选择工程导出路径");
         if (path.isEmpty()) path = dataDirectory_ + "/project/" + project_.value("name").toString().replace(QRegularExpression("[\\\\/:*?\"<>|]"),"_") + ".crpj";
+        if (path.endsWith(".corig",Qt::CaseInsensitive)) path.chop(6);
         if (!path.endsWith(".crpj",Qt::CaseInsensitive)) path += ".crpj";
-        path = QFileInfo(path).absoluteFilePath(); const auto snapshot = project_;
+        path = QFileInfo(path).absoluteFilePath(); const auto design = project_, snapshot = catalog_.embed(project_,include), loaded = catalog_.embed(project_,true);
         busy_ = true; emit busyChanged();
-        return launchTask(op,[path,snapshot] { QDir().mkpath(QFileInfo(path).absolutePath()); saveProject(path,snapshot); return QVariantMap{{"path",path}}; },
-            [this,path,snapshot](const QVariant &, const QString &error) { busy_ = false; emit busyChanged(); if (error.isEmpty()) { projectPath_ = path; if (project_ == snapshot) dirty_ = false; emit projectChanged(); tell("工程已保存"); } });
+        return launchTask(op,[path,snapshot,include] { QDir().mkpath(QFileInfo(path).absolutePath()); saveProject(path,snapshot); return QVariantMap{{"path",path},{"include_plugins",include},{"dependencies",snapshot.value("plugin_dependencies")}}; },
+            [this,path,design,snapshot,loaded,exporting](const QVariant &, const QString &error) {
+                busy_ = false; emit busyChanged(); if (!error.isEmpty()) return;
+                if (!exporting) {
+                    projectPath_ = path;
+                    if (project_ == design) {
+                        const auto choices = project_.value("plugin_selections"); project_ = loaded;
+                        project_["save_options"] = snapshot.value("save_options");
+                        if (choices.isValid()) project_["plugin_selections"] = choices;
+                        dirty_ = false;
+                    }
+                    emit projectChanged();
+                }
+                tell(exporting ? "工程已导出" : "工程已保存");
+            });
     }
     if (op == "project.rename") { requireEditable(true); auto next = project_; const auto name = args.value("name").toString().trimmed(); if (name.isEmpty()) throw Error("工程名称不能为空"); next["name"] = name; return commit({next,{}, {},false},"工程已重命名"); }
     if (op == "history.undo" || op == "history.redo") {
@@ -193,16 +250,52 @@ QVariant Controller::command(const QString &op, const QVariantMap &args)
         if (op == "graph.node.add") { auto recent = settings_->value("library/recent").toStringList(); const auto plugin = args.value("plugin").toString(); recent.removeAll(plugin); recent.prepend(plugin); while (recent.size() > 24) recent.removeLast(); settings_->setValue("library/recent",recent); emit preferencesChanged(); }
         return commit(edit,"设计已更新");
     }
-    if (op == "plugin.import" || op == "plugin.remove") {
-        requireEditable(); auto candidate = project_; auto plugins = candidate.value("user_plugins").toList();
-        if (op == "plugin.import") { auto spec = args.contains("manifest") ? fromJsonValue(args.value("manifest")).toMap() : importPlugin(args.value("path").toString()); Catalog trial = catalog_; trial.addPython(spec); plugins.append(spec); }
-        else {
-            const auto id = args.value("plugin").toString();
-            for (const auto &node : project_.value("nodes").toList()) if (node.toMap().value("plugin") == id) throw Error("请先移除使用该插件的节点");
-            const auto count = plugins.size(); plugins.erase(std::remove_if(plugins.begin(),plugins.end(),[&](const QVariant &v) { return v.toMap().value("id") == id; }),plugins.end());
-            if (count == plugins.size()) throw Error("用户插件不存在");
+    if (op == "plugin.export") {
+        if (args.contains("plugins")) {
+            auto directory = args.value("directory").toString(); if (QUrl(directory).isLocalFile()) directory = QUrl(directory).toLocalFile();
+            if (directory.isEmpty()) throw Error("请选择插件导出目录");
+            const auto inventory = plugins_->tree(project_,args.value("scope","project").toString()).value("plugins").toList();
+            QMap<QString,QString> paths;
+            for (const auto &entry : inventory) paths.insert(entry.toMap().value("id").toString(),entry.toMap().value("relative_path").toString());
+            QList<QPair<PluginPackage,QString>> selected; QVariantList conflicts; QSet<QString> seen;
+            for (const auto &entry : args.value("plugins").toList()) {
+                const auto id = entry.toString(); if (seen.contains(id)) continue; seen.insert(id);
+                if (!paths.contains(id)) throw Error("导出选择不属于当前工程：" + id);
+                const auto path = QDir(directory).filePath(PluginPackage::checkedPath(paths.value(id)));
+                if (QFileInfo::exists(path)) conflicts.append(path);
+                selected.append({plugins_->find(id,args.value("scope")=="library" ? emptyProject() : project_),path});
+            }
+            if (selected.isEmpty()) throw Error("请先勾选要导出的插件");
+            if (!conflicts.isEmpty() && !args.value("overwrite").toBool()) return QVariantMap{{"requires_confirmation",true},{"conflicts",conflicts}};
+            return launchTask(op,[selected] {
+                QVariantList written;
+                for (const auto &entry : selected) { try { entry.first.save(entry.second); written.append(entry.second); } catch (const Error &error) { throw Error(QString("已导出 %1 个插件；%2").arg(written.size()).arg(error.message)); } }
+                return QVariantMap{{"paths",written},{"count",written.size()}};
+            });
         }
-        candidate["user_plugins"] = plugins; return commit({candidate,{}, {},true},"用户插件已更新");
+        auto path = args.value("path").toString(); if (QUrl(path).isLocalFile()) path = QUrl(path).toLocalFile();
+        if (path.isEmpty()) throw Error("请选择插件导出路径");
+        if (!path.endsWith(".crpl",Qt::CaseInsensitive)) path += ".crpl";
+        const auto package = plugins_->find(args.value("plugin").toString(),args.value("scope")=="library" ? emptyProject() : project_);
+        return launchTask(op,[package,path] { package.save(path); return QVariantMap{{"path",path},{"id",package.id()},{"version",package.version()}}; });
+    }
+    if (op == "plugin.import" || op == "plugin.remove" || op == "plugin.enable") {
+        requireEditable();
+        if (op == "plugin.import") {
+            auto path = args.value("path").toString(); if (QUrl(path).isLocalFile()) path = QUrl(path).toLocalFile();
+            const auto package = args.contains("manifest") ? PluginPackage::fromPython(fromJsonValue(args.value("manifest")).toMap())
+                : path.endsWith(".crpl",Qt::CaseInsensitive) ? PluginPackage::open(path) : PluginPackage::fromPython(importPlugin(path));
+            const auto installed = plugins_->install(package,path);
+            if (installed.value("restart_required").toBool()) { emit pluginsChanged(); tell("插件更新已保存，重启 CoRig 后生效"); return installed; }
+        } else if (op == "plugin.enable") plugins_->setEnabled(args.value("plugin").toString(),args.value("enabled").toBool(),project_);
+        else {
+            const auto id = args.value("package",args.value("plugin")).toString();
+            const auto package = plugins_->find(id,project_); plugins_->remove(package.id(),project_);
+        }
+        const auto design = project_; const bool wasDirty = dirty_;
+        return launchEngine("project.apply",{{"project",design}},[this,design,wasDirty](const QVariant &,const QString &error) {
+            if (error.isEmpty()) { adopt(design,wasDirty); tell("插件库已更新"); } emit pluginsChanged();
+        });
     }
     if (op == "library.state") return libraryPreferences();
     if (op == "library.search") return catalogEntries(args.value("query").toString(),args.value("category").toStringList(),args.value("scope","all").toString());

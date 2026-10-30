@@ -57,6 +57,10 @@ void DataNode::configure(Node &prepared)
 void DataNode::stop()
 {
     periodicInterval_ = -1.; recorder_.close(); state_["periodic"] = false;
+    if (kind_.startsWith("io.") && host_.io) {
+        try { state_ = host_.io(id_,"disconnect",{}); }
+        catch (const Error &error) { if (host_.log) host_.log("warning",error.message); }
+    }
 }
 
 NodeResult DataNode::process(const Values &changes, const BatchContext &, bool tick)

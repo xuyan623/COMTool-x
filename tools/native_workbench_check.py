@@ -121,8 +121,14 @@ def main():
     project = client.call("project.get")
     saved = output / "Workbench.crpj"
     client.call("project.save", {"path": str(saved)})
+    stored = client.call("project.get")
+    check(all(stored[key] == project[key] for key in ("nodes", "wires", "ui")), "embedding dependencies preserves the actual design")
     client.call("project.open", {"path": str(saved)})
-    check(client.call("project.get") == project, "placement, layers and bindings survive save/reopen")
+    reopened = client.call("project.get")
+    # Version selections belong to this open session, not the saved design.
+    reopened.pop("plugin_selections", None)
+    stored.pop("plugin_selections", None)
+    check(reopened == stored, "placement, layers and bindings survive save/reopen")
     client.call("workspace.open", {"page": "graph"})
     controls = client.call("controls.list")
     toolbar = next(c for c in controls if c["id"] == "execution.toolbar")

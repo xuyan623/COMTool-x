@@ -1,11 +1,5 @@
 #include "node.h"
-#include "plugins/math_node.h"
-#include "plugins/logic_node.h"
-#include "plugins/timer_node.h"
-#include "plugins/recording_node.h"
-#include "plugins/data_node.h"
-#include "plugins/protocol_node.h"
-#include "plugins/instrument_node.h"
+#include "native_plugin.h"
 
 namespace corig {
 
@@ -92,17 +86,14 @@ std::unique_ptr<Node> makeNode(const QVariantMap &design, const Catalog &catalog
     normalized["config"] = config;
     const auto definition = catalog.definition(kind);
     auto ports = catalog.ports(kind, config);
-    if (definition.value("implementation") == "python" || kind == "function.python" || kind == "protocol.python")
+    if (definition.value("implementation") == "python")
         return makePythonNode(normalized, definition, ports, host);
-    if (kind.startsWith("logic.")) return std::make_unique<LogicNode>(normalized, definition, ports, host);
-    if (kind == "source.timer") return std::make_unique<TimerNode>(normalized, definition, ports, host);
-    if (kind == "data.record") return std::make_unique<RecorderNode>(normalized, definition, ports, host);
-    if (kind == "data.playback") return std::make_unique<PlaybackNode>(normalized, definition, ports, host);
-    if (kind.startsWith("function.") || kind == "source.constant" || kind == "source.time")
-        return std::make_unique<MathNode>(normalized, definition, ports, host);
-    if (kind.startsWith("protocol.")) return std::make_unique<ProtocolNode>(normalized, definition, ports, host);
-    if (kind.startsWith("plot.") || kind == "terminal.ansi") return makeInstrumentNode(normalized, definition, ports, host);
-    return std::make_unique<DataNode>(normalized, definition, ports, host);
+    const auto package = catalog.package(kind);
+    auto scopedHost = host;
+    if (host.service) scopedHost.io = [service = host.service,package](const QString &id, const QString &op, const QVariantMap &args) { return service(package,id,op,args); };
+    auto node = nativePlugin(package).create(normalized,definition,ports,scopedHost);
+    if (!node) throw Error("C++ 插件未创建节点：" + kind);
+    return node;
 }
 
 } // namespace corig

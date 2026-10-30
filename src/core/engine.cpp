@@ -8,7 +8,7 @@
 
 namespace corig {
 
-Engine::Engine(NodeHost host, QObject *parent) : QThread(parent), host_(std::move(host))
+Engine::Engine(NodeHost host, QObject *parent) : QThread(parent), host_(std::move(host)), catalog_(host_.catalog ? Catalog(QList<PluginPackage>{}) : Catalog{})
 {
     host_.time = [this] { return elapsed(Clock::now()); };
     published_.store(std::make_shared<const QVariantMap>(QVariantMap{{"active",false},{"running",false},{"processed",0},{"failed",0}}));
@@ -94,8 +94,8 @@ void Engine::record(const QString &level, const QString &message, const QString 
 void Engine::applyProject(const QVariantMap &project)
 {
     if (running_) throw Error("请先暂停运行再修改功能设计");
-    Catalog candidateCatalog;
-    for (const auto &manifest : project.value("user_plugins").toList()) candidateCatalog.addPython(manifest.toMap());
+    Catalog candidateCatalog = host_.catalog ? host_.catalog(project) : Catalog{};
+    if (!host_.catalog) candidateCatalog.applyProject(project);
     validateProject(project,candidateCatalog);
     const auto candidateOrder = executionOrder(project,candidateCatalog);
     std::map<QString,std::unique_ptr<Node>> candidates;
@@ -120,7 +120,8 @@ void Engine::applyProject(const QVariantMap &project)
         const auto design = item.toMap(); const auto id = design.value("id").toString();
         if (!design.value("placed",true).toBool()) continue;
         auto old = nodes_.find(id); auto prepared = candidates.find(id);
-        if (old != nodes_.end() && old->second->kind() == design.value("plugin").toString()) {
+        if (old != nodes_.end() && old->second->kind() == design.value("plugin").toString()
+            && catalog_.definition(old->second->kind()).value("package_hash") == candidateCatalog.definition(old->second->kind()).value("package_hash")) {
             if (prepared != candidates.end()) old->second->configure(*prepared->second);
             next.emplace(id,std::move(old->second));
         } else next.emplace(id,std::move(prepared->second));
@@ -154,7 +155,7 @@ void Engine::rebuildSources(Clock::time_point now)
     for (const auto &item : project_.value("nodes").toList()) { const auto node = item.toMap(); titles[node.value("id").toString()] = node.value("title",node.value("id")).toString(); }
     for (const auto &[id,node] : nodes_) {
         const auto interval = node->sourceInterval();
-        if (interval >= 0. || node->kind() == "source.timer" || node->kind() == "data.playback") availableSources_.append(QVariantMap{{"id",id},{"name",titles.value(id,id)}});
+        if (interval >= 0. || catalog_.definition(node->kind()).value("source").toBool()) availableSources_.append(QVariantMap{{"id",id},{"name",titles.value(id,id)}});
         if (interval == 0. && outgoing_.contains(id)) readySources_.append(id);
         else if (interval > 0.) deadlines_.insert(id, previous.value(id,now));
     }
@@ -212,7 +213,7 @@ void Engine::endSession()
     {
         std::lock_guard guard(queueMutex_); inputQueue_.clear(); queuedBytes_ = 0;
     }
-    for (auto &[id,node] : nodes_) { node->stop(); if (node->kind().startsWith("io.") && host_.io) try { host_.io(id,"disconnect",{}); } catch (const Error &e) { record("warning",e.message,id); } }
+    for (auto &[id,node] : nodes_) node->stop();
     if (host_.stopExtensions) host_.stopExtensions();
     ++epoch_; stopRequested_ = false; record("info","运行已结束，连接已释放");
 }
@@ -248,7 +249,7 @@ void Engine::route(const QString &source, const NodeResult &result)
         auto &wire = routes_[index];
         auto mark = [&] {
             batch_->touched.insert(wire.target);
-            if (nodes_.at(wire.target)->kind().startsWith("io.") && !batch_->deferredIO.contains(wire.target)) batch_->deferredIO.append(wire.target);
+            if (nodes_.at(wire.target)->deferredInputs() && !batch_->deferredIO.contains(wire.target)) batch_->deferredIO.append(wire.target);
         };
         if (result.disconnected.contains(wire.sourcePort)) {
             wire.connected = false; batch_->changes[wire.target].remove(wire.targetPort); batch_->invalid[wire.target].insert(wire.targetPort); mark();
@@ -268,7 +269,7 @@ bool Engine::advanceBatch(int nodeLimit)
         QString id;
         while (batch_->cursor < order_.size()) {
             const auto candidate = order_[batch_->cursor++];
-            if (batch_->touched.contains(candidate) && !nodes_.at(candidate)->kind().startsWith("io.")) { id = candidate; break; }
+            if (batch_->touched.contains(candidate) && !nodes_.at(candidate)->deferredInputs()) { id = candidate; break; }
         }
         if (id.isEmpty() && batch_->ioCursor < batch_->deferredIO.size()) id = batch_->deferredIO[batch_->ioCursor++];
         if (id.isEmpty()) { if (debug_ || journalDetail_) record("debug","采样批次完成",{},{{"kind","batch_end"}}); batch_.reset(); return true; }
@@ -289,7 +290,7 @@ bool Engine::advanceBatch(int nodeLimit)
         if (nodeLimit > 0 && executed >= nodeLimit) {
             bool remaining = batch_->ioCursor < batch_->deferredIO.size();
             for (auto at = batch_->cursor; !remaining && at < order_.size(); ++at)
-                remaining = batch_->touched.contains(order_[at]) && !nodes_.at(order_[at])->kind().startsWith("io.");
+                remaining = batch_->touched.contains(order_[at]) && !nodes_.at(order_[at])->deferredInputs();
             if (!remaining) { if (debug_ || journalDetail_) record("debug","采样批次完成",{},{{"kind","batch_end"}}); batch_.reset(); return true; }
             return false;
         }
@@ -314,8 +315,14 @@ QVariant Engine::dispatch(const Request &request)
     const auto &op = request.operation; const auto &args = request.arguments;
     if (op == "project.apply") { applyProject(args.value("project").toMap()); return QVariantMap{{"updated",true}}; }
     if (op == "project.load" || op == "project.replace") {
-        const auto project = op == "project.load" ? loadProject(args.value("path").toString()) : args.value("project").toMap();
-        Catalog checked; for (const auto &plugin : project.value("user_plugins").toList()) checked.addPython(plugin.toMap());
+        auto project = op == "project.load" ? loadProject(args.value("path").toString()) : args.value("project").toMap();
+        if (args.contains("plugin_selections")) project["plugin_selections"] = args.value("plugin_selections");
+        if (host_.projectReadiness) {
+            const auto readiness = host_.projectReadiness(project);
+            if (!readiness.isEmpty()) return readiness;
+        }
+        Catalog checked = host_.catalog ? host_.catalog(project) : Catalog{};
+        if (!host_.catalog) checked.applyProject(project);
         validateProject(project,checked);
         // Validate every constructor before ending the old session. Malformed
         // expressions/models cannot replace the user's still usable document.
@@ -480,7 +487,7 @@ void Engine::publishObservation(Clock::time_point now, bool force)
     QVariantMap cursor;
     if (batch_) {
         QString next;
-        for (auto at = batch_->cursor; at < order_.size(); ++at) if (batch_->touched.contains(order_[at]) && !nodes_.at(order_[at])->kind().startsWith("io.")) { next = order_[at]; break; }
+        for (auto at = batch_->cursor; at < order_.size(); ++at) if (batch_->touched.contains(order_[at]) && !nodes_.at(order_[at])->deferredInputs()) { next = order_[at]; break; }
         if (next.isEmpty() && batch_->ioCursor < batch_->deferredIO.size()) next = batch_->deferredIO[batch_->ioCursor];
         cursor = {{"batch",QVariant::fromValue(batch_->context.batch)}, {"source",batch_->source}, {"next_node",next}};
     }

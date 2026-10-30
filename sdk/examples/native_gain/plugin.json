@@ -1,0 +1,23 @@
+{
+  "format": "corig-plugin",
+  "package_api": 1,
+  "id": "user.example.native_gain",
+  "name": "C++ 数值增益示例",
+  "version": "1.0.0",
+  "implementation": "native",
+  "files": ["Gain.qml"],
+  "plugins": [
+    {
+      "id": "user.example.native_gain",
+      "name": "C++ 数值增益",
+      "description": "公开 SDK 示例：输入乘以增益，支持重置与 QML 视图",
+      "ports": [
+        {"id":"x","direction":"in","data_type":"number"},
+        {"id":"out","direction":"out","data_type":"number"}
+      ],
+      "properties": {"gain":{"type":"number","default":2}},
+      "actions": {"reset":{"args":{}}},
+      "views": {"result":{"qml":"Gain.qml"}}
+    }
+  ]
+}

@@ -45,21 +45,23 @@ private:
     QString node_, view_;
 };
 
-Controller::Controller(QString dataDirectory, QObject *parent) : QObject(parent), dataDirectory_(QDir(dataDirectory).absolutePath()), project_(emptyProject())
+Controller::Controller(QString dataDirectory, QObject *parent, const QVariantMap &initialCatalog) : QObject(parent), dataDirectory_(QDir(dataDirectory).absolutePath()), project_(emptyProject())
 {
     QDir().mkpath(dataDirectory_);
     settings_ = std::make_unique<QSettings>(dataDirectory_ + "/settings.ini",QSettings::IniFormat);
+    plugins_ = std::make_unique<PluginStore>(dataDirectory_ + "/plugins",*settings_);
+    catalog_ = plugins_->catalog(initialCatalog.isEmpty() ? project_ : initialCatalog);
     theme_ = settings_->value("theme","dark").toString();
     python_ = std::make_unique<PythonHost>([this] { return closing_ || (engine_ && engine_->interrupted()); });
     const auto interpreter = settings_->value("python").toString();
     if (QFileInfo(interpreter).isFile()) python_->selectInterpreter(interpreter);
-    io_ = std::make_unique<IoHub>();
     NodeHost host;
-    host.io = [this](const QString &id, const QString &op, const QVariantMap &args) { return io_->transact(id,op,args); };
+    host.catalog = [this](const QVariantMap &project) { return plugins_->catalog(project); };
+    host.projectReadiness = [this](const QVariantMap &project) { return plugins_->readiness(project); };
+    host.service = [this](const PluginPackage &package, const QString &id, const QString &op, const QVariantMap &args) { return pluginService(package,id,op,args); };
     host.python = [this](const QVariantMap &request) { return python_->call(request); };
     host.stopExtensions = [this] { python_->close(); };
     engine_ = std::make_unique<Engine>(host);
-    io_->setCallbacks([this](const QString &id, const Values &values) { engine_->receive(id,values); },[this](const QString &id, const QVariantMap &state) { engine_->ioObservation(id,state); });
     connect(engine_.get(),&Engine::completed,this,[this](quint64 id, const QVariant &value, const QString &error) {
         const auto found = callbacks_.find(id);
         if (found == callbacks_.end()) return;
@@ -99,7 +101,8 @@ void Controller::shutdown()
     poll_.stop(); api_.reset();
     tasks_.waitForDone();
     if (engine_) engine_->shutdown();
-    if (io_) io_->shutdown();
+    for (const auto &service : services_) service->shutdown();
+    services_.clear();
     workspaces_.reset();
     settings_->sync();
 }
@@ -188,14 +191,13 @@ void Controller::refreshGraph() { graphNodes_ = graphLayout(project_,catalog_); 
 void Controller::adopt(const QVariantMap &project, bool dirty, const QString &selection)
 {
     project_ = project; dirty_ = dirty;
-    catalog_.clearPython();
-    for (const auto &manifest : project_.value("user_plugins").toList()) catalog_.addPython(manifest.toMap());
+    catalog_ = plugins_->catalog(project_);
     refreshGraph();
     if (!selection.isEmpty()) {
         selected_ = selection; selectedKind_ = nodeDesign(selection).isEmpty() ? uiItem(selection).isEmpty() ? "wire" : "ui" : "node";
         selectedNodes_ = selectedKind_ == "node" ? QStringList{selection} : QStringList{}; emit selectionChanged();
     }
-    emit catalogChanged(); emit projectChanged();
+    emit catalogChanged(); emit projectChanged(); emit pluginsChanged();
 }
 
 QVariantMap Controller::commit(EditResult edit, const QString &label, bool remember, bool runtimeOnly)
@@ -217,7 +219,7 @@ QVariantMap Controller::commit(EditResult edit, const QString &label, bool remem
 
 QVariantMap Controller::appState() const
 {
-    return {{"application","CoRig"},{"version","0.3.0"},{"project",project_.value("name")},{"path",projectPath_},{"dirty",dirty_},{"read_only",readOnly_},
+    return {{"application","CoRig"},{"version","0.4.0"},{"project",project_.value("name")},{"path",projectPath_},{"dirty",dirty_},{"read_only",readOnly_},
         {"busy",busy_},{"runtime",engine_->observation()},{"workspaces",workspaces_ ? workspaces_->state() : QVariantMap{}},
         {"python",pythonPath()},{"theme",theme_},{"view_observations",observedViews_},{"selection",QVariantMap{{"id",selected_},{"kind",selectedKind_},{"nodes",selectedNodes_}}}};
 }
@@ -261,7 +263,11 @@ QVariantList Controller::catalogEntries(const QString &query, const QStringList 
     return result;
 }
 
-QVariantMap Controller::previewGeometry(const QString &plugin, const QVariantMap &config) const { return nodeGeometry({{"plugin",plugin},{"config",catalog_.checkedConfig(plugin,config)}},catalog_); }
+QVariantMap Controller::previewGeometry(const QString &plugin, const QVariantMap &config) const
+{
+    try { return nodeGeometry({{"plugin",plugin},{"config",catalog_.checkedConfig(plugin,config)}},catalog_); }
+    catch (const std::exception &error) { return {{"width",180},{"height",104},{"ports",QVariantList{}},{"center",QVariantList{0,0,180,104}},{"error",QString::fromUtf8(error.what())}}; }
+}
 
 void Controller::openLibrary(const QString &page)
 {
@@ -377,7 +383,11 @@ QVariantMap Controller::importPlugin(const QString &path) const
     if (parse.error != QJsonParseError::NoError) throw Error("插件声明需要 JSON：" + parse.errorString());
     const QDir directory(QFileInfo(file).absolutePath());
     const auto codeFile = manifest.take("code_file").toString();
-    if (!codeFile.isEmpty()) { QFile code(directory.filePath(codeFile)); if (!code.open(QIODevice::ReadOnly)) throw Error("Python 插件代码无法读取"); manifest["code"] = QString::fromUtf8(code.readAll()); }
+    if (!codeFile.isEmpty()) {
+        QFile code(directory.filePath(PluginPackage::checkedPath(codeFile)));
+        if (!code.open(QIODevice::ReadOnly) || code.size() > 16 * 1024 * 1024) throw Error("Python 插件代码无法读取或超过 16 MiB");
+        manifest["code"] = QString::fromUtf8(code.readAll());
+    }
     auto resources = manifest.value("resources").toMap();
     for (const auto &name : manifest.take("resource_files").toStringList()) {
         if (QDir::isAbsolutePath(name) || QDir::cleanPath(name).startsWith("..")) throw Error("插件资源必须在声明所在目录内");
@@ -389,31 +399,38 @@ QVariantMap Controller::importPlugin(const QString &path) const
 
 QString Controller::userViewUrl(const QString &node, const QString &view)
 {
+    return pluginViewUrl(nodeDesign(node).value("plugin").toString(),view);
+}
+
+QString Controller::pluginViewUrl(const QString &plugin, const QString &view)
+{
     try {
-        const auto spec = catalog_.definition(nodeDesign(node).value("plugin").toString());
-        if (spec.value("builtin").toBool()) return {};
-        const auto key = spec.value("id").toString();
+        const auto spec = catalog_.definition(plugin);
         const auto resource = spec.value("views").toMap().value(view).toMap().value("qml").toString();
-        if (resource.isEmpty()) throw Error("用户视图缺少 qml 资源声明");
-        if (!pluginDirectories_.contains(key)) {
-            auto directory = std::make_shared<QTemporaryDir>(); if (!directory->isValid()) throw Error("无法展开用户视图资源");
-            const auto resources = spec.value("resources").toMap();
-            for (auto i = resources.cbegin(); i != resources.cend(); ++i) {
-                const auto relative = QDir::cleanPath(i.key());
-                if (QDir::isAbsolutePath(relative) || relative.startsWith("..")) throw Error("用户资源路径越出插件目录");
-                const auto target = directory->filePath(relative); QDir().mkpath(QFileInfo(target).absolutePath());
-                QSaveFile output(target); if (!output.open(QIODevice::WriteOnly)) throw Error("用户资源无法展开");
-                const auto bytes = i.value().metaType().id() == QMetaType::QByteArray ? i.value().toByteArray() : i.value().toString().toUtf8();
-                if (output.write(bytes) != bytes.size() || !output.commit()) throw Error("用户资源写入失败");
-            }
-            pluginDirectories_[key] = directory;
-        }
-        const auto relative = QDir::cleanPath(resource);
-        if (QDir::isAbsolutePath(relative) || relative.startsWith("..")) throw Error("用户视图路径无效");
-        const auto path = pluginDirectories_[key]->filePath(relative);
-        if (!QFileInfo(path).isFile()) throw Error("用户视图资源不存在：" + resource);
+        if (resource.isEmpty()) return {};
+        const auto package = catalog_.package(plugin); package.file(resource);
+        const auto path = QDir(package.materialize()).filePath(resource);
         return QUrl::fromLocalFile(path).toString();
     } catch (const Error &e) { tell(e.message,"error"); return {}; }
+}
+
+QVariantMap Controller::pluginService(const PluginPackage &package, const QString &node, const QString &operation, const QVariantMap &arguments)
+{
+    std::shared_ptr<PluginService> service;
+    {
+        std::lock_guard lock(servicesMutex_);
+        const auto key = package.hash();
+        if (!services_.contains(key)) {
+            PluginEvents events{
+                [this](const QString &id, const Values &values) { if (engine_) engine_->receive(id,values); },
+                [this](const QString &id, const QVariantMap &state) { if (engine_) engine_->ioObservation(id,state); }};
+            auto created = nativePlugin(package).createService(events);
+            if (!created) throw Error("插件没有提供后台操作：" + package.id());
+            services_.insert(key,std::shared_ptr<PluginService>(std::move(created)));
+        }
+        service = services_.value(key);
+    }
+    return service->transact(node,operation,arguments);
 }
 QObject *Controller::userViewBridge(const QString &node, const QString &view)
 {

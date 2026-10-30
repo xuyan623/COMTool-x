@@ -14,7 +14,7 @@
 
 namespace corig {
 
-class Engine final : public QThread {
+class CORIG_API Engine final : public QThread {
     Q_OBJECT
 public:
     explicit Engine(NodeHost host, QObject *parent = nullptr);

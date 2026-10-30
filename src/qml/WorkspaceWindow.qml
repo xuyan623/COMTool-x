@@ -45,13 +45,16 @@ ApplicationWindow {
     }
     function save() {
         if (App.projectPath.length) savingJob = App.invoke("project.save", {}).job || ""
-        else saveProject.open()
+        else projectSaveOptions.present("save")
     }
     onClosing: close => { close.accepted = App.workspaces.closeWindow(hostId, false) }
     Connections {
         target: App
         function onExitConfirmation(window) { if (window === hostId) { pendingAction = "close"; unsaved.open() } }
         function onJobFinished(id) { if (id === savingJob) { savingJob = ""; if (App.job(id).state === "complete" && pendingAction.length) continueAction() } }
+        function onPluginSettingsRequested(){if(!win.childWindow)pluginSettings.open()}
+        function onPluginOpenRequested(){if(!win.childWindow)pluginVersions.present()}
+        function onPluginExportRequested(scope,plugin){if(!win.childWindow)pluginExporter.present(scope,plugin)}
     }
     Shortcut { sequence: "Ctrl+Tab"; onActivated: App.workspaces.cycle(hostId, 1) }
     Shortcut { sequence: "Ctrl+Shift+Tab"; onActivated: App.workspaces.cycle(hostId, -1) }
@@ -71,7 +74,10 @@ ApplicationWindow {
             Action { text: "新建工程"; shortcut: StandardKey.New; onTriggered: win.requestAction("new") }
             Action { text: "打开工程…"; shortcut: StandardKey.Open; onTriggered: win.requestAction("open") }
             Action { text: "保存"; shortcut: StandardKey.Save; onTriggered: win.save() }
-            Action { text: "另存为…"; onTriggered: saveProject.open() }
+            Action { text: "另存为…"; onTriggered: projectSaveOptions.present("save") }
+            Action { text:"导出工程…";onTriggered:projectSaveOptions.present("export") }
+            Action { text:"工程保存选项…";onTriggered:projectSaveOptions.present("options") }
+            Action { text:"导出工程插件…";onTriggered:pluginExporter.present("project","") }
             MenuSeparator {}
             Action { text: "关闭窗口"; onTriggered: win.requestAction("close") }
         }
@@ -91,6 +97,7 @@ ApplicationWindow {
         }
         Menu {
             title: "设置"
+            Action { text:"插件管理…";onTriggered:pluginSettings.open() }
             Action { text: "本地 Python 环境…"; onTriggered: { pythonInput.text = App.pythonPath; pythonSettings.open() } }
             Action { text: Theme.dark ? "切换浅色主题" : "切换深色主题"; onTriggered: App.invoke("preferences.set", {theme: Theme.dark ? "light" : "dark"}) }
         }
@@ -173,8 +180,17 @@ ApplicationWindow {
         MenuItem { text: "移至新窗口"; onTriggered: App.workspaces.detach(tabMenu.key) }
         MenuItem { text: "关闭标签"; onTriggered: App.workspaces.closePage(tabMenu.key) }
     }
-    FileDialog { id: openProject; title: "打开工程"; nameFilters: ["CoRig 工程 (*.crpj)"]; onAccepted: App.invoke("project.open", {path: selectedFile.toString(), discard:true}) }
-    FileDialog { id: saveProject; title: "保存工程"; fileMode: FileDialog.SaveFile; defaultSuffix: "corig"; nameFilters: ["CoRig 工程 (*.crpj)"]; onAccepted: { win.savingJob = App.invoke("project.save", {path: selectedFile.toString()}).job || "" } }
+    FileDialog { id: openProject; title: "打开工程"; nameFilters: ["CoRig 工程 (*.crpj *.corig)"]; onAccepted: App.invoke("project.open", {path: selectedFile.toString(), discard:true}) }
+    FileDialog {
+        id:saveProject;title:operation==="export"?"导出工程":"保存工程";fileMode:FileDialog.SaveFile;defaultSuffix:"crpj";nameFilters:["CoRig 工程 (*.crpj)"]
+        property string operation:"save"
+        property bool includePlugins:true
+        onAccepted:{const reply=App.invoke(operation==="export"?"project.export":"project.save",{path:selectedFile.toString(),include_plugins:includePlugins});if(operation!=="export")win.savingJob=reply.job||""}
+    }
+    ProjectSaveOptions{id:projectSaveOptions;onFileRequested:(operation,includePlugins)=>{saveProject.operation=operation;saveProject.includePlugins=includePlugins;saveProject.open()}}
+    PluginExportDialog{id:pluginExporter}
+    PluginManager{id:pluginSettings}
+    PluginVersionDialog{id:pluginVersions}
     Dialog {
         id: unsaved; title: "工程有未保存修改"; modal: true; anchors.centerIn: parent; width: 400
         contentItem: Label { text: "保存当前工程后再继续？"; color: Theme.text; padding: 12 }
@@ -198,7 +214,7 @@ ApplicationWindow {
     }
     FileDialog { id: pythonFile; title: "选择本地 Python"; nameFilters: ["Python (python.exe python3.exe)", "所有文件 (*)"]; onAccepted: pythonInput.text = decodeURIComponent(selectedFile.toString().replace(/^file:\/\/\//, "")) }
     Dialog {
-        id: about; title: "联调 · CoRig 0.3"; width: 510; anchors.centerIn: parent; standardButtons: Dialog.Close
+        id: about; title: "联调 · CoRig 0.4"; width: 510; anchors.centerIn: parent; standardButtons: Dialog.Close
         Label { width: parent.width; wrapMode: Text.WrapAnywhere; color: Theme.text; text: "原生 C++ / Qt Quick 功能设计工作台\n\n本地接口：" + App.dataDirectory + "/.sessions/api.json\n\n五个工作区共享同一个工程与运行会话。可将标签拖出为独立窗口，也可拖回其他窗口。" }
     }
 }

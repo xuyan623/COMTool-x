@@ -25,31 +25,17 @@ Item {
     onViewKeyChanged:Qt.callLater(register)
     Connections{target:App;function onViewChanged(key){if(key===root.nodeId+"/"+root.viewKey)root.observation=App.viewState(root.nodeId,root.viewKey)}}
     Loader {
-        id:content;anchors.fill:parent;enabled:!root.designMode&&!!root.nodeId&&App.nodeDesign(root.nodeId).placed!==false&&App.nodeDesign(root.nodeId).plugin===root.design.plugin
-        sourceComponent:root.definition.implementation==="python"?userComponent:root.viewKey==="recorder"?recorderComponent:root.viewKey==="playback"?playbackComponent:root.design.plugin==="plot.curves"?plotComponent:root.design.plugin==="plot.attitude"?attitudeComponent:root.design.plugin==="terminal.ansi"?terminalComponent:root.design.plugin==="debug.console"?consoleComponent:root.design.plugin&&root.design.plugin.startsWith("io.")?connectionComponent:root.viewKey==="values"||root.viewKey==="timer"?valuesComponent:controlComponent
-    }
-    Component{id:plotComponent;PlotView{host:root}}
-    Component{id:attitudeComponent;AttitudeView{host:root}}
-    Component{id:terminalComponent;TerminalView{host:root}}
-    Component{id:consoleComponent;ConsoleView{host:root}}
-    Component{id:connectionComponent;ConnectionView{host:root}}
-    Component{id:controlComponent;ControlView{host:root}}
-    Component{id:valuesComponent;ValueView{host:root}}
-    Component{id:recorderComponent;RecorderView{host:root}}
-    Component{id:playbackComponent;PlaybackView{host:root}}
-    Component{
-        id:userComponent
-        Loader{
-            id:userLoader
-            property string node:root.nodeId
-            property string view:root.viewKey
-            // Queued reloads may outlive the application's context at exit.
-            function load(){if(typeof App!=="undefined"&&node.length&&view.length){const url=App.userViewUrl(node,view);if(url)setSource(url,{bridge:App.userViewBridge(node,view)})}}
-            Component.onCompleted:Qt.callLater(load)
-            onNodeChanged:Qt.callLater(load)
-            onViewChanged:Qt.callLater(load)
-            Connections{target:App;function onCatalogChanged(){Qt.callLater(userLoader.load)}}
-            Label{anchors.centerIn:parent;visible:parent.status===Loader.Error;text:"用户 QML 视图加载失败";color:Theme.error}
+        id:content;anchors.fill:parent
+        enabled:!root.designMode&&!!root.nodeId&&App.nodeDesign(root.nodeId).placed!==false&&App.nodeDesign(root.nodeId).plugin===root.design.plugin
+        function load(){
+            if(typeof App==="undefined"||!root.design.plugin||!root.viewKey)return
+            const declaration=(root.definition.views||{})[root.viewKey]||{},url=App.pluginViewUrl(root.design.plugin,root.viewKey)
+            if(url)setSource(url,declaration.interface==="host"?{host:root}:{bridge:App.userViewBridge(root.nodeId,root.viewKey)})
+            else source=""
         }
+        Component.onCompleted:Qt.callLater(load)
+        Connections{target:root;function onNodeIdChanged(){Qt.callLater(content.load)}function onViewKeyChanged(){Qt.callLater(content.load)}function onDesignChanged(){Qt.callLater(content.load)}}
+        Connections{target:App;function onCatalogChanged(){Qt.callLater(content.load)}}
+        Label{anchors.centerIn:parent;visible:content.status===Loader.Error;text:"插件视图加载失败";color:Theme.error}
     }
 }

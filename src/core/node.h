@@ -15,7 +15,7 @@ struct BatchContext {
     bool resumed = false;
 };
 
-struct NodeResult {
+struct CORIG_API NodeResult {
     QVector<Values> emissions;
     QSet<QString> disconnected;
     bool separateFrames = false;
@@ -36,9 +36,14 @@ struct NodeHost {
     // Engine experiment time freezes during global pause and resets with it.
     std::function<double()> time;
     std::function<void()> stopExtensions;
+    // Installed selections belong to the application session, not to the
+    // graph worker. Both use the same immutable catalog for a candidate design.
+    std::function<Catalog(const QVariantMap &)> catalog;
+    std::function<QVariantMap(const PluginPackage &,const QString &,const QString &,const QVariantMap &)> service;
+    std::function<QVariantMap(const QVariantMap &)> projectReadiness;
 };
 
-class Node {
+class CORIG_API Node {
 public:
     Node(QVariantMap design, QVariantMap definition, QVector<Port> ports, NodeHost host);
     virtual ~Node() = default;
@@ -49,6 +54,7 @@ public:
     const Values &inputs() const { return inputs_; }
     const Values &outputs() const { return outputs_; }
     const QSet<QString> &connectedInputs() const { return connected_; }
+    bool deferredInputs() const { return definition_.value("defer_inputs").toBool(); }
     NodeResult execute(const Values &changes, const QSet<QString> &disconnected, const BatchContext &context, bool tick = false);
     virtual NodeResult action(const QString &name, const QVariantMap &arguments, const BatchContext &context, QVariant &result);
     virtual NodeResult start(const BatchContext &context);
@@ -74,6 +80,6 @@ protected:
     bool resumed_ = true;
 };
 
-std::unique_ptr<Node> makeNode(const QVariantMap &design, const Catalog &catalog, const NodeHost &host);
+CORIG_API std::unique_ptr<Node> makeNode(const QVariantMap &design, const Catalog &catalog, const NodeHost &host);
 
 } // namespace corig

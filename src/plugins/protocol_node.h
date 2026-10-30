@@ -30,6 +30,5 @@ private:
     std::unique_ptr<QTextDecoder> textDecoder_;
 };
 
-std::unique_ptr<Node> makePythonNode(QVariantMap design, QVariantMap definition, QVector<Port> ports, NodeHost host);
 
 } // namespace corig

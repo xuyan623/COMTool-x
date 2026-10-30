@@ -38,7 +38,7 @@ Item {
         Item{Layout.fillHeight:true}
     }
     FileDialog{
-        id:saveFile;title:"保存录制文件";fileMode:FileDialog.SaveFile;defaultSuffix:"corigrec"
+        id:saveFile;title:"保存录制文件";fileMode:FileDialog.SaveFile;defaultSuffix:"crrc"
         nameFilters:["CoRig 录制 (*.crrc)"]
         onAccepted:{const job=root.host.action("save",{path:selectedFile.toString()});root.fileJob=job.job||""}
     }

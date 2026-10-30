@@ -1,0 +1,37 @@
+// Minimal complete plugin: checked parameters, actual computation, an action
+// and a QML view, using only the installed public CoRig SDK.
+#include <corig/plugin.h>
+#include <QObject>
+
+class GainNode final : public corig::Node {
+public:
+    using Node::Node;
+    corig::NodeResult action(const QString &name, const QVariantMap &arguments, const corig::BatchContext &context, QVariant &result) override
+    {
+        if (name == "reset") {
+            state_["calls"] = 0; state_["last"] = 0.; result = state_;
+            return corig::NodeResult::output({{"out",0.}});
+        }
+        return Node::action(name,arguments,context,result);
+    }
+protected:
+    corig::NodeResult process(const corig::Values &changes, const corig::BatchContext &, bool) override
+    {
+        if (!changes.contains("x")) return {};
+        const double value = number("x") * config_.value("gain").toDouble();
+        state_["last"] = value; state_["calls"] = state_.value("calls",0).toULongLong() + 1;
+        return corig::NodeResult::output({{"out",value}});
+    }
+};
+
+class GainPlugin final : public QObject, public corig::NativePlugin {
+    Q_OBJECT
+    Q_PLUGIN_METADATA(IID CoRigNativePlugin_iid)
+    Q_INTERFACES(corig::NativePlugin)
+public:
+    std::unique_ptr<corig::Node> create(QVariantMap design, QVariantMap definition, QVector<corig::Port> ports, corig::NodeHost host) override
+    {
+        return std::make_unique<GainNode>(std::move(design),std::move(definition),std::move(ports),std::move(host));
+    }
+};
+#include "gain.moc"

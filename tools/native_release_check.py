@@ -121,11 +121,11 @@ def main():
             subprocess.run([sys.executable, str(tools / script), '--data-dir', str(data), '--output', str(output / subfolder)] + extra,
                            env=environment, check=True)
             check(True, script + ' passes against the deployed executable')
-        # The AI audit owns its separate instance and verifies every command,
+        # The AI audit owns its separate instance and verifies design/plugin commands,
         # including app.quit, without disturbing this deployment-check session.
         subprocess.run([sys.executable, str(tools / 'native_ai_check.py'), '--executable', str(executable),
                         '--data-dir', str(data / 'ai'), '--output', str(output / 'ai')], env=environment, check=True)
-        check(True, 'all public AI commands and unnamed QML controls pass against the deployed executable')
+        check(True, 'design/plugin AI commands and unnamed QML controls pass against the deployed executable')
         c.call('app.quit')
         processes[-1].wait(timeout=10)
         c = None
