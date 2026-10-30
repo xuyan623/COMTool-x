@@ -1,0 +1,57 @@
+<Updates>
+ <ApplicationName>{AnyApplication}</ApplicationName>
+ <ApplicationVersion>1.0.0</ApplicationVersion>
+ <Checksum>true</Checksum>
+ <PackageUpdate>
+  <Name>org.corig.application</Name>
+  <DisplayName>联调 CoRig</DisplayName>
+  <Description>功能设计、界面设计与调试工作台</Description>
+  <Version>0.4.0</Version>
+  <ReleaseDate>2026-10-30</ReleaseDate>
+  <Default>true</Default>
+  <Dependencies>org.corig.runtime-6.12.0</Dependencies>
+  <Script>installscript.qs</Script>
+  <UpdateFile CompressedSize="9702205" OS="Any" UncompressedSize="31093780"/>
+  <DownloadableArchives>docs.7z,examples.7z,licenses.7z,skills.7z,verification.7z,content.7z</DownloadableArchives>
+  <UserInterfaces>InstallScope.ui</UserInterfaces>
+  <SHA1>503883a36c0f7645b2be360703ac01f19a2e174a</SHA1>
+ </PackageUpdate>
+ <PackageUpdate>
+  <Name>org.corig.official</Name>
+  <DisplayName>官方插件</DisplayName>
+  <Description>通信、协议、数据处理、数学、仪表与录制回放插件</Description>
+  <Version>0.4.0</Version>
+  <ReleaseDate>2026-10-30</ReleaseDate>
+  <Default>true</Default>
+  <Dependencies>org.corig.application</Dependencies>
+  <UpdateFile CompressedSize="1557679" OS="Any" UncompressedSize="114386826"/>
+  <DownloadableArchives>plugins.7z</DownloadableArchives>
+  <SHA1>a593cae9d2b2df1b6cf21dbe27ccbd17ac8a543d</SHA1>
+ </PackageUpdate>
+ <PackageUpdate>
+  <Name>org.corig.runtime</Name>
+  <DisplayName>Qt 运行依赖</DisplayName>
+  <Description>运行 CoRig 所需的 Qt 与 C++ 运行依赖</Description>
+  <Version>6.12.0</Version>
+  <ReleaseDate>2026-10-30</ReleaseDate>
+  <Default>true</Default>
+  <Dependencies/>
+  <UpdateFile CompressedSize="48896662" OS="Any" UncompressedSize="121716623"/>
+  <DownloadableArchives>generic.7z,iconengines.7z,imageformats.7z,networkinformation.7z,platforms.7z,qml.7z,qmltooling.7z,tls.7z,content.7z</DownloadableArchives>
+  <SHA1>e272437cea7a044503c9551a2d9580ffd640d965</SHA1>
+ </PackageUpdate>
+ <PackageUpdate>
+  <Name>org.corig.sdk</Name>
+  <DisplayName>C++ 插件开发 SDK</DisplayName>
+  <Description>公开头文件、构建工具与可运行的插件示例</Description>
+  <Version>0.4.0</Version>
+  <ReleaseDate>2026-10-30</ReleaseDate>
+  <Default>false</Default>
+  <Dependencies>org.corig.application</Dependencies>
+  <UpdateFile CompressedSize="511337" OS="Any" UncompressedSize="6025383"/>
+  <DownloadableArchives>CoRigSdk.7z</DownloadableArchives>
+  <SHA1>66e7ab5efc638d2fa5030f32bbc86322cc25cc2f</SHA1>
+ </PackageUpdate>
+ <SHA1>441a75d460318786e7d3710b3d0b2b6e8b2df1f1</SHA1>
+ <MetadataName>2026-10-30-2335_meta.7z</MetadataName>
+</Updates>
