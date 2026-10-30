@@ -27,7 +27,7 @@ project.validate 检查工程结构；graph.overlaps 单独查询节点重叠与
 
 用 ui.item.schema 查询外观字段，ui.view.bind 修改已有视图绑定并保留布局。graph.connection.options 查询端口兼容性。editor.state/configure 按 page=graph/layout 查询／设置画布 zoom、pan_x、pan_y、left_width、right_width；侧栏宽度 0 表示收起，fit=true 适应画布，graph 的 animation 控制数据活动显示。它们只改显示状态。window.configure 设置窗口几何与 normal/minimized/maximized/fullscreen，可先恢复窗口再截图。
 
-project.save 保存用户指定的单文件 .crpj，未指定路径时默认写入程序数据目录的 project/。v3 工程携带用户插件、辅助文件、QML 和模型资源；官方 C++ 插件由程序提供，解释器路径仅在本机设置中。只读取 CoRig 新格式，不迁移旧工程或录制文件。打开工程不自动运行、连接或发送。
+project.save 保存用户指定的单文件 .crpj，未指定路径时默认写入程序数据目录的 project/。project.options 的 include_plugins 决定是否携带实际用到的全部官方和用户插件及资源，关闭时只记录依赖。首次保存与另存为提供选项，普通保存沿用；模型资源随工程保存，解释器路径仅在本机设置中。只读取 CoRig 新格式，不迁移旧工程或录制文件。打开工程不自动运行、连接或发送。
 
 ## 运行与观测
 
@@ -54,3 +54,11 @@ controls.list 可按 page 发现具名及未命名 QML 控件，记录包含 nod
 详细字段见 [API](references/API.md) 和 [插件 SDK](references/PLUGIN_SDK.md)。
 
 交互规则：节点使用小圆角直边；输入为凹口，输出为囊泡。点击输出牵引，接入时填合凹口；取出可接回或改接。右键、Esc、空白或源端短线取消并回母体断线。拿着其他对象时右键也取消，空闲时才快速放置。界面编辑手势由画布统一处理，不能用运行控件动作替代设计拖放。
+
+## 插件库与安装维护
+
+官方与用户统一使用 .crpl；官方每节点一包。分类来自插件文件夹相对目录，根目录归“其他”，不写入包内；外部目录或文件调整后重启生效。本机版本使用本机目录，工程副本使用 .crpj 单独记录的路径。plugin.state 只查询本地安装、启用、工程引用及重启状态，不合并工程内副本；plugin.tree(scope=library) 只查本地文件夹，scope=project 只查工程使用的包。插件管理是本地目录树和状态视图，不提供导入、导出或移除按钮；插件库负责导入，文件菜单负责工程插件导出；plugin.enable/remove 对在用插件报告引用并阻止操作。
+
+plugin.export(plugins,directory,scope) 批量导出并保留目录；目标已存在时先返回 requires_confirmation 和 conflicts，不写入文件。GUI 同样支持全选、全不选、反选和分类选择。覆盖现有文件需要明确确认再传 overwrite=true。工程打开冲突由用户选择 plugin_selections 中的 project/local；requires_plugins 报告缺失依赖，requires_restart 报告需重启的 C++ 包，不能视作已打开。
+
+安装版数据默认在 Windows 本地应用数据目录，portable.ini 的便携版使用程序目录；--data-dir 优先。update.state 查询维护支持，update.check 等待真实任务结果，update.install 启动维护工具前必须保存工程。正式更新源需先部署，未部署或不可达时如实报告。app.restart 保留数据目录和工程路径。不要替用户切换插件版本或覆盖未保存工程。

@@ -1,6 +1,54 @@
-# CoRig 用户插件 v3
+# CoRig 插件开发
 
-用户插件以 JSON 声明、Python 逻辑及可选 QML 视图组成。官方 C++ 插件随软件提供；旧 PySide6/PyQt5 NodeRuntime 接口不兼容。
+官方和用户插件统一使用 `.crpl` 插件包；C++ 与 Python 共用导入、查询、启停、工程携带和导出流程。旧 PySide6/PyQt5 NodeRuntime 接口不兼容。
+
+## 统一插件包
+
+`.crpl` 是标准 ZIP，根目录的 `plugin.json` 声明 `format=corig-plugin`、`package_api=1`、`id`、`name`、`version`、`implementation` 和 `plugins`。`implementation` 为 native 或 python；一个包可以提供多个节点，节点仍拥有各自的 id、ports、properties、actions 和可选 views。节点标识不能与其他包冲突。
+
+原生包包含编译好的 DLL，Python 包包含 `.py`；QML 和辅助文件随包保存，所有路径相对于包根目录。包内禁止绝对路径、越界路径、符号链接、重复路径和损坏的 ZIP 内容。包上限 128 MiB，展开上限 512 MiB。
+
+```json
+{
+  "format":"corig-plugin", "package_api":1,
+  "id":"user.example.gain", "name":"数值增益", "version":"1.0.0",
+  "implementation":"python",
+  "plugins":[{
+    "id":"user.example.gain", "name":"数值增益", "code_file":"gain.py",
+    "ports":[{"id":"x","direction":"in","data_type":"number"},{"id":"out","direction":"out","data_type":"number"}],
+    "properties":{"gain":{"type":"number","default":2}},
+    "views":{"result":{"qml":"Gain.qml"}}
+  }]
+}
+```
+
+本地插件管理按实际文件夹显示可搜索、展开和折叠的目录树，只提供状态与节点启用设置，不混入工程内副本；这页不提供导入、导出或移除按钮。导入位于插件库，工程插件导出位于文件菜单；文件操作 API 的移除和导出按完整包处理。官方每个节点一个包。分类由包文件所在的相对目录生成，根目录包归“其他”；移动包或目录后重启生效。包内不允许 category/category_path 分类字段。工程单独记录包的 relative_path，本机版本使用本机路径。
+
+工程 `.crpj` 的 include_plugins 保存选项决定是否嵌入实际用到的完整包，包括官方插件及随包资源；关闭时保留 plugin_dependencies。首次保存和另存为选择，可随时通过 project.options 修改。打开时可使用工程内副本。版本或内容不同会返回冲突清单，用户必须选择 project（工程内）或 local（本机）；每次重新打开存在冲突的工程都重新选择。保存和导出采用本次实际选择的版本，本机插件库独立管理。
+
+`plugin.import(path)` 导入 `.crpl`，`plugin.state` 查询本地包与节点，`plugin.enable(plugin,enabled)` 勾选节点，`plugin.remove(package)` 移除本机包，`plugin.export(plugin,path)` 导出当前工程使用的包。工程内的包可以直接导出，无需先安装到本机。`plugin.tree(scope=project/library)` 分别查询工程使用的包和本地文件目录树；`plugin.export(plugins,directory,scope)` 在目标已存在时先返回覆盖清单，`plugin.export(...,overwrite=true)` 执行已确认覆盖的批量导出并保留目录。`project.options` 查询或设置 include_plugins。当前工程仍引用的节点或包不能停用、移除，会列出引用。打开工程时，其必需插件在工程内启用，本机的其他勾选设置保留。
+
+## Qt/C++ SDK
+
+安装可选的“C++ 插件开发 SDK”，或解压 `CoRig-SDK-Windows-x64.zip`。SDK 提供公开头文件、导入库、打包工具和 `examples/native_gain` 完整示例，不需要主程序源码。当前 Windows x64 SDK 需要 Qt 6.12.0、MSVC 2022（编译器版本 1944）与 CMake 3.25+。普通用户只需安装 CoRig。
+
+```powershell
+.\examples\native_gain\build.ps1 -Sdk D:\CoRigSdk -QtPrefix D:\Qt\6.12.0\msvc2022_64
+```
+
+构建生成 `build/NativeGain.crpl`，可直接从“导入插件”导入。示例包含真实增益计算、reset 动作和 QML 视图。插件在 CoRig 进程内运行，使用与宿主匹配的 Release SDK；内存错误可能影响宿主。C++ 插件更新后重启生效，热重载不属于当前契约。
+
+入口为 `<corig/plugin.h>`。实现 `corig::NativePlugin::create`，返回派生于 `corig::Node` 的节点；通过 `Q_PLUGIN_METADATA` 和 `Q_INTERFACES` 声明公开接口。`process(changes,context,tick)` 读取保留的 inputs_ 与本次 changes，返回 `NodeResult::output`；`action` 实现声明动作。引擎拥有运行、暂停、停止、重置、配置提交和批次调度。
+
+静态端口和参数使用声明；额外参数规则与动态端口可覆盖 `configuration`、`ports`。`source_interval_ms` 用于 Python 自主信号源，C++ 节点覆盖 `sourceInterval()`；`source=true` 声明可由动作启动的信号源，`defer_inputs=true` 将具有外部副作用的输入安排在普通计算之后。动作型布尔输入应只处理本次 changes 中到达的 true。
+
+Node 的计算和生命周期方法在引擎线程调用。同步发布使用 host_.publish；自有后台设备通过 `PluginService` 与线程安全的 `PluginEvents.receive/observe` 向引擎交付数据。QML 只消费观察快照，通过 bridge.action 调用同一动作入口，不直接访问活节点或设备。插件应及时响应暂停、停止及取消，不占用 GUI 线程执行长计算。
+
+`CoRig-pack pack plugin.json plugin.dll output.crpl` 将原生二进制和 manifest 的 files 列表资源打包，并读取 DLL 的实际 Qt 插件元数据。SDK、Qt、系统架构、编译器和构建类型由工具记录，导入时校验。普通开发者不需要手工填写 native 元数据；辅助 DLL 应与主插件 DLL 同放在 bin/ 下。
+
+## Python 声明兼容入口
+
+现有 v3 `.json` 声明仍可导入，导入后转入相同的插件包管理。以下保留其完整运行契约。
 
 ## 环境
 

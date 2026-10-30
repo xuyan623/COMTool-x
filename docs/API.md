@@ -4,7 +4,7 @@ GUI 与 API 共用原生命令入口。运行实例的 `schema` 和 `registry` �
 
 ## 连接
 
-默认数据目录是可执行文件目录，也可用 GUI 的 `--data-dir` 指定。读取 `<data-dir>/.sessions/api.json`，其中包含 application=CoRig、url、token、pid、discovery 和 api_version。连接记录与 schema 都声明产品名称，CLI 只接受当前 CoRig 实例。每个进程还在 `.sessions/instances/` 保存独立记录；一个工程拖出的子窗口共用该进程接口。
+便携版默认数据目录为可执行文件目录；安装版使用 Windows 本地应用数据目录。GUI 的 `--data-dir` 可指定独立目录。读取 `<data-dir>/.sessions/api.json`，其中包含 application=CoRig、url、token、pid、discovery 和 api_version。连接记录与 schema 都声明产品名称，CLI 只接受当前 CoRig 实例。每个进程还在 `.sessions/instances/` 保存独立记录；一个工程拖出的子窗口共用该进程接口。
 
 全部请求要求 `Authorization: Bearer <token>`，包括 `GET /v3/schema`。token 每次启动变化，仅供本机调用，不应写进工程、报告或共享文档。接口只监听 127.0.0.1。
 
@@ -105,6 +105,20 @@ position 为秒，direction 为 -1/1，倍速为 0.125～16。截断打开时，
 
 以上例子要求先在工程中放置、连接相应节点，并按动作要求建立会话。完整无硬件示例见 examples/RecordPlayback.crpj；控件 ID 为 recording.<node>.toggle/save/reset 和 playback.<node>.load/toggle/rewind/previous/next/cutoff/position/speed。先查询 registry 或 view.actions 的真实动作契约，并逐个等待返回的任务完成。
 
+## 本地插件、工程依赖和维护
+
+`plugin.state` 只报告本地插件文件夹的包、版本、相对路径、节点启用设置、当前工程引用及待重启状态，不合并工程副本。`plugin.tree(scope=library)` 是本地目录树，`scope=project` 是当前工程所用包及其实际选定版本。树的 folder 节点提供 children，plugin 叶节点提供包 id、version 和 relative_path。包在根目录归“其他”；外部文件或目录调整重启后重新扫描。
+
+`plugin.settings` 打开本地树状管理窗口，支持搜索、展开/折叠及选中插件后启停；`plugin.directory` 打开本地插件文件夹。导入由插件库或 plugin.import 完成；工程副本在工程导出和打开版本选择流程处理。本地设置与工程内激活是分开的，不能用工程内版本覆盖本地状态查询。
+
+`project.options` 查询或修改 include_plugins；修改会标记未保存。project.save 沿用设置，project.export 可单独指定并保持当前工程路径不变。携带时写入用到的全部官方/用户包和资源；不携带时保留 plugin_dependencies，包括 id、version、sha256 和 relative_path。目录关系仅存在工程中，插件包内不保存分类。
+
+project.open 在更换工程前返回 requires_plugins/missing_plugins、requires_plugin_selection/conflicts 或 requires_restart/plugins。版本冲突需要明确传入 plugin_selections={包ID:project/local} 再打开；每次重新打开存在冲突的工程重新选择。打开不自动运行。
+
+plugin.export 的单包参数为 plugin/path；批量参数为 plugins（包ID列表）、directory、scope。批量导出保留目录，存在目标时返回 requires_confirmation/conflicts，未写入任何包；确认后传 overwrite=true。scope=project 导出工程当前选定版本，scope=library 导出本地版本。plugin.export.dialog 打开相同树状勾选界面。正在使用的节点不能停用，包不能移除；失败返回引用。
+
+update.state 查询安装维护支持；update.check 返回 job，完成后 available/updates 来自真实维护工具。update.install 在工程已保存后启动安装维护并退出应用，完成安装由维护工具负责。app.restart 保留数据目录、工程路径与指定的插件版本选择。正式更新源需部署后才能在线使用；生成本地仓库不代表已经发布。
+
 ## 命令字段
 
 以下表格由本次原生实例的 schema 生成；节点/视图动作内层 args 以 registry 或 view.actions 为准。
@@ -112,6 +126,7 @@ position 为秒，direction 为 -1/1，倍速为 0.125～16。截断打开时，
 | 命令 | 参数 |
 |---|---|
 | `app.quit` | `discard` |
+| `app.restart` | `discard`, `path`, `plugin_selections` |
 | `app.state` |  |
 | `batch` | `commands` |
 | `capture` | `target`, `path`, `width`, `height` |
@@ -165,14 +180,23 @@ position 为秒，direction 为 -1/1，倍速为 0.125～16。截断打开时，
 | `node.action` | `node`, `action`, `args` |
 | `node.configure` | `node`, `changes`, `persist` |
 | `node.state` | `node`, `detailed` |
+| `plugin.directory` |  |
+| `plugin.enable` | `plugin`, `enabled` |
+| `plugin.export` | `plugin`, `path`, `plugins`, `directory`, `overwrite`, `scope` |
+| `plugin.export.dialog` | `scope`, `plugin` |
 | `plugin.import` | `path`, `manifest` |
-| `plugin.remove` | `plugin` |
+| `plugin.remove` | `plugin`, `package` |
+| `plugin.settings` |  |
+| `plugin.state` |  |
+| `plugin.tree` | `scope` |
 | `preferences.set` | `theme`, `python`, `read_only` |
+| `project.export` | `path`, `include_plugins` |
 | `project.get` |  |
 | `project.new` | `name`, `discard` |
-| `project.open` | `path`, `discard` |
+| `project.open` | `path`, `discard`, `plugin_selections` |
+| `project.options` | `include_plugins` |
 | `project.rename` | `name` |
-| `project.save` | `path` |
+| `project.save` | `path`, `include_plugins` |
 | `project.validate` |  |
 | `python.probe` | `dependencies` |
 | `registry` |  |
@@ -195,6 +219,9 @@ position 为秒，direction 为 -1/1，倍速为 0.125～16。截断打开时，
 | `ui.update` |  |
 | `ui.view.add` | `id`, `parent`, `node`, `view`, `properties` |
 | `ui.view.bind` | `id`, `node`, `view` |
+| `update.check` |  |
+| `update.install` |  |
+| `update.state` |  |
 | `view.actions` | `node`, `view` |
 | `view.call` | `node`, `view`, `action`, `args` |
 | `view.read` | `node`, `view`, `args` |

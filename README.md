@@ -30,13 +30,13 @@ AI 可以通过本地接口参与设计、运行、读取数据和检查结果�
 | 曲线与姿态 | 实时多通道曲线、FFT、原始 CSV 与图像导出；欧拉角/四元数及 STL/OBJ 模型显示 |
 | 录制与回放 | 保存原始类型信号，暂停拼接、逐条查看、进度跳转及 0.125～16 倍速回放 |
 | 运行调试 | 统一运行与暂停、整图/节点单步、输入输出和执行耗时检查、筛选日志 |
-| AI 协作与扩展 | 本地 API、原生 CLI、真实数据与内部截图读取，以及可选 Python/QML 用户插件 |
+| AI 协作与扩展 | 本地 API、原生 CLI、真实数据与内部截图读取，以及 C++/Python 插件、树状导出和版本选择 |
 
-官方功能使用原生 C++ / Qt Quick，**直接使用无需安装 Python**。仅在使用 Python 脚本或用户插件时，需要配置本机解释器。
+官方功能使用原生 C++ / Qt Quick，**直接使用无需安装 Python**。仅在使用 Python 脚本或 Python 插件时，需要配置本机解释器。
 
 ## 快速上手
 
-1. 从 [Releases](https://github.com/xuyan623/CoRig/releases/latest) 下载 `CoRig-Windows-x64.zip`，完整解压。
+1. 从 [Releases](https://github.com/xuyan623/CoRig/releases/latest) 下载 `CoRigSetup-0.4.0-Windows-x64.exe` 安装程序，或完整解压 `CoRig-Windows-x64.zip` 便携包。
 2. 双击解压目录中的 `CoRig.exe`，保留旁边的 DLL、`plugins/` 和 `qml/` 等目录。
 3. 打开 `examples/FunctionLab.crpj`，点击底部运行按钮，即可看到持续变化的曲线和三维姿态。
 4. 尝试 `RecordPlayback.crpj` 体验录制与回放，或打开 `SerialPlot.crpj` 验证软件串口回环，再按需要选择实际串口。
@@ -60,7 +60,7 @@ AI 可以通过本地接口参与设计、运行、读取数据和检查结果�
 |---|---|
 | [使用手册](docs/USER_GUIDE.md) | 示例、设计操作、运行控制、录制回放与 Python 配置 |
 | [本地 API](docs/API.md) | GUI/CLI 共用命令、数据读取、界面操作及异步任务 |
-| [插件开发](docs/PLUGIN_SDK.md) | 用户插件声明、Python 逻辑与 QML 视图 |
+| [插件开发](docs/PLUGIN_SDK.md) | 统一插件包、C++ SDK、Python 逻辑与 QML 视图 |
 | [架构与设计约定](docs/ARCHITECTURE.md) | 模块职责、信号语义和界面实现约定 |
 | [构建与发布](docs/BUILDING.md) | 开发环境、原生测试和便携包生成 |
 | [验证范围](docs/VERIFICATION.md) | 已验证能力、性能测量及待实机验证项目 |
@@ -68,6 +68,6 @@ AI 可以通过本地接口参与设计、运行、读取数据和检查结果�
 
 ## 源码与许可
 
-仓库：[github.com/xuyan623/CoRig](https://github.com/xuyan623/CoRig)。当前提供 Windows x64 便携包与对应源码包；其他平台尚未发布。
+仓库：[github.com/xuyan623/CoRig](https://github.com/xuyan623/CoRig)。当前提供 Windows x64 安装程序、便携包、插件 SDK 与对应源码包；其他平台尚未发布。
 
 本项目采用 [LGPL-3.0](LICENSE)。项目来源和第三方组件许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 与 [licenses/](licenses/)。

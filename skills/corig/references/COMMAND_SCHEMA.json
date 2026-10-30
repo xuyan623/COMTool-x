@@ -8,6 +8,13 @@
         "discard"
       ]
     },
+    "app.restart": {
+      "arguments": [
+        "discard",
+        "path",
+        "plugin_selections"
+      ]
+    },
     "app.state": {
       "arguments": []
     },
@@ -348,6 +355,31 @@
         "detailed"
       ]
     },
+    "plugin.directory": {
+      "arguments": []
+    },
+    "plugin.enable": {
+      "arguments": [
+        "plugin",
+        "enabled"
+      ]
+    },
+    "plugin.export": {
+      "arguments": [
+        "plugin",
+        "path",
+        "plugins",
+        "directory",
+        "overwrite",
+        "scope"
+      ]
+    },
+    "plugin.export.dialog": {
+      "arguments": [
+        "scope",
+        "plugin"
+      ]
+    },
     "plugin.import": {
       "arguments": [
         "path",
@@ -356,7 +388,19 @@
     },
     "plugin.remove": {
       "arguments": [
-        "plugin"
+        "plugin",
+        "package"
+      ]
+    },
+    "plugin.settings": {
+      "arguments": []
+    },
+    "plugin.state": {
+      "arguments": []
+    },
+    "plugin.tree": {
+      "arguments": [
+        "scope"
       ]
     },
     "preferences.set": {
@@ -364,6 +408,12 @@
         "theme",
         "python",
         "read_only"
+      ]
+    },
+    "project.export": {
+      "arguments": [
+        "path",
+        "include_plugins"
       ]
     },
     "project.get": {
@@ -378,7 +428,13 @@
     "project.open": {
       "arguments": [
         "path",
-        "discard"
+        "discard",
+        "plugin_selections"
+      ]
+    },
+    "project.options": {
+      "arguments": [
+        "include_plugins"
       ]
     },
     "project.rename": {
@@ -388,7 +444,8 @@
     },
     "project.save": {
       "arguments": [
-        "path"
+        "path",
+        "include_plugins"
       ]
     },
     "project.validate": {
@@ -501,6 +558,15 @@
         "view"
       ]
     },
+    "update.check": {
+      "arguments": []
+    },
+    "update.install": {
+      "arguments": []
+    },
+    "update.state": {
+      "arguments": []
+    },
     "view.actions": {
       "arguments": [
         "node",
@@ -576,5 +642,5 @@
     "bytes": "{type:bytes,base64:...,length:N}",
     "samples": "{time:seconds,values:{name:number}}"
   },
-  "version": "0.3.0"
+  "version": "0.4.0"
 }

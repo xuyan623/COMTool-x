@@ -25,7 +25,7 @@ cd CoRig
 .\tools\build_native.ps1 -QtPrefix C:\Qt\6.12.0\msvc2022_64 -Test
 ```
 
-脚本在当前进程导入 MSVC 环境，使用 CMake/Ninja 构建，并运行七套 CTest。输出在 `build/native/`，包括 GUI、CLI 和测试程序。
+脚本在当前进程导入 MSVC 环境，使用 CMake/Ninja 构建，并运行八套 CTest。输出在 `build/native/`，包括 GUI、CLI、CoRigSdk.dll、78 个官方插件包、公开 SDK 和测试程序。
 
 构建和官方 C++ 测试无需安装 Python。若需验证用户 Python 插件，可设置 `CORIG_TEST_PYTHON` 为实际解释器。界面与性能验收驱动使用 Python 标准库；本机 SSH 服务器验收额外需要 Paramiko。
 
@@ -40,6 +40,7 @@ cd CoRig
 | 文件 | 用途 |
 |---|---|
 | `dist/CoRig-Windows-x64.zip` | 完整 Windows x64 便携程序，可直接解压运行 |
+| `dist/CoRig-SDK-Windows-x64.zip` | 独立 C++ SDK、构建工具与完整示例 |
 | `dist/CoRig-source.zip` | 对应项目源码、libssh2、测试、构建工具及文档 |
 
 打包会重建自身的生成目录。便携包不包含 Python 运行时；源码包不包含本地凭据、私人项目、虚拟环境或构建缓存。
@@ -68,3 +69,17 @@ python .\tools\native_release_check.py `
 正式仓库为 [xuyan623/CoRig](https://github.com/xuyan623/CoRig)，发布页为 [Releases](https://github.com/xuyan623/CoRig/releases)。发布标签应与 CMake 的项目版本及[版本说明](RELEASE_NOTES.md)一致。
 
 发布时附上便携包、对应源码包和 `SHA256SUMS.txt`。GitHub 自动生成的 Source code 归档对应标签源码；额外提供的 `CoRig-source.zip` 方便离线查看和构建。
+
+## 安装程序与更新仓库
+
+准备 Qt Installer Framework 4.7+，先构建并生成便携部署目录，再执行：
+
+```powershell
+.\tools\package_installer.ps1 -IfwBin C:\Qt\Tools\QtInstallerFramework\4.7\bin
+```
+
+输出 `dist/CoRigSetup-0.4.0-Windows-x64.exe` 与 `dist/updates/windows-x64/`。安装内容分为 Qt 运行依赖、主程序、官方插件和可选 SDK，Qt 组件版本独立，未变化时无需重下。安装器可选择当前用户或所有用户；个人数据使用安装目录以外的 Windows 本地应用数据目录。
+
+`-RepositoryUrl` 指定维护工具保存的更新源，默认 https://xuyan623.github.io/CoRig/updates/windows-x64/。生成仓库不代表已经发布；需单独授权并部署整个目录后，正式安装版才能在线发现更新。更新组件必须提高对应 package.xml 的 Version，再运行 repogen，更新已有插件时保留用户目录与停用/移除选择。
+
+安装包使用完整内嵌内容并保留远程维护支持；不要用 --offline-only 制作需要在线更新的包。验收用独立安装目录和临时本地更新源，不修改真实安装与个人资料。
