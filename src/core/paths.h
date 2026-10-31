@@ -3,7 +3,10 @@
 #include "value.h"
 
 namespace corig {
-// Portable builds keep their existing data directory. Installed builds use a
-// writable per-user location independently of the program's install scope.
+// Both portable and installed builds keep program files, plugins and user
+// projects in one directory. The installer owns program files only.
 CORIG_API QString defaultDataDirectory();
-}
+// Creates project, plugins and cache beside the executable and explains the
+// project folder once. Repeated calls are harmless.
+CORIG_API void ensureDataDirectory(const QString &directory);
+} // namespace corig
