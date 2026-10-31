@@ -11,11 +11,15 @@ Rectangle {
     property var recordOverride:({})
     property var record:{App.project;return recordOverride.id?recordOverride:App.uiItem(itemId)}
     property var props:record.properties||({})
+    property var definitionOverride:({})
+    property string qmlUrlOverride:""
     property bool freeCanvas:record.plugin==="layout.canvas"
     property bool container:!!record.plugin
+    property bool customContainer:container&&["layout.canvas","layout.row","layout.column","layout.grid","layout.tabs"].indexOf(record.plugin)<0
+    property var containerSpec:{App.registry;return definitionOverride.id?definitionOverride:customContainer?App.definition(record.plugin):({})}
     property int gridSize:{App.project;return (App.uiItem((App.project.ui||{}).root||"root").properties||{}).grid_size||16}
     property var renderedChildren:(record.children||[]).filter(id=>!App.uiItem(id).pending)
-    property bool emptyContainer:container&&!freeCanvas&&!renderedChildren.length
+    property bool emptyContainer:container&&!freeCanvas&&!customContainer&&!renderedChildren.length
     property real padding:freeCanvas?0:Math.max(0,DesignGrid.snap(props.padding===undefined?gridSize:props.padding,gridSize))
     readonly property real headerHeight:0
     property alias contentArea:content
@@ -27,6 +31,17 @@ Rectangle {
     radius:3
     border.width:designMode&&!freeCanvas?1:0
     border.color:App.selectedKind==="ui"&&App.selected===itemId?Theme.blue:Theme.border
+    QtObject {
+        id:previewBridge
+        readonly property var properties:root.props
+        readonly property var values:root.props
+        readonly property var draft:root.props
+        readonly property var config:root.props
+        readonly property var state:({})
+        readonly property bool editable:false
+        function commit(changes){return({error:"预览中不可修改属性"})}
+        function invoke(operation,args){return({error:"预览中不可执行操作"})}
+    }
     Loader {
         id:content;x:root.padding;y:root.padding+root.headerHeight;width:Math.max(0,parent.width-root.padding*2);height:Math.max(0,parent.height-y-root.padding)
         visible:!root.emptyContainer||!root.designMode;enabled:!root.designMode
@@ -55,7 +70,19 @@ Rectangle {
             property bool tabs:root.record.plugin==="layout.tabs"
             property real tabHeight:tabs?Math.ceil(32/root.gridSize)*root.gridSize:0
             property var records:{App.project;return root.renderedChildren.map(id=>App.uiItem(id))}
-            property var rectangles:DesignGrid.arrange(root.record.plugin,root.props,records,width,Math.max(0,height-tabHeight),root.gridSize)
+            property var layout:root.customContainer?(records.length?App.containerLayout(root.record.plugin,root.props,records,width,height,root.gridSize):{rectangles:[]}):{rectangles:DesignGrid.arrange(root.record.plugin,root.props,records,width,Math.max(0,height-tabHeight),root.gridSize)}
+            property var rectangles:layout.rectangles||[]
+            Loader {
+                id:customSurface;anchors.fill:parent;visible:root.customContainer
+                function load() {
+                    const file=root.containerSpec.qml
+                    if(root.customContainer&&file)setSource(root.qmlUrlOverride||App.pluginResourceUrl(root.record.plugin,file),{bridge:root.designMode?previewBridge:App.propertyBridge("ui",root.itemId)})
+                    else source=""
+                }
+                Component.onCompleted:load()
+                Connections{target:root;function onContainerSpecChanged(){customSurface.load()}function onItemIdChanged(){customSurface.load()}function onDesignModeChanged(){customSurface.load()}}
+            }
+            Label{anchors.centerIn:parent;visible:!!arrangement.layout.error;text:arrangement.layout.error||"";color:Theme.error;width:parent.width;wrapMode:Text.WordWrap}
             TabBar {
                 id:tabbar;visible:arrangement.tabs;width:parent.width;height:arrangement.tabHeight
                 currentIndex:Math.min(Math.max(0,root.props.current_index||0),Math.max(0,count-1))
@@ -67,14 +94,14 @@ Rectangle {
                     id:child;required property string modelData;required property int index
                     property var box:arrangement.rectangles[index]||({x:0,y:0,width:0,height:0})
                     x:box.x;y:box.y+arrangement.tabHeight;width:box.width;height:box.height;z:root.renderedChildren.length-index
-                    visible:!arrangement.tabs||index===tabbar.currentIndex
+                    visible:box.visible!==false&&(!arrangement.tabs||index===tabbar.currentIndex)
                     source:"UiItem.qml"
                     onLoaded:{item.itemId=Qt.binding(()=>child.modelData);item.designMode=Qt.binding(()=>root.designMode)}
                 }
             }
         }
     }
-    Component{id:viewComponent;BuiltinView{nodeId:root.record.node||"";viewKey:root.record.view||"";designOverride:root.record.binding||({});designMode:root.designMode;viewProperties:root.props}}
+    Component{id:viewComponent;BuiltinView{nodeId:root.record.node||"";viewKey:root.record.view||"";uiItem:root.itemId;designOverride:root.record.binding||({});designMode:root.designMode;viewProperties:root.props}}
     Item {
         x:content.x;y:content.y;width:content.width;height:content.height;visible:root.emptyContainer&&root.designMode
         Repeater {

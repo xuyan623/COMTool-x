@@ -2,6 +2,9 @@
 #include "workspaces.h"
 #include "api_server.h"
 #include "quick/graph_geometry.h"
+#include "core/resource_policy.h"
+#include "core/plugin_script.h"
+#include "property_session.h"
 #include <QQmlEngine>
 #include <QQmlContext>
 #include <QQuickItem>
@@ -14,6 +17,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
+#include <QJSEngine>
 #include <QMimeData>
 #include <QPainterPathStroker>
 #include <QSaveFile>
@@ -21,6 +25,7 @@
 #include <QUrl>
 #include <algorithm>
 #include <limits>
+#include <cmath>
 
 namespace corig {
 
@@ -49,12 +54,33 @@ Controller::Controller(QString dataDirectory, QObject *parent, const QVariantMap
 {
     QDir().mkpath(dataDirectory_);
     settings_ = std::make_unique<QSettings>(dataDirectory_ + "/settings.ini",QSettings::IniFormat);
-    plugins_ = std::make_unique<PluginStore>(dataDirectory_ + "/plugins",*settings_);
-    catalog_ = plugins_->catalog(initialCatalog.isEmpty() ? project_ : initialCatalog);
+    configureResourceLimits(settings_->value("resources/limits").toMap(),true);
     theme_ = settings_->value("theme","dark").toString();
-    python_ = std::make_unique<PythonHost>([this] { return closing_ || (engine_ && engine_->interrupted()); });
+    python_ = std::make_unique<PythonHost>([this] { return closing_ || (engine_ && engine_->interrupted()); },[this](const QVariantMap &event) {
+        if (closing_ || !engine_) return;
+        const auto node = event.value("node").toString();
+        if (event.value("event") == "outputs") {
+            Values values; const auto outputs = event.value("outputs").toMap();
+            for (auto i = outputs.cbegin(); i != outputs.cend(); ++i) values.insert(i.key(),i.value());
+            engine_->receive(node,values);
+        } else if (event.value("event") == "state") engine_->ioObservation(node,event.value("state").toMap());
+        else if (event.value("event") == "task") {
+            // Only the initial event introduces a producer job. Progress and
+            // terminal snapshots are read by poll_; action jobs already exist.
+            if (!event.contains("name")) return;
+            // Workers only queue a notification; jobs and QML stay on the GUI
+            // thread. poll_ reads the worker's actual terminal task snapshot.
+            QMetaObject::invokeMethod(this,[this,event] {
+                if (closing_) return; const auto id = event.value("task").toString();
+                for (const auto &job : jobs_) if (job.value("python_task") == id && job.value("op") != "python.background") return;
+                if (!jobs_.contains(id)) jobs_[id] = {{"id",id},{"op","python.background"},{"state","running"},{"python_task",id},{"node",event.value("node")}};
+            },Qt::QueuedConnection);
+        }
+    });
     const auto interpreter = settings_->value("python").toString();
     if (QFileInfo(interpreter).isFile()) python_->selectInterpreter(interpreter);
+    plugins_ = std::make_unique<PluginStore>(dataDirectory_ + "/plugins",*settings_,[this](const QVariantMap &request) { return python_->call(request); });
+    catalog_ = plugins_->catalog(initialCatalog.isEmpty() ? project_ : initialCatalog);
     NodeHost host;
     host.catalog = [this](const QVariantMap &project) { return plugins_->catalog(project); };
     host.projectReadiness = [this](const QVariantMap &project) { return plugins_->readiness(project); };
@@ -71,6 +97,22 @@ Controller::Controller(QString dataDirectory, QObject *parent, const QVariantMap
     poll_.setInterval(16); viewClock_.start();
     connect(&poll_,&QTimer::timeout,this,[this] {
         const auto next = engine_->observation(); if (runtime_ != next) { runtime_ = next; emit runtimeChanged(); }
+        // An engine acknowledgement only starts an asynchronous action. Its
+        // public job completes after the Python function really terminates.
+        const auto ids = jobs_.keys();
+        for (const auto &id : ids) {
+            if (!jobs_.contains(id)) continue;
+            auto &job = jobs_[id]; const auto task = job.value("python_task").toString();
+            if (task.isEmpty() || job.value("state") != "running") continue;
+            const auto state = python_->task(task);
+            if (state.contains("progress")) job["progress"] = state.value("progress");
+            if (state.contains("message")) job["message"] = state.value("message");
+            if (state.value("state") == "complete") finishJob(id,state.value("result"),{});
+            else if (state.value("state") == "failed" || state.value("state") == "cancelled") {
+                const auto terminal = state.value("state");
+                job["state"] = terminal; job["error"] = state.value("error"); emit jobFinished(id);
+            } else if (state.value("state") == "missing") finishJob(id,{},"后台任务结果已过期");
+        }
         // Only visible consumers request expensive view data. One outstanding
         // request per view bounds GUI work independently of graph frequency.
         for (auto i = viewArguments_.cbegin(); i != viewArguments_.cend(); ++i) {
@@ -124,14 +166,19 @@ void Controller::tell(const QString &message, const QString &level)
 
 QVariant Controller::invoke(const QString &operation, const QVariantMap &arguments)
 {
-    try { return command(operation,arguments); }
+    try {
+        const auto result = command(operation,arguments); const auto reply = result.toMap();
+        if (reply.value("requires_confirmation").toBool() && reply.contains("affected_wires")) emit configurationConfirmationRequested(operation,arguments,reply);
+        if (reply.value("requires_draft_resolution").toBool()) emit draftResolutionRequested(operation,arguments,reply.value("drafts").toList());
+        return result;
+    }
     catch (const std::exception &error) { const auto message = QString::fromUtf8(error.what()); tell(message,"error"); return QVariantMap{{"ok",false},{"error",message}}; }
 }
 
 QVariantMap Controller::launchEngine(const QString &operation, const QVariantMap &arguments, std::function<void(const QVariant &,const QString &)> completed)
 {
     const auto id = newId("job");
-    jobs_[id] = {{"id",id},{"op",operation},{"state","running"}};
+    jobs_[id] = {{"id",id},{"op",operation},{"state","running"},{"node",arguments.value("node")}};
     const auto request = engine_->submit(operation,arguments);
     const bool execution = operation.startsWith("runtime."); if (execution) { ++runtimePending_; emit runtimeChanged(); }
     callbacks_.insert(request,[this,id,operation,execution,completed = std::move(completed)](const QVariant &value, const QString &error) {
@@ -139,6 +186,12 @@ QVariantMap Controller::launchEngine(const QString &operation, const QVariantMap
         QString failure = error;
         try { if (completed) completed(value,error); } catch (const std::exception &e) { failure = QString::fromUtf8(e.what()); }
         auto published = value;
+        const auto background = value.toMap().value("python_task").toString();
+        if (failure.isEmpty() && !background.isEmpty()) {
+            jobs_[id]["python_task"] = background;
+            if (jobs_.value(background).value("op") == "python.background") jobs_.remove(background);
+            return;
+        }
         if (operation == "node.configure") { auto map = value.toMap(); map.remove("__resources"); published = map; }
         finishJob(id,published,failure);
     });
@@ -219,7 +272,7 @@ QVariantMap Controller::commit(EditResult edit, const QString &label, bool remem
 
 QVariantMap Controller::appState() const
 {
-    return {{"application","CoRig"},{"version","0.4.0"},{"project",project_.value("name")},{"path",projectPath_},{"dirty",dirty_},{"read_only",readOnly_},
+    return {{"application","CoRig"},{"version","0.4.1"},{"project",project_.value("name")},{"path",projectPath_},{"dirty",dirty_},{"read_only",readOnly_},
         {"busy",busy_},{"runtime",engine_->observation()},{"workspaces",workspaces_ ? workspaces_->state() : QVariantMap{}},
         {"python",pythonPath()},{"theme",theme_},{"view_observations",observedViews_},{"selection",QVariantMap{{"id",selected_},{"kind",selectedKind_},{"nodes",selectedNodes_}}}};
 }
@@ -248,6 +301,108 @@ QVariantMap Controller::inspector() const
     return {{"item",node},{"schema",definition(node.value("plugin").toString()).value("properties")},{"values",readOnly_ ? nodeState(selected_).value("config",node.value("config")) : node.value("config")},{"runtime",nodeState(selected_)}};
 }
 
+QVariantMap Controller::propertyInfo(const QString &scope, const QString &target) const
+{
+    try {
+        QVariantMap item, spec, fields, values; QString plugin, node, view, editorScope;
+        if (scope == "node") {
+            item = nodeDesign(target); if (item.isEmpty()) throw Error("节点不存在："+target);
+            plugin = item.value("plugin").toString(); node = target; spec = catalog_.definition(plugin);
+            fields = spec.value("properties").toMap(); values = readOnly_ ? nodeState(target).value("config",item.value("config")).toMap() : item.value("config").toMap(); editorScope = "node";
+        } else if (scope == "ui") {
+            item = uiItem(target); if (item.isEmpty()) throw Error("界面对象不存在："+target);
+            fields = uiPropertySchema(item,catalog_,project_); values = checkedProperties(fields,{},item.value("properties").toMap());
+            plugin = item.value("plugin").toString();
+            if (!plugin.isEmpty()) {
+                editorScope = "container"; if (!QStringList{"layout.canvas","layout.row","layout.column","layout.grid","layout.tabs"}.contains(plugin)) spec = catalog_.definition(plugin);
+            } else {
+                node = item.value("node").toString(); view = item.value("view").toString();
+                auto binding = item.value("binding").toMap(); const auto live = nodeDesign(node);
+                if (binding.isEmpty() || live.value("plugin") == binding.value("plugin")) binding = live;
+                plugin = binding.value("plugin").toString(); spec = catalog_.definition(plugin); editorScope = "view";
+            }
+        } else if (scope == "workspace") {
+            plugin = target; spec = catalog_.definition(plugin); if (spec.value("kind") != "workspace") throw Error("插件不是工作区："+plugin);
+            fields = spec.value("properties").toMap(); values = checkedProperties(fields,{},project_.value("workspaces").toMap().value(target).toMap());
+            item = {{"id",target},{"plugin",plugin},{"properties",values}}; editorScope = "workspace";
+        } else throw Error("属性范围需要 node、ui 或 workspace");
+        auto editor = spec.value("editors").toMap().value(editorScope).toString();
+        if (!view.isEmpty()) editor = spec.value("views").toMap().value(view).toMap().value("editor",editor).toString();
+        return {{"scope",scope},{"target",target},{"item",item},{"plugin",plugin},{"node",node},{"view",view},{"schema",fields},{"values",values},
+            {"editor",editor.isEmpty() ? QString{} : pluginResourceUrl(plugin,editor)},{"commit_mode",spec.value("property_commit","immediate")},{"running",runtime_.value("running")},{"read_only",readOnly_}};
+    } catch (const Error &error) { return {{"scope",scope},{"target",target},{"error",error.message}}; }
+}
+
+QObject *Controller::propertyBridge(const QString &scope, const QString &target)
+{
+    const auto key = scope+"/"+target;
+    if (!propertySessions_.value(key)) propertySessions_[key] = new PropertySession(*this,scope,target);
+    return propertySessions_.value(key);
+}
+
+QVariantMap Controller::containerLayout(const QString &plugin, const QVariantMap &properties, const QVariantList &children, double width, double height, int grid) const
+{
+    try {
+        if (catalog_.kind(plugin) != "container") throw Error("插件不是界面容器："+plugin);
+        if (grid < 1 || grid > 128 || !std::isfinite(width) || !std::isfinite(height) || width < 0 || height < 0) throw Error("容器布局尺寸或网格无效");
+        QVariant layout;
+        if (QStringList{"layout.canvas","layout.row","layout.column","layout.grid","layout.tabs"}.contains(plugin)) {
+            // Query the same trusted layout algorithm the built-in QML uses.
+            // User-supplied scripts below retain their interruptible watchdog.
+            QFile source(":/qt/qml/CoRig/DesignGrid.js"); if (!source.open(QIODevice::ReadOnly)) throw Error("内置布局脚本不可用");
+            auto text = QString::fromUtf8(source.readAll()); text.remove(0,text.indexOf('\n')+1);
+            QJSEngine script; script.evaluate(text);
+            const auto function = script.globalObject().property("arrange");
+            layout = function.call({plugin,script.toScriptValue(properties),script.toScriptValue(children),width,height,grid}).toVariant();
+        } else {
+            const auto spec = catalog_.definition(plugin);
+            layout = pluginScript(catalog_.package(plugin),spec.value("layout_script").toString(),"arrange",
+                {properties,QVariantMap{{"children",children},{"width",width},{"height",height},{"grid",grid}}});
+        }
+        if (layout.metaType().id() != QMetaType::QVariantList || layout.toList().size() != children.size()) throw Error("arrange 必须为每个子对象返回一个矩形："+plugin);
+        QVariantList rectangles;
+        for (const auto &entry : layout.toList()) {
+            const auto box = entry.toMap(); QVariantMap aligned;
+            for (const auto &key : {"x","y","width","height"}) {
+                if (!box.contains(key)) throw Error("子对象矩形缺少字段："+QString::fromLatin1(key));
+                const auto number = finiteNumber(box.value(key),QString::fromLatin1(key));
+                if ((key == QString("width") || key == QString("height")) && number < 0) throw Error("子对象尺寸不能为负数");
+                aligned[key] = std::round(number / grid)*grid;
+            }
+            if (box.contains("visible") && box.value("visible").metaType().id() != QMetaType::Bool) throw Error("子对象 visible 需要布尔值");
+            aligned["visible"] = box.value("visible",true).toBool(); rectangles.append(aligned);
+        }
+        return {{"rectangles",rectangles}};
+    } catch (const std::exception &error) { return {{"error",QString::fromUtf8(error.what())},{"rectangles",QVariantList{}}}; }
+}
+
+QVariantList Controller::dirtyProperties(const QString &scope, const QString &target) const
+{
+    QVariantList result;
+    for (const auto &session : propertySessions_) if (session && session->dirty() && (scope.isEmpty() || session->scope() == scope) && (target.isEmpty() || session->target() == target))
+        result.append(QVariantMap{{"scope",session->scope()},{"target",session->target()},{"pending",session->pending()}});
+    return result;
+}
+
+QVariantMap Controller::draftGuard(const QString &operation, const QVariantMap &arguments)
+{
+    QVariantList affected;
+    if (operation == "graph.select" && (arguments.value("id") != selected_ || arguments.value("kind","node") != selectedKind_))
+        affected = dirtyProperties(selectedKind_ == "ui" ? "ui" : "node",selected_);
+    else if (operation == "workspace.open") {
+        const auto page = arguments.value("page").toString();
+        if (page != "library" && workspaces_ && (!workspaces_->page(page) || !workspaces_->page(page)->isVisible())) affected = dirtyProperties();
+    } else if (operation == "project.new" || operation == "project.open" || operation == "app.quit" || operation == "app.restart" || operation == "workspace.close" || operation == "window.close" || operation == "history.undo" || operation == "history.redo"
+               || operation == "editor.remove" || operation == "editor.replace" || operation == "graph.node.remove" || operation == "ui.item.remove" || operation == "workspace.remove") affected = dirtyProperties();
+    if (affected.isEmpty()) return {};
+    if (arguments.value("discard").toBool()) {
+        for (const auto &record : affected) if (record.toMap().value("pending").toBool()) return {{"requires_draft_resolution",true},{"drafts",affected}};
+        for (const auto &record : affected) { const auto value = record.toMap(); qobject_cast<PropertySession *>(propertyBridge(value.value("scope").toString(),value.value("target").toString()))->discard(); }
+        return {};
+    }
+    return {{"requires_draft_resolution",true},{"drafts",affected}};
+}
+
 QVariantMap Controller::libraryPreferences() const
 {
     return {{"favorites",settings_->value("library/favorites",QStringList{})},{"recent",settings_->value("library/recent",QStringList{})},
@@ -265,7 +420,11 @@ QVariantList Controller::catalogEntries(const QString &query, const QStringList 
 
 QVariantMap Controller::previewGeometry(const QString &plugin, const QVariantMap &config) const
 {
-    try { return nodeGeometry({{"plugin",plugin},{"config",catalog_.checkedConfig(plugin,config)}},catalog_); }
+    try {
+        const auto kind = catalog_.kind(plugin);
+        if (kind != "node") return {{"width",180},{"height",104},{"ports",QVariantList{}},{"center",QVariantList{0,0,180,104}},{"kind",kind},{"icon","layout"}};
+        return nodeGeometry({{"plugin",plugin},{"config",catalog_.checkedConfig(plugin,config)}},catalog_);
+    }
     catch (const std::exception &error) { return {{"width",180},{"height",104},{"ports",QVariantList{}},{"center",QVariantList{0,0,180,104}},{"error",QString::fromUtf8(error.what())}}; }
 }
 
@@ -408,9 +567,7 @@ QString Controller::pluginViewUrl(const QString &plugin, const QString &view)
         const auto spec = catalog_.definition(plugin);
         const auto resource = spec.value("views").toMap().value(view).toMap().value("qml").toString();
         if (resource.isEmpty()) return {};
-        const auto package = catalog_.package(plugin); package.file(resource);
-        const auto path = QDir(package.materialize()).filePath(resource);
-        return QUrl::fromLocalFile(path).toString();
+        return pluginResourceUrl(plugin,resource);
     } catch (const Error &e) { tell(e.message,"error"); return {}; }
 }
 
@@ -432,8 +589,17 @@ QVariantMap Controller::pluginService(const PluginPackage &package, const QStrin
     }
     return service->transact(node,operation,arguments);
 }
-QObject *Controller::userViewBridge(const QString &node, const QString &view)
+QString Controller::pluginResourceUrl(const QString &plugin, const QString &file) const
 {
+    const auto package = catalog_.package(plugin); package.file(file);
+    const auto key = package.hash()+"/"+file;
+    if (!resourceUrls_.contains(key)) resourceUrls_[key] = QUrl::fromLocalFile(QDir(package.materialize()).filePath(file)).toString();
+    return resourceUrls_.value(key);
+}
+
+QObject *Controller::userViewBridge(const QString &node, const QString &view, const QString &item)
+{
+    if (!item.isEmpty()) return propertyBridge("ui",item);
     const auto key = node + "/" + view;
     if (!viewBridges_.value(key)) viewBridges_[key] = new UserViewBridge(*this,node,view);
     return viewBridges_[key];

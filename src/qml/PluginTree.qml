@@ -9,6 +9,9 @@ ListView {
     property var treeData:[]
     property bool showPlugins:true
     property bool selectionMode:false
+    property bool enableMode:false
+    property bool enableEditable:true
+    property var packageStates:({})
     property var selected:({})
     property var expanded:({})
     property string activePath:""
@@ -18,6 +21,7 @@ ListView {
     property string controlPrefix:"plugin_tree"
     signal categoryChosen(string path)
     signal pluginChosen(string packageId)
+    signal enableRequested(var packages,bool value)
     clip:true;reuseItems:true;boundsBehavior:Flickable.StopAtBounds;spacing:1
     ScrollBar.vertical:ScrollBar{}
     function ids(node){if(node.kind==="plugin")return[node.id];let result=[];(node.children||[]).forEach(n=>result=result.concat(ids(n)));return result}
@@ -25,7 +29,16 @@ ListView {
     function select(node,value,exclusive){const next=exclusive?{}:Object.assign({},selected);ids(node).forEach(id=>{if(value)next[id]=true;else delete next[id]});selected=next}
     function selectAll(){const next={};allIds().forEach(id=>next[id]=true);selected=next}
     function invert(){const next={};allIds().forEach(id=>{if(!selected[id])next[id]=true});selected=next}
-    function state(node){const children=ids(node),count=children.filter(id=>!!selected[id]).length;return !count?Qt.Unchecked:count===children.length?Qt.Checked:Qt.PartiallyChecked}
+    function state(node){
+        const children=ids(node)
+        if(enableMode){
+            const checked=children.filter(id=>packageStates[id]===Qt.Checked).length
+            const unchecked=children.filter(id=>packageStates[id]===undefined||packageStates[id]===Qt.Unchecked).length
+            return !children.length||unchecked===children.length?Qt.Unchecked:checked===children.length?Qt.Checked:Qt.PartiallyChecked
+        }
+        const count=children.filter(id=>!!selected[id]).length
+        return !count?Qt.Unchecked:count===children.length?Qt.Checked:Qt.PartiallyChecked
+    }
     function toggle(path){const next=Object.assign({},expanded);next[path]=expanded[path]===false;expanded=next}
     function expandAll(value){const next={};function visit(nodes){nodes.forEach(n=>{if(n.kind==="folder"){next[n.path]=value;visit(n.children||[])}})}visit(treeData);expanded=next}
     function onlyFolder(){function find(nodes){for(const n of nodes){if(n.kind==="folder"&&n.path===focusedFolder)return n;const nested=find(n.children||[]);if(nested)return nested}return null}const node=find(treeData);if(node)select(node,true,true)}
@@ -56,11 +69,19 @@ ListView {
         }
         Item{visible:row.node.kind!=="folder";Layout.preferredWidth:24;Layout.preferredHeight:1}
         CheckBox {
-            visible:root.selectionMode;tristate:row.node.kind==="folder"
-            objectName:row.node.kind==="folder"?"plugin_export.folder."+row.node.path:"plugin_export.check."+row.node.id
+            visible:root.selectionMode||root.enableMode;tristate:row.node.kind==="folder"||root.enableMode
+            enabled:!root.enableMode||root.enableEditable
+            objectName:root.enableMode?"plugins.enabled."+(row.node.kind==="folder"?"folder."+row.node.path:"package."+row.node.id):row.node.kind==="folder"?"plugin_export.folder."+row.node.path:"plugin_export.check."+row.node.id
             checkState:root.state(row.node)
             nextCheckState:function(){return checkState===Qt.Checked?Qt.Unchecked:Qt.Checked}
-            onClicked:root.select(row.node,checkState===Qt.Checked,false)
+            onClicked:{
+                if(root.enableMode){
+                    root.enableRequested(root.ids(row.node),checkState===Qt.Checked)
+                    // Rebind after either a rejected request or an async update;
+                    // persisted enable state remains the checkbox's authority.
+                    checkState=Qt.binding(()=>root.state(row.node))
+                }else root.select(row.node,checkState===Qt.Checked,false)
+            }
         }
         ItemDelegate {
             id:entry

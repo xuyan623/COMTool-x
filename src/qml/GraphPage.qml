@@ -304,7 +304,7 @@ Item {
             }
             ListView {
                 id:results;Layout.fillWidth:true;Layout.fillHeight:true;clip:true;currentIndex:0
-                model:{App.registry;return App.catalogEntries(search.text,[],"all").filter(p=>!p.id.startsWith("layout."))}
+                model:{App.registry;return App.catalogEntries(search.text,[],"all").filter(p=>(p.kind||"node")==="node")}
                 delegate:ItemDelegate{required property var modelData;required property int index;width:results.width;height:54;highlighted:ListView.isCurrentItem
                     function place(){root.placement={plugin:modelData.id};root.cursorWorld=root.addPosition;quick.close();viewport.forceActiveFocus()}
                     contentItem:Column{spacing:3;Label{text:modelData.name;color:Theme.text}Label{text:modelData.description;color:Theme.muted;font.pixelSize:11;width:parent.width;elide:Text.ElideRight}}

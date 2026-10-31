@@ -90,7 +90,7 @@ int main(int argc, char **argv)
                     if (!response.value("ok").toBool()) { output = response; break; }
                     const auto result = response.value("result").toMap(); const auto state = result.value("state").toString();
                     if (state == "complete") { completedJobs[jobId] = result.value("result"); complete = true; break; }
-                    if (state == "failed" || state == "missing") { output = {{"ok",false},{"error",result.value("error","后台任务不存在或已失败")}}; break; }
+                    if (state == "failed" || state == "cancelled" || state == "missing") { output = {{"ok",false},{"error",result.value("error","后台任务不存在或已结束")}}; break; }
                     QThread::msleep(25);
                 }
                 if (!output.value("ok").toBool()) break;

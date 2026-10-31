@@ -7,7 +7,14 @@ Dialog {
     modal:true;anchors.centerIn:parent;width:Math.min(700,parent.width-48)
     property var pending:({})
     property var choices:({})
-    function present(){pending=App.pendingPluginOpen;choices=Object.assign({},pending.plugin_selections||{});open()}
+    function present(){
+        pending=App.pendingPluginOpen
+        // A project that carries its own copies is reproducible by default.
+        // Only conflicts without a project copy need an explicit local choice.
+        const next=Object.assign({},pending.plugin_selections||{})
+        for(const row of pending.conflicts||[]) if(!next[row.id]&&row.project_available!==false) next[row.id]="project"
+        choices=next;open()
+    }
     ColumnLayout {
         width:root.availableWidth;spacing:14
         Label{Layout.fillWidth:true;wrapMode:Text.WordWrap;color:Theme.text;text:root.pending.requires_plugins?"此工程只记录了以下插件依赖，本机尚未具备。请先导入所需插件，再重新打开工程。":root.pending.requires_restart?"此插件的其他版本已经加载。重启后可使用刚才选择的版本打开工程。":"工程内插件与本机插件不同。请选择本次打开工程使用的版本。"}

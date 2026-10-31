@@ -19,10 +19,12 @@ class Controller;
 class Workspaces final : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantList windows READ windows NOTIFY changed)
+    Q_PROPERTY(QVariantList available READ available NOTIFY changed)
 public:
     Workspaces(QQmlEngine *engine, Controller &controller);
     ~Workspaces() override;
     QVariantList windows() const;
+    QVariantList available() const;
     QVariantMap state() const;
     QList<QQuickWindow *> nativeWindows() const;
     QList<QQuickItem *> pageItems() const;
@@ -50,11 +52,13 @@ private:
     QQuickItem *ensurePage(const QString &key);
     void synchronize();
     void removeEmpty(const QString &host);
+    void refreshPages();
     QString owningHost(const QString &page) const;
     QQmlEngine *engine_;
     Controller &controller_;
     QMap<QString,Host> hosts_;
     QMap<QString,QPointer<QQuickItem>> pages_;
+    QMap<QString,QString> pageHashes_;
     QString session_;
 };
 }

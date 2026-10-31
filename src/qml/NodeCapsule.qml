@@ -37,7 +37,7 @@ Item {
         Item {
             width:parent.width; height:34
             Text { anchors.centerIn:parent; visible:!!root.geometry.symbol; text:root.geometry.symbol||""; font.family:"Cambria Math"; font.pixelSize:27; color:Theme.text }
-            Image { anchors.centerIn:parent; visible:!root.geometry.symbol; width:32;height:32;source:"image://icons/"+(root.geometry.icon||"graph")+"/"+encodeURIComponent(Theme.text.toString());sourceSize.width:64;sourceSize.height:64 }
+            Image { anchors.centerIn:parent; visible:!root.geometry.symbol; width:32;height:32;source:root.geometry.icon_url||"image://icons/"+(root.geometry.icon||"graph")+"/"+encodeURIComponent(Theme.text.toString());sourceSize.width:64;sourceSize.height:64 }
         }
         Text { width:parent.width; text:root.geometry.title||"";font.pixelSize:12;font.family:"Microsoft YaHei UI";color:Theme.text;horizontalAlignment:Text.AlignHCenter;elide:Text.ElideRight;maximumLineCount:2;wrapMode:Text.Wrap }
     }

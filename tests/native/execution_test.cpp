@@ -51,6 +51,7 @@ private slots:
     void localPython();
     void localPythonBooleanUpdates();
     void enginePauseInterruptsPython();
+    void packageIsolationAndAsyncCancellation();
 };
 
 void ExecutionTest::nativeCatalogConstructs()
@@ -246,6 +247,71 @@ void ExecutionTest::enginePauseInterruptsPython()
     QVERIFY(!engine.observation().value("running").toBool()); QCOMPARE(engine.observation().value("failed").toULongLong(),0ull);
     QVERIFY(engine.observation().value("errors").toMap().isEmpty());
     request(engine,"runtime.reset"); engine.shutdown(); running = nullptr;
+}
+
+void ExecutionTest::packageIsolationAndAsyncCancellation()
+{
+    const auto path = qEnvironmentVariable("CORIG_TEST_PYTHON");
+    if (path.isEmpty()) QSKIP("Set CORIG_TEST_PYTHON to verify real package worker processes");
+    corig::PythonHost python([] { return false; }); python.selectInterpreter(path);
+    const QString code = QString::fromUtf8(R"PY(
+import os,time
+def process(inputs,state):
+    state['count']=state.get('count',0)+1
+    return {'pid':os.getpid(),'count':state['count']}
+def validate(config,context):
+    if config.get('bad'): raise ValueError('business rejection')
+    return config
+def invalid(inputs,state):
+    state['count']=999
+    return object()
+def action_work(inputs,state,context):
+    for index in range(40):
+        context.sleep(.01)
+        context.progress((index+1)/40)
+    state['finished']=True
+    return {'result':inputs['value']*2}
+def action_uncooperative(inputs,state,context):
+    time.sleep(4)
+    state['wrong']=True
+    return {'result':1}
+)PY");
+    const auto call = [&](const QString &package, const QString &node, const QString &entry = "process", const QString &operation = "call", const QVariantMap &extra = QVariantMap{}) {
+        QVariantMap args{{"package",package},{"node",node},{"code",code},{"entry",entry},{"op",operation},{"inputs",QVariantMap{{"value",7}}}};
+        for (auto i = extra.cbegin(); i != extra.cend(); ++i) args[i.key()] = i.value();
+        return python.call(args);
+    };
+    const auto alpha = call("package.a","same").value("result").toMap();
+    const auto sibling = call("package.a","sibling").value("result").toMap();
+    const auto beta = call("package.b","same").value("result").toMap();
+    QCOMPARE(alpha.value("pid"),sibling.value("pid")); QVERIFY(alpha.value("pid") != beta.value("pid"));
+    QCOMPARE(sibling.value("count").toInt(),1);
+    QCOMPARE(call("package.a","same").value("result").toMap().value("count").toInt(),2);
+    QVERIFY_THROWS_EXCEPTION(corig::Error,call("package.a","same","invalid"));
+    QCOMPARE(call("package.a","same").value("result").toMap().value("count").toInt(),3);
+
+    // Metadata cannot collide with the actual node, even with an identical ID.
+    QVERIFY_THROWS_EXCEPTION(corig::Error,call("package.a","same","validate","metadata",{{"config",QVariantMap{{"bad",true}}}}));
+    QCOMPARE(call("package.a","same").value("result").toMap().value("count").toInt(),4);
+    const auto started = call("package.a","same","action_work","task.start");
+    const auto task = started.value("result").toMap().value("python_task").toString();
+    QVERIFY(!task.isEmpty()); QVERIFY(python.task(task).value("state") != "complete");
+    python.call({{"package","package.a"},{"node","same"},{"op","lifecycle"},{"phase","pause"},{"metadata",true}});
+    const auto progress = python.task(task).value("progress").toDouble(); QTest::qWait(70);
+    QCOMPARE(python.task(task).value("progress").toDouble(),progress);
+    python.call({{"package","package.a"},{"node","same"},{"op","lifecycle"},{"phase","resume"},{"metadata",true}});
+    QTRY_COMPARE_WITH_TIMEOUT(python.task(task).value("state").toString(),QString("complete"),3000);
+    QCOMPARE(python.task(task).value("result").toMap().value("result").toInt(),14);
+    QCOMPARE(python.task(task).value("script_state").toMap().value("count").toInt(),4);
+    const auto cancel = call("package.a","same","action_work","task.start").value("result").toMap().value("python_task").toString();
+    QCOMPARE(python.cancelTask(cancel).value("state").toString(),QString("cancelled"));
+    QCOMPARE(call("package.a","same").value("result").toMap().value("pid"),alpha.value("pid"));
+    const auto forced = call("package.a","same","action_uncooperative","task.start").value("result").toMap().value("python_task").toString();
+    QCOMPARE(python.cancelTask(forced).value("state").toString(),QString("cancelled"));
+    QCOMPARE(call("package.b","same").value("result").toMap().value("pid"),beta.value("pid"));
+    const auto restarted = call("package.a","same").value("result").toMap();
+    QVERIFY(restarted.value("pid") != alpha.value("pid")); QCOMPARE(restarted.value("count").toInt(),1);
+    python.close();
 }
 
 QTEST_GUILESS_MAIN(ExecutionTest)

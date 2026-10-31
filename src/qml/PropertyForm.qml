@@ -1,0 +1,133 @@
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import QtQuick.Dialogs
+
+// The standard form owns only field rendering. The shared session retains
+// drafts, validates a complete commit and records the single undo operation.
+ColumnLayout {
+    id: root
+    property var bridge: null
+    property var schema: bridge ? bridge.schema : ({})
+    property var values: bridge ? bridge.draft : ({})
+    property string section: "main"
+    property bool immediate: true
+    property bool editable: bridge ? bridge.editable : false
+    property string fileKey: ""
+    signal valueEdited(string key, var value)
+    spacing: 10
+
+    function caption(key) {
+        const names = {grid_size:"网格粒度 / px",x:"横坐标",y:"纵坐标",width:"宽度",height:"高度",title:"标题",stretch:"伸缩权重",gap:"间距",padding:"内边距",font_size:"字号",font_family:"字体",color:"颜色",background:"背景",min_width:"最小宽度",min_height:"最小高度",max_width:"最大宽度",max_height:"最大高度",row:"行",column:"列",rowspan:"跨行",colspan:"跨列",current_index:"当前页",value:"数值",label:"标签",minimum:"最小值",maximum:"最大值",step:"步长",decimals:"小数位",unit:"单位",channels:"通道",inputs:"输入端口",outputs:"输出端口",code:"Python 代码",timeout_ms:"执行时限 / ms",period_ms:"周期 / ms",port:"端口",baudrate:"波特率",bytesize:"数据位",parity:"校验",stopbits:"停止位",flow_control:"流控",host:"主机",user:"用户",password:"密码",protocol:"协议",mode:"模式",format:"格式",encoding:"编码",newline:"换行",columns:"列数",window_seconds:"显示时长 / s",max_points:"保留点数",visibility:"通道显隐",colors:"通道颜色",line_width:"曲线宽度",path:"文件路径",auto_reconnect:"自动重连",reconnect_interval:"重连间隔 / s",template:"文本模板",choices:"选项",text:"文本",initial:"初值",cutoff_hz:"截止频率 / Hz",time_unit:"时间单位",routing:"路径",points:"路径点"}
+        return names[key] || key
+    }
+    function put(key, value) {
+        if (!bridge) { valueEdited(key, value); return }
+        let changes = {}; changes[key] = value
+        const result = bridge.stage(changes)
+        if (!result.error && immediate) bridge.commit()
+    }
+    // Incomplete text remains a draft until it can satisfy its declared type.
+    // A focus change must not turn "-" or a partial JSON object into a failed
+    // commit and an apparently lost edit; the user can finish or press apply.
+    function complete(key, value) {
+        const type = (root.schema[key] || {}).type
+        if (type === "number" || type === "integer") {
+            const number = Number(value)
+            return value.trim().length > 0 && isFinite(number) && (type !== "integer" || Number.isInteger(number))
+        }
+        if (type === "json" || type === "object" || type === "array") {
+            try { JSON.parse(value); return true } catch (error) { return false }
+        }
+        return true
+    }
+    function text(key, value, finish) {
+        if (!bridge) { if (finish) valueEdited(key, value); return }
+        const staged = bridge.stageText(key, value)
+        if (finish && immediate && !staged.error && complete(key, value)) bridge.commit()
+    }
+    Repeater {
+        model: Object.keys(root.schema).filter(key => root.section === "all" || (root.schema[key].section || "main") === root.section)
+        ColumnLayout {
+            id: field
+            required property string modelData
+            property var spec: root.schema[modelData] || ({})
+            property var value: root.values[modelData]
+            property bool editable: root.editable && (!root.bridge || root.bridge.scope !== "node" || !App.runtime.running || !!spec.runtime_editable)
+            function display() {
+                const raw = root.bridge ? root.bridge.textDraft : ({})
+                if (Object.prototype.hasOwnProperty.call(raw, modelData)) return raw[modelData]
+                return value === undefined ? "" : typeof value === "object" ? JSON.stringify(value, null, 2) : String(value)
+            }
+            Layout.fillWidth: true; spacing: 4
+            visible: {
+                const rules = spec.visible_if || ({})
+                return Object.keys(rules).every(key => rules[key].indexOf(root.values[key]) >= 0)
+            }
+            Label { text: field.spec.label || root.caption(field.modelData); color: Theme.muted; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+            Loader {
+                Layout.fillWidth: true
+                sourceComponent: field.spec.format === "port_count" ? countEditor : field.spec.choices ? choiceEditor : field.spec.type === "boolean" ? boolEditor : field.modelData === "code" || ["json","object","array"].indexOf(field.spec.type) >= 0 || typeof field.value === "object" ? jsonEditor : textEditor
+            }
+            Component {
+                id: countEditor
+                SpinBox {
+                    objectName: "property." + field.modelData
+                    from: field.spec.min_items; to: field.spec.max_items; value: (field.value || []).length; editable: true; enabled: field.editable
+                    onValueModified: {
+                        let names = (field.value || []).slice(0, value)
+                        for (let i = 0; names.length < value; ++i) {
+                            const name = i < 26 ? String.fromCharCode(97 + i) : "out" + (i + 1)
+                            if (names.indexOf(name) < 0) names.push(name)
+                        }
+                        root.put(field.modelData, names)
+                    }
+                }
+            }
+            Component { id: boolEditor; ToggleSwitch { objectName:"property."+field.modelData; checked:!!field.value; text:checked?"开启":"关闭"; enabled:field.editable; onClicked:root.put(field.modelData,checked) } }
+            Component {
+                id: choiceEditor
+                ComboBox {
+                    objectName:"property."+field.modelData; model:field.spec.choices; enabled:field.editable
+                    currentIndex:Math.max(0,field.spec.choices.indexOf(field.value))
+                    displayText:(field.spec.choice_labels||{})[currentValue]||String(currentValue===undefined?"":currentValue)
+                    onActivated:root.put(field.modelData,currentValue)
+                }
+            }
+            Component {
+                id: textEditor
+                RowLayout {
+                    TextField {
+                        objectName:"property."+field.modelData; Layout.fillWidth:true; enabled:field.editable; selectByMouse:true
+                        text:field.display(); echoMode:field.spec.secret?TextInput.Password:TextInput.Normal
+                        onTextEdited:root.text(field.modelData,text,false)
+                        onEditingFinished: {
+                            if (root.bridge) root.text(field.modelData,text,true)
+                            else root.valueEdited(field.modelData,field.spec.type==="number"||field.spec.type==="integer"?Number(text):text)
+                        }
+                    }
+                    ActionButton { text:"…"; implicitWidth:30; visible:field.spec.format==="file"||field.spec.format==="external_file"; enabled:field.editable; onClicked:{root.fileKey=field.modelData;resourceFile.open()} }
+                }
+            }
+            Component {
+                id: jsonEditor
+                ColumnLayout {
+                    TextArea {
+                        id:jsonText; objectName:"property."+field.modelData; Layout.fillWidth:true; Layout.preferredHeight:field.modelData==="code"?220:94
+                        enabled:field.editable; text:field.display(); selectByMouse:true; wrapMode:Text.WrapAnywhere; font.family:"Consolas"; font.pixelSize:12
+                        onTextChanged:if(activeFocus&&text!==field.display())root.text(field.modelData,text,false)
+                    }
+                    ActionButton {
+                        text:"应用"; enabled:field.editable; visible:root.immediate
+                        onClicked: {
+                            if (root.bridge) { root.text(field.modelData,jsonText.text,false);root.bridge.commit() }
+                            else try { root.valueEdited(field.modelData,JSON.parse(jsonText.text)) } catch(error) { jsonText.forceActiveFocus() }
+                        }
+                    }
+                }
+            }
+            Label { visible:!!field.spec.description; text:field.spec.description||""; color:Theme.muted; font.pixelSize:11; wrapMode:Text.WordWrap; Layout.fillWidth:true }
+        }
+    }
+    FileDialog { id:resourceFile; title:"选择文件"; onAccepted:root.put(root.fileKey,decodeURIComponent(selectedFile.toString().replace(/^file:\/\/\//,""))) }
+}

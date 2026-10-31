@@ -16,7 +16,11 @@ namespace corig {
 static const QMap<QString,QString> Titles{{"graph","功能设计"},{"layout","界面设计"},{"runtime","运行界面"},{"logs","日志"},{"library","插件库"}};
 static const QMap<QString,QString> Components{{"graph","GraphPage"},{"layout","LayoutPage"},{"runtime","RuntimePage"},{"logs","LogPage"},{"library","LibraryPage"}};
 
-Workspaces::Workspaces(QQmlEngine *engine, Controller &controller) : engine_(engine), controller_(controller), session_(newId("session")) {}
+Workspaces::Workspaces(QQmlEngine *engine, Controller &controller) : engine_(engine), controller_(controller), session_(newId("session"))
+{
+    connect(&controller_,&Controller::projectChanged,this,&Workspaces::refreshPages);
+    connect(&controller_,&Controller::catalogChanged,this,&Workspaces::refreshPages);
+}
 
 Workspaces::~Workspaces()
 {
@@ -55,12 +59,54 @@ QString Workspaces::createWindow(const QPoint &position, bool child)
 
 QQuickItem *Workspaces::ensurePage(const QString &key)
 {
-    if (!Components.contains(key)) throw Error("未知工作区：" + key);
     if (pages_.value(key)) return pages_.value(key);
-    QQmlComponent component(engine_,QUrl("qrc:/qt/qml/CoRig/" + Components.value(key) + ".qml"));
-    const auto object = component.create(); auto item = qobject_cast<QQuickItem *>(object);
+    const bool builtin = Components.contains(key);
+    if (!builtin && controller_.catalog_.kind(key) != "workspace") throw Error("插件不是工作区："+key);
+    QQmlComponent component(engine_,QUrl("qrc:/qt/qml/CoRig/" + (builtin ? Components.value(key) : QString("PluginWorkspace")) + ".qml"));
+    const auto object = builtin ? component.create() : component.createWithInitialProperties({{"plugin",key}});
+    auto item = qobject_cast<QQuickItem *>(object);
     if (!item) { delete object; throw Error("页面创建失败：" + component.errorString()); }
+    if (!builtin) pageHashes_[key] = controller_.catalog_.definition(key).value("package_hash").toString();
     item->setParent(this); item->setVisible(false); pages_.insert(key,item); return item;
+}
+
+QVariantList Workspaces::available() const
+{
+    QVariantList result;
+    for (const auto &key : {"graph","layout","runtime","logs","library"}) result.append(QVariantMap{{"key",key},{"title",Titles.value(key)},{"icon",key},{"builtin",true}});
+    for (const auto &entry : controller_.catalog_.search({})) {
+        const auto spec = entry.toMap();
+        if (spec.value("kind") == "workspace") result.append(QVariantMap{{"key",spec.value("id")},{"title",spec.value("name")},{"icon","layout"},{"builtin",false}});
+    }
+    return result;
+}
+
+void Workspaces::refreshPages()
+{
+    // Reopening a project must not retain a removed page or the previous
+    // package's QML. Ordinary property edits keep the actual page instance.
+    bool updated = false;
+    const auto keys = pageHashes_.keys();
+    for (const auto &key : keys) {
+        if (!controller_.project_.value("workspaces").toMap().contains(key)) {
+            for (auto &host : hosts_) {
+                const auto index = host.tabs.indexOf(key); if (index < 0) continue;
+                host.tabs.removeAt(index);
+                if (host.active == key) host.active = host.tabs.isEmpty() ? QString{} : host.tabs[std::min(index,host.tabs.size()-1)];
+            }
+            const auto item = pages_.take(key);
+            if (item) { item->setVisible(false); item->setParentItem(nullptr); item->deleteLater(); }
+            pageHashes_.remove(key); updated = true;
+        } else {
+            const auto hash = controller_.catalog_.definition(key).value("package_hash").toString();
+            if (hash == pageHashes_.value(key)) continue;
+            const auto item = pages_.take(key);
+            if (item) { item->setVisible(false); item->setParentItem(nullptr); item->deleteLater(); }
+            ensurePage(key); updated = true;
+        }
+    }
+    if (updated) { for (const auto &id : hosts_.keys()) removeEmpty(id); synchronize(); }
+    else emit changed();
 }
 
 QString Workspaces::owningHost(const QString &page) const
@@ -74,7 +120,7 @@ void Workspaces::synchronize()
     for (const auto &host : hosts_) if (host.window) {
         host.window->setProperty("childWindow",host.child); host.window->setProperty("pinned",host.pinned);
         QVariantList tabs;
-        for (const auto &key : host.tabs) tabs.append(QVariantMap{{"key",key},{"title",Titles.value(key)}});
+        for (const auto &key : host.tabs) tabs.append(QVariantMap{{"key",key},{"title",Titles.contains(key)?Titles.value(key):controller_.catalog_.definition(key).value("name").toString()},{"icon",Titles.contains(key)?key:QString("layout")}});
         host.window->setProperty("tabs",tabs); host.window->setProperty("activePage",host.active);
         auto content = host.window->findChild<QQuickItem *>("workspace.content");
         if (!content) throw Error("窗口缺少工作区容器");
@@ -88,6 +134,11 @@ void Workspaces::synchronize()
 
 QVariantMap Workspaces::open(const QString &key, const QString &preferredWindow)
 {
+    const QVariantMap arguments{{"page",key},{"window",preferredWindow}};
+    const auto guard = controller_.draftGuard("workspace.open",arguments);
+    if (!guard.isEmpty()) { emit controller_.draftResolutionRequested("workspace.open",arguments,guard.value("drafts").toList()); return guard; }
+    if (!Components.contains(key) && !controller_.project_.value("workspaces").toMap().contains(key))
+        controller_.command("workspace.configure",{{"page",key},{"changes",QVariantMap{}}});
     ensurePage(key);
     auto owner = owningHost(key);
     // The library is a unique project-owned browser, opened in a compact child
@@ -120,6 +171,9 @@ void Workspaces::removeEmpty(const QString &host)
 
 QVariantMap Workspaces::closePage(const QString &key, bool discard)
 {
+    const QVariantMap arguments{{"page",key},{"discard",discard}};
+    const auto guard = controller_.draftGuard("workspace.close",arguments);
+    if (!guard.isEmpty()) { emit controller_.draftResolutionRequested("workspace.close",arguments,guard.value("drafts").toList()); return guard; }
     const auto owner = owningHost(key);
     if (owner.isEmpty()) return {{"closed",false}};
     if (hosts_[owner].tabs.size() == 1) {
@@ -136,6 +190,9 @@ QVariantMap Workspaces::closePage(const QString &key, bool discard)
 bool Workspaces::closeWindow(const QString &id, bool discard)
 {
     if (!hosts_.contains(id)) return true;
+    const QVariantMap arguments{{"window",id},{"discard",discard}};
+    const auto guard = controller_.draftGuard("window.close",arguments);
+    if (!guard.isEmpty()) { emit controller_.draftResolutionRequested("window.close",arguments,guard.value("drafts").toList()); return false; }
     if (hosts_.size() == 1 && !controller_.confirmExit(id,discard)) return false;
     const auto host = hosts_.take(id);
     if (!host.child && !hosts_.isEmpty()) promoteMain();
@@ -170,7 +227,8 @@ void Workspaces::dragPage(const QString &key)
     if (owningHost(key).isEmpty()) return;
     QDrag drag(this); auto mime = new QMimeData;
     mime->setData("application/x-corig-workspace",QJsonDocument::fromVariant(QVariantMap{{"session",session_},{"page",key}}).toJson(QJsonDocument::Compact)); drag.setMimeData(mime);
-    QPixmap preview(170,34); preview.fill(QColor("#243446")); QPainter painter(&preview); painter.setPen(QColor("#E6EDF5")); painter.drawText(preview.rect().adjusted(12,0,-8,0),Qt::AlignVCenter,Titles.value(key)); painter.end();
+    const auto title = Titles.contains(key) ? Titles.value(key) : controller_.catalog_.definition(key).value("name").toString();
+    QPixmap preview(170,34); preview.fill(QColor("#243446")); QPainter painter(&preview); painter.setPen(QColor("#E6EDF5")); painter.drawText(preview.rect().adjusted(12,0,-8,0),Qt::AlignVCenter,title); painter.end();
     drag.setPixmap(preview); drag.setHotSpot({50,17});
     const auto result = drag.exec(Qt::MoveAction);
     // Escape cancels; releasing outside every tab strip detaches the page.
@@ -188,7 +246,7 @@ void Workspaces::cycle(const QString &window, int direction)
 {
     if (!hosts_.contains(window) || hosts_[window].tabs.isEmpty()) return;
     auto &host = hosts_[window]; const auto index = host.tabs.indexOf(host.active);
-    host.active = host.tabs[(index + direction + host.tabs.size()) % host.tabs.size()]; synchronize();
+    open(host.tabs[(index + direction + host.tabs.size()) % host.tabs.size()],window);
 }
 
 QVariantList Workspaces::windows() const

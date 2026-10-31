@@ -21,6 +21,7 @@ class QQuickItem;
 namespace corig {
 class Workspaces;
 class ApiServer;
+class PropertySession;
 
 class Controller final : public QObject {
     Q_OBJECT
@@ -85,6 +86,9 @@ public:
     Q_INVOKABLE QVariantMap definition(const QString &id) const;
     Q_INVOKABLE QVariantMap uiItem(const QString &id) const;
     Q_INVOKABLE QVariantMap inspector() const;
+    Q_INVOKABLE QVariantMap propertyInfo(const QString &scope, const QString &target) const;
+    Q_INVOKABLE QObject *propertyBridge(const QString &scope, const QString &target);
+    Q_INVOKABLE QVariantMap containerLayout(const QString &plugin, const QVariantMap &properties, const QVariantList &children, double width, double height, int grid) const;
     Q_INVOKABLE QVariantList catalogEntries(const QString &query, const QStringList &category = {}, const QString &scope = "all") const;
     Q_INVOKABLE QVariantMap previewGeometry(const QString &plugin, const QVariantMap &config = {}) const;
     Q_INVOKABLE QVariantMap connectionOptions(const QString &node, const QString &port) const;
@@ -100,7 +104,8 @@ public:
     Q_INVOKABLE void registerView(QObject *item, const QString &node, const QString &view);
     Q_INVOKABLE QString userViewUrl(const QString &node, const QString &view);
     Q_INVOKABLE QString pluginViewUrl(const QString &plugin, const QString &view);
-    Q_INVOKABLE QObject *userViewBridge(const QString &node, const QString &view);
+    Q_INVOKABLE QString pluginResourceUrl(const QString &plugin, const QString &file) const;
+    Q_INVOKABLE QObject *userViewBridge(const QString &node, const QString &view, const QString &item = {});
 signals:
     void projectChanged();
     void runtimeChanged();
@@ -117,6 +122,8 @@ signals:
     void pluginOpenRequested();
     void pluginSettingsRequested();
     void pluginExportRequested(const QString &scope, const QString &plugin);
+    void configurationConfirmationRequested(const QString &operation, const QVariantMap &arguments, const QVariantMap &plan);
+    void draftResolutionRequested(const QString &operation, const QVariantMap &arguments, const QVariantList &drafts);
 private:
     friend class Workspaces;
     QVariantMap appState() const;
@@ -136,6 +143,8 @@ private:
     QVariantMap importPlugin(const QString &path) const;
     QVariantMap pluginService(const PluginPackage &package, const QString &node, const QString &operation, const QVariantMap &arguments);
     void requireEditable(bool layout = false) const;
+    QVariantList dirtyProperties(const QString &scope = {}, const QString &target = {}) const;
+    QVariantMap draftGuard(const QString &operation, const QVariantMap &arguments);
     QString dataDirectory_, projectPath_, selected_, selectedKind_ = "node", theme_ = "dark", notice_ = "就绪", noticeLevel_ = "info";
     QStringList selectedNodes_;
     QString libraryTarget_ = "graph";
@@ -159,6 +168,8 @@ private:
     QSet<QString> viewPending_;
     QHash<QString,QList<QPointer<QObject>>> viewItems_;
     QHash<QString,QPointer<QObject>> viewBridges_;
+    QHash<QString,QPointer<PropertySession>> propertySessions_;
+    mutable QHash<QString,QString> resourceUrls_;
     QHash<QString,std::shared_ptr<QTemporaryDir>> pluginDirectories_;
     QVector<QVariantMap> undo_, redo_;
     QElapsedTimer viewClock_;

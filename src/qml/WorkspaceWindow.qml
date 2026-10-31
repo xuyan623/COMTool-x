@@ -33,6 +33,9 @@ ApplicationWindow {
     palette.light: Theme.raised
 
     function requestAction(action) {
+        propertyDialogs.guard(()=>requestResolvedAction(action))
+    }
+    function requestResolvedAction(action) {
         pendingAction = action
         if (App.dirty) unsaved.open()
         else continueAction()
@@ -47,7 +50,8 @@ ApplicationWindow {
         if (App.projectPath.length) savingJob = App.invoke("project.save", {}).job || ""
         else projectSaveOptions.present("save")
     }
-    onClosing: close => { close.accepted = App.workspaces.closeWindow(hostId, false) }
+    onClosing: close => { close.accepted = !!App.invoke("window.close",{window:hostId}).closed }
+    PropertyDialogs { id:propertyDialogs; anchors.fill:parent; hostId:win.hostId }
     Connections {
         target: App
         function onExitConfirmation(window) { if (window === hostId) { pendingAction = "close"; unsaved.open() } }
@@ -91,7 +95,7 @@ ApplicationWindow {
         Menu {
             title: "工作区"
             Repeater {
-                model: [{key:"graph", title:"功能设计"}, {key:"layout", title:"界面设计"}, {key:"runtime", title:"运行界面"}, {key:"logs", title:"日志"}, {key:"library", title:"插件库"}]
+                model: App.workspaces.available
                 MenuItem { required property var modelData; text: modelData.title; onTriggered: App.workspaces.open(modelData.key, hostId) }
             }
         }
@@ -99,6 +103,8 @@ ApplicationWindow {
             title: "设置"
             Action { text:"插件管理…";onTriggered:pluginSettings.open() }
             Action { text: "本地 Python 环境…"; onTriggered: { pythonInput.text = App.pythonPath; pythonSettings.open() } }
+            Action { text:"资源额度…";onTriggered:resourceSettings.open() }
+            Action { text:"后台任务…";onTriggered:backgroundTasks.open() }
             Action { text: Theme.dark ? "切换浅色主题" : "切换深色主题"; onTriggered: App.invoke("preferences.set", {theme: Theme.dark ? "light" : "dark"}) }
         }
         Menu {
@@ -123,7 +129,7 @@ ApplicationWindow {
                         objectName:"workspace.tab."+modelData.key;width:140;height:38
                         color:modelData.key===win.activePage?Theme.panel:hover.containsMouse?Theme.raised:"transparent"
                         Rectangle{anchors.bottom:parent.bottom;width:parent.width;height:2;color:Theme.blue;visible:tab.modelData.key===win.activePage}
-                        Image{x:10;anchors.verticalCenter:parent.verticalCenter;width:18;height:18;source:"image://icons/"+tab.modelData.key+"/"+encodeURIComponent((tab.modelData.key===win.activePage?Theme.text:Theme.muted).toString());sourceSize.width:36;sourceSize.height:36}
+                        Image{x:10;anchors.verticalCenter:parent.verticalCenter;width:18;height:18;source:"image://icons/"+(tab.modelData.icon||tab.modelData.key)+"/"+encodeURIComponent((tab.modelData.key===win.activePage?Theme.text:Theme.muted).toString());sourceSize.width:36;sourceSize.height:36}
                         Label{x:35;width:72;anchors.verticalCenter:parent.verticalCenter;text:tab.modelData.title;elide:Text.ElideRight;color:tab.modelData.key===win.activePage?Theme.text:Theme.muted}
                         MouseArea {
                             id:hover;anchors.fill:parent;hoverEnabled:true;acceptedButtons:Qt.LeftButton|Qt.RightButton
@@ -152,34 +158,48 @@ ApplicationWindow {
             Label{anchors.centerIn:parent;visible:!win.activePage.length;text:"工作区已移至子窗口。\n从“工作区”菜单打开或定位页面。";color:Theme.muted;horizontalAlignment:Text.AlignHCenter;lineHeight:1.5}
         }
         Rectangle{visible:!win.childWindow;Layout.fillWidth:true;height:visible?1:0;color:Theme.border}
+        // Share one compact row: controls keep their width, notices use the
+        // remaining space, and the single runtime summary stays right aligned.
         Rectangle {
-            visible:!win.childWindow;Layout.fillWidth:true;Layout.preferredHeight:visible?42:0;color:Theme.panel
-            RowLayout{objectName:"execution.toolbar";anchors.fill:parent;spacing:4;DebugControls{Layout.leftMargin:8}Item{Layout.fillWidth:true}}
-        }
-        Rectangle {
-            visible:!win.childWindow;Layout.fillWidth:true;Layout.preferredHeight:visible?27:0;color:Theme.panel
+            visible:!win.childWindow;Layout.fillWidth:true;Layout.preferredHeight:visible?40:0;color:Theme.panel
             RowLayout {
-                anchors.fill:parent;spacing:14
-                Label{Layout.leftMargin:12;Layout.fillWidth:true;text:App.notice;elide:Text.ElideRight;color:App.noticeLevel==="error"?Theme.error:Theme.muted;font.pixelSize:12}
+                objectName:"execution.toolbar"
+                anchors.fill:parent;anchors.leftMargin:8;anchors.rightMargin:12;spacing:12
+                DebugControls{Layout.alignment:Qt.AlignVCenter}
+                Rectangle{implicitWidth:1;implicitHeight:20;color:Theme.border;Layout.alignment:Qt.AlignVCenter}
+                Label {
+                    objectName:"execution.notice";Layout.fillWidth:true;Layout.minimumWidth:0
+                    text:App.notice;elide:Text.ElideRight;color:App.noticeLevel==="error"?Theme.error:Theme.muted;font.pixelSize:12
+                    ToolTip.visible:noticeHover.hovered&&truncated;ToolTip.delay:400;ToolTip.text:text
+                    HoverHandler{id:noticeHover}
+                }
                 BusyIndicator{running:App.busy;visible:running;implicitWidth:20;implicitHeight:20}
-                Label{text:App.readOnly?"只读":"编辑";color:Theme.muted;font.pixelSize:12}
-                Label{text:App.runtime.running?"运行中":App.runtime.active?"已暂停":"已停止";color:App.runtime.running?Theme.green:Theme.muted;font.pixelSize:12}
-                Label{Layout.rightMargin:12;text:Number(App.runtime.elapsed||0).toFixed(2)+" s";color:Theme.muted;font.family:"Consolas";font.pixelSize:12}
+                RowLayout {
+                    objectName:"execution.summary";spacing:12
+                    Label{objectName:"execution.mode";text:App.runtime.debug?"调试":"普通";color:Theme.muted;font.pixelSize:12}
+                    Label{objectName:"execution.access";text:App.readOnly?"只读":"编辑";color:Theme.muted;font.pixelSize:12}
+                    Label {
+                        objectName:"execution.status"
+                        text:App.executionPending?"执行操作中":App.runtime.running?"运行中":App.runtime.active?"已暂停":"已停止"
+                        color:App.runtime.running?Theme.green:Theme.muted;font.pixelSize:12
+                        ToolTip.visible:statusHover.hovered
+                        ToolTip.text:(App.runtime.cursor||{}).next_node?"批次 "+App.runtime.cursor.batch+"，下一节点 "+App.runtime.cursor.next_node:"当前没有未完成批次"
+                        HoverHandler{id:statusHover}
+                    }
+                    Label{objectName:"execution.elapsed";text:Number(App.runtime.elapsed||0).toFixed(2)+" s";color:Theme.muted;font.family:"Consolas";font.pixelSize:12}
+                }
             }
         }
     }
     Menu {
         id: pagesMenu
-        MenuItem { text: "功能设计"; onTriggered: App.workspaces.open("graph", win.hostId) }
-        MenuItem { text: "界面设计"; onTriggered: App.workspaces.open("layout", win.hostId) }
-        MenuItem { text: "运行界面"; onTriggered: App.workspaces.open("runtime", win.hostId) }
-        MenuItem { text: "日志"; onTriggered: App.workspaces.open("logs", win.hostId) }
-        MenuItem { text: "插件库"; onTriggered: App.workspaces.open("library", win.hostId) }
+        Repeater { model:App.workspaces.available; MenuItem { required property var modelData; text:modelData.title; onTriggered:App.workspaces.open(modelData.key,win.hostId) } }
     }
     Menu {
         id: tabMenu; property string key
         MenuItem { text: "移至新窗口"; onTriggered: App.workspaces.detach(tabMenu.key) }
         MenuItem { text: "关闭标签"; onTriggered: App.workspaces.closePage(tabMenu.key) }
+        MenuItem { text:"从工程移除工作区"; visible:App.workspaces.available.some(p=>p.key===tabMenu.key&&!p.builtin); enabled:!App.readOnly&&!App.busy; onTriggered:App.invoke("workspace.remove",{page:tabMenu.key}) }
     }
     FileDialog { id: openProject; title: "打开工程"; nameFilters: ["CoRig 工程 (*.crpj *.corig)"]; onAccepted: App.invoke("project.open", {path: selectedFile.toString(), discard:true}) }
     FileDialog {
@@ -193,6 +213,8 @@ ApplicationWindow {
     PluginManager{id:pluginSettings}
     PluginVersionDialog{id:pluginVersions}
     UpdateDialog{id:updateDialog}
+    ResourceSettings{id:resourceSettings}
+    BackgroundTasks{id:backgroundTasks}
     Dialog {
         id: unsaved; title: "工程有未保存修改"; modal: true; anchors.centerIn: parent; width: 400
         contentItem: Label { text: "保存当前工程后再继续？"; color: Theme.text; padding: 12 }

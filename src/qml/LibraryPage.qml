@@ -12,8 +12,10 @@ Item {
     property var entries:{App.registry;App.libraryPreferences;let result=App.catalogEntries(query.text,category?category.split("/"):[],scope);if(App.libraryTarget==="layout"&&scope==="all"&&(!category||category==="布局容器"))result=result.concat(containers.filter(p=>(p.name+" "+p.id).toLowerCase().indexOf(query.text.toLowerCase())>=0));return result}
     property var previewViews:picked.views?(Array.isArray(picked.views)?picked.views:Object.keys(picked.views)):[]
     property var previewConfig:{const result={},schema=picked.properties||{};Object.keys(schema).forEach(key=>result[key]=schema[key].default);return result}
-    function reason(spec){return App.libraryTarget==="graph"?(spec.id&&spec.id.startsWith("layout.")?"容器只用于界面设计":""):(spec.id&&spec.id.startsWith("layout.")?"":spec.views&&Object.keys(spec.views).length?"":"该插件没有界面视图，请在功能设计添加")}
-    function place(){if(!picked.id||reason(picked))return;const result=App.invoke("editor.add",{page:App.libraryTarget,plugin:picked.id});if(!result.error)App.workspaces.open(App.libraryTarget)}
+    property bool pickedContainer:picked.kind==="container"||containers.some(p=>p.id===picked.id)
+    property bool pickedWorkspace:picked.kind==="workspace"
+    function reason(spec){if(spec.kind==="workspace")return "";const container=spec.kind==="container"||containers.some(p=>p.id===spec.id);return App.libraryTarget==="graph"?(container?"容器只用于界面设计":""):(container?"":spec.views&&Object.keys(spec.views).length?"":"该插件没有界面视图，请在功能设计添加")}
+    function place(){if(!picked.id||reason(picked))return;if(pickedWorkspace){App.invoke("workspace.open",{page:picked.id});return}const result=App.invoke("editor.add",{page:App.libraryTarget,plugin:picked.id});if(!result.error)App.workspaces.open(App.libraryTarget)}
     Rectangle{anchors.fill:parent;color:Theme.panel;z:-1}
     ColumnLayout {
         anchors.fill:parent;spacing:0
@@ -99,15 +101,15 @@ Item {
                     Label{Layout.topMargin:14;text:root.picked.name||"选择插件";color:Theme.text;font.pixelSize:18;Layout.fillWidth:true;wrapMode:Text.WordWrap}
                     Label{text:root.picked.description||"双击添加到目标页待放置区，或拖到画布落位。";color:Theme.muted;Layout.fillWidth:true;wrapMode:Text.WordWrap}
                     Label{text:"功能设计预览";visible:!!root.picked.id;color:Theme.muted}
-                    NodePreview{visible:!!root.picked.id&&!root.picked.id.startsWith("layout.");Layout.fillWidth:true;Layout.preferredHeight:160;plugin:root.picked.id||""}
-                    Label{visible:!!root.picked.id&&root.picked.id.startsWith("layout.");text:"容器只参与界面布局";color:Theme.muted}
+                    NodePreview{visible:!!root.picked.id&&!root.pickedContainer&&!root.pickedWorkspace;Layout.fillWidth:true;Layout.preferredHeight:160;plugin:root.pickedContainer||root.pickedWorkspace?"":root.picked.id||""}
+                    Label{visible:!!root.picked.id&&(root.pickedContainer||root.pickedWorkspace);text:root.pickedWorkspace?"独立工作区":"容器只参与界面布局";color:Theme.muted}
                     Label{text:"界面预览";visible:!!root.picked.id;color:Theme.muted}
-                    UiPreview{visible:!!root.picked.id;Layout.fillWidth:true;Layout.preferredHeight:root.previewViews.length||root.picked.id&&root.picked.id.startsWith("layout.")?230:80;plugin:root.picked.id||""}
+                    UiPreview{visible:!!root.picked.id;Layout.fillWidth:true;Layout.preferredHeight:root.previewViews.length||root.pickedContainer||root.pickedWorkspace?230:80;plugin:root.picked.id||""}
                     Label{visible:!!root.picked.id&&!!root.reason(root.picked);text:root.reason(root.picked);color:"#D8B56C";Layout.fillWidth:true;wrapMode:Text.WordWrap}
                     RowLayout {
                         visible:!!root.picked.id
-                        ActionButton{objectName:"library.add";text:"添加到待放置区";enabled:!App.readOnly&&!App.busy&&!root.reason(root.picked)&&(App.libraryTarget==="layout"||!App.runtime.running);onClicked:root.place()}
-                        IconButton{symbol:"star";text:"收藏／取消收藏";visible:!!root.picked.id&&!root.picked.id.startsWith("layout.");checked:(App.libraryPreferences.favorites||[]).indexOf(root.picked.id)>=0;checkable:true;onClicked:App.invoke("library.favorite",{plugin:root.picked.id,enabled:checked})}
+                        ActionButton{objectName:"library.add";text:root.pickedWorkspace?"打开工作区":"添加到待放置区";enabled:!App.readOnly&&!App.busy&&!root.reason(root.picked)&&(root.pickedWorkspace||App.libraryTarget==="layout"||!App.runtime.running);onClicked:root.place()}
+                        IconButton{symbol:"star";text:"收藏／取消收藏";visible:!!root.picked.id&&!root.containers.some(p=>p.id===root.picked.id);checked:(App.libraryPreferences.favorites||[]).indexOf(root.picked.id)>=0;checkable:true;onClicked:App.invoke("library.favorite",{plugin:root.picked.id,enabled:checked})}
                     }
                     Item{Layout.preferredHeight:10}
                 }

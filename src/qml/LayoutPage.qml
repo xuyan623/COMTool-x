@@ -42,7 +42,7 @@ Item {
     function rect(id){const item=visual(id);if(!item)return null;const p=item.mapToItem(canvas,0,0);return{id:id,x:p.x,y:p.y,width:item.width,height:item.height}}
     function contentRect(id){const item=visual(id);if(!item)return null;const area=item.contentArea,p=area.mapToItem(canvas,0,0);return{x:p.x,y:p.y,width:area.width,height:area.height}}
     function hit(point,item){if(!item)item=designRoot;if(!item.visible)return "";const p=canvas.mapToItem(item,point.x,point.y);const inside=p.x>=0&&p.y>=0&&p.x<=item.width&&p.y<=item.height;if(!inside&&item.clip)return "";const children=Array.from(item.children||[]).sort((a,b)=>a.z-b.z);for(let i=children.length-1;i>=0;i--){const found=hit(point,children[i]);if(found)return found}return inside?(item.itemId||""):""}
-    function locateTarget(point,ignored){let id=hit(point)||((App.project.ui||{}).root||"root");while(id){const r=App.uiItem(id);if(r.plugin&&r.plugin.startsWith("layout.")&&!(ignored||[]).some(other=>isDescendant(id,other)))return id;id=parentOf(id).id||""}return(App.project.ui||{}).root||"root"}
+    function locateTarget(point,ignored){let id=hit(point)||((App.project.ui||{}).root||"root");while(id){const r=App.uiItem(id);if(r.children&&!(ignored||[]).some(other=>isDescendant(id,other)))return id;id=parentOf(id).id||""}return(App.project.ui||{}).root||"root"}
     function insertion(point,id){const r=App.uiItem(id),p=rect(id);if(!p||r.plugin==="layout.canvas")return -1;const children=(r.children||[]).filter(c=>selection.indexOf(c)<0&&c!=="pending");for(let i=0;i<children.length;i++){const box=rect(children[i]);if(!box)continue;if(r.plugin==="layout.row"||r.plugin==="layout.tabs"){if(point.x<box.x+box.width/2)return i}else if(r.plugin==="layout.grid"){if(point.y<box.y+box.height/2&&point.x<box.x+box.width)return i}else if(point.y<box.y+box.height/2)return i}return children.length}
     function localPosition(point,parent){const item=visual(parent);if(!item)return[snap(point.x),snap(point.y)];const p=canvas.mapToItem(item.contentArea,point.x,point.y);return[snap(p.x),snap(p.y)]}
     function finishPlacement(point){
@@ -192,7 +192,7 @@ Item {
             TextField{id:search;Layout.fillWidth:true;placeholderText:"搜索控件或容器";onAccepted:if(results.currentItem)results.currentItem.place()}
             ListView {
                 id:results;Layout.fillWidth:true;Layout.fillHeight:true;clip:true;currentIndex:0
-                model:App.registry.filter(p=>p.views&&Object.keys(p.views).length).concat(root.containers).filter(p=>(p.name+" "+p.id).toLowerCase().indexOf(search.text.toLowerCase())>=0)
+                model:App.registry.filter(p=>p.kind==="container"||(p.kind||"node")==="node"&&p.views&&Object.keys(p.views).length).concat(root.containers).filter(p=>(p.name+" "+p.id).toLowerCase().indexOf(search.text.toLowerCase())>=0)
                 delegate:ItemDelegate{required property var modelData;width:results.width;text:modelData.name;function place(){root.placement={plugin:modelData.id};quick.close();viewport.forceActiveFocus()}onClicked:place()}
             }
         }

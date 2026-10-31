@@ -2,6 +2,8 @@
 #include "workspaces.h"
 #include "quick/graph_geometry.h"
 #include "updates.h"
+#include "core/resource_policy.h"
+#include "property_session.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -26,6 +28,7 @@ QVariantMap Controller::schema() const
 {
     const QMap<QString,QStringList> fields{
         {"app.state",{}},{"app.quit",{"discard"}},{"app.restart",{"discard","path","plugin_selections"}},{"preferences.set",{"theme","python","read_only"}},
+        {"resources.get",{}},{"resources.set",{"limits","reset"}},{"job.cancel",{"id"}},{"job.list",{}},
         {"update.state",{}},{"update.check",{}},{"update.install",{}},
         {"registry",{}},{"schema",{}},{"project.get",{}},{"project.validate",{}},{"project.new",{"name","discard"}},
         {"project.open",{"path","discard","plugin_selections"}},{"project.save",{"path","include_plugins"}},
@@ -37,7 +40,9 @@ QVariantMap Controller::schema() const
         {"graph.wire.remove",{"id"}},{"graph.wire.patch",{"id","changes"}},{"graph.select",{"id","kind","ids"}},{"graph.fit",{}},{"graph.overlaps",{}},
         {"graph.wire.handles",{"id","x","y"}},{"graph.activity",{}},
         {"graph.connection.options",{"node","port"}},
-        {"node.configure",{"node","changes","persist"}},{"node.state",{"node","detailed"}},{"node.action",{"node","action","args"}},
+        {"node.configure",{"node","changes","persist","confirmed","revision"}},{"node.configure.plan",{"node","changes"}},{"node.state",{"node","detailed"}},{"node.action",{"node","action","args"}},
+        {"property.get",{"scope","target"}},{"property.stage",{"scope","target","changes"}},{"property.commit",{"scope","target","changes","confirmed","revision"}},{"property.discard",{"scope","target"}},{"property.drafts",{}},
+        {"property.text",{"scope","target","field","text"}},
         {"runtime.state",{}},{"runtime.start",{"debug"}},{"runtime.debug",{"enabled"}},{"runtime.pause",{}},{"runtime.stop",{}},{"runtime.reset",{}},{"runtime.step",{"mode","source"}},
         {"runtime.emit",{"node","outputs"}},{"log.query",{"after","limit","node","level","text","batch"}},{"log.clear",{}},{"log.configure",{"detail"}},
         {"log.export",{"path","node","level","text","batch"}},{"io.ports",{}},{"clipboard.read",{}},
@@ -51,11 +56,13 @@ QVariantMap Controller::schema() const
         {"editor.copy",{"page","ids"}},{"editor.paste",{"page","payload"}},{"editor.plan",{"page","ids","operation","plugin"}},
         {"sync.plan",{"direction"}},{"sync.apply",{"direction","keys","revision"}},
         {"library.search",{"query","category","scope"}},{"library.state",{}},{"library.favorite",{"plugin","enabled"}},
-        {"library.configure",{"view","size"}},{"library.preview",{"plugin"}},{"plugin.import",{"path","manifest"}},
-        {"plugin.state",{}},{"plugin.tree",{"scope"}},{"plugin.settings",{}},{"plugin.directory",{}},{"plugin.enable",{"plugin","enabled"}},
+        {"library.configure",{"view","size"}},{"library.preview",{"plugin","scope"}},{"plugin.import",{"path","manifest"}},
+        {"plugin.state",{}},{"plugin.tree",{"scope"}},{"plugin.settings",{}},{"plugin.directory",{}},{"plugin.enable",{"plugin","plugins","enabled"}},
         {"plugin.export",{"plugin","path","plugins","directory","overwrite","scope"}},{"plugin.export.dialog",{"scope","plugin"}},
         {"plugin.remove",{"plugin","package"}},{"python.probe",{"dependencies"}},{"job.get",{"id"}},
         {"workspace.open",{"page","window"}},{"workspace.close",{"page","discard"}},{"workspace.detach",{"page","x","y"}},
+        {"workspace.list",{}},{"workspace.configure",{"page","changes"}},{"workspace.remove",{"page"}},
+        {"container.layout",{"id","width","height","grid"}},
         {"workspace.move",{"page","window","index"}},{"window.close",{"window","discard"}},{"window.pin",{"window","enabled"}},
         {"window.configure",{"window","x","y","width","height","state","focus"}},
         {"view.read",{"node","view","args"}},{"view.actions",{"node","view"}},{"view.call",{"node","view","action","args"}},
@@ -67,7 +74,7 @@ QVariantMap Controller::schema() const
     };
     QVariantMap commands;
     for (auto i = fields.cbegin(); i != fields.cend(); ++i) commands.insert(i.key(),QVariantMap{{"arguments",i.value()}});
-    return {{"application","CoRig"},{"api_version",3},{"version","0.4.0"},{"commands",commands},{"async","A job is complete only after its operation succeeds; poll job.get"},
+    return {{"application","CoRig"},{"api_version",3},{"version","0.4.1"},{"commands",commands},{"async","A job is complete only after its operation succeeds; poll job.get"},
         {"values",QVariantMap{{"bytes","{type:bytes,base64:...,length:N}"},{"samples","{time:seconds,values:{name:number}}"}}}};
 }
 
@@ -77,10 +84,44 @@ QVariant Controller::command(const QString &op, const QVariantMap &args)
     if (!commands.contains(op)) throw Error("未知操作：" + op);
     const auto fields = commands.value(op).toMap().value("arguments").toStringList();
     for (auto i = args.cbegin(); i != args.cend(); ++i) if (!fields.contains(i.key())) throw Error("操作 " + op + " 不接受参数：" + i.key());
+    const auto guard = draftGuard(op,args); if (!guard.isEmpty()) return guard;
+    if (op == "property.drafts") return dirtyProperties();
+    if (op.startsWith("property.")) {
+        const auto scope = args.value("scope").toString(), target = args.value("target").toString();
+        const auto details = propertyInfo(scope,target); if (details.contains("error")) throw Error(details.value("error").toString());
+        auto session = qobject_cast<PropertySession *>(propertyBridge(scope,target));
+        if (op == "property.get") { auto result = details; result["draft"] = session->draft(); result["text_draft"] = session->textDraft(); result["dirty"] = session->dirty(); result["pending"] = session->pending(); result["error"] = session->error(); return result; }
+        if (op == "property.discard") { if (session->pending()) throw Error("请等待当前属性提交完成"); session->discard(); return QVariantMap{{"discarded",true}}; }
+        if (op == "property.text") {
+            const auto result = session->stageText(args.value("field").toString(),args.value("text").toString()).toMap();
+            if (result.contains("error")) throw Error(result.value("error").toString());
+            return result;
+        }
+        const auto staged = session->stage(args.value("changes").toMap()).toMap();
+        if (staged.contains("error")) throw Error(staged.value("error").toString());
+        return op == "property.stage" ? QVariant(staged) : session->apply(args.value("confirmed").toBool(),args.value("revision").toString());
+    }
+    if (op == "node.configure.plan") return nodeConfigurationPlan(project_,catalog_,args.value("node").toString(),args.value("changes").toMap());
     if (op == "schema") return schema();
     if (op == "app.state") return appState();
     if (op == "registry") return registry();
     if (op == "job.get") return job(args.value("id").toString());
+    if (op == "job.list") { QVariantList result; for (const auto &entry : jobs_) result.append(entry); return result; }
+    if (op == "job.cancel") {
+        const auto id = args.value("id").toString(), task = jobs_.value(id).value("python_task").toString();
+        if (task.isEmpty()) throw Error("此任务没有可取消的后台操作："+id);
+        return launchTask(op,[this,task] { return python_->cancelTask(task); });
+    }
+    if (op == "resources.get") return resourceLimits();
+    if (op == "resources.set") {
+        if (engine_->observation().value("active").toBool() || busy_) throw Error("请先结束运行会话，再调整资源额度");
+        const auto previous = resourceLimits();
+        try {
+            const auto limits = configureResourceLimits(args.value("limits").toMap(),args.value("reset").toBool());
+            validateProject(project_,catalog_); python_->close();
+            settings_->setValue("resources/limits",limits); emit preferencesChanged(); return limits;
+        } catch (...) { configureResourceLimits(previous,true); throw; }
+    }
     if (op == "runtime.state") return engine_->observation();
     if (op == "project.get") return project_;
     if (op == "plugin.state") return pluginState();
@@ -88,7 +129,7 @@ QVariant Controller::command(const QString &op, const QVariantMap &args)
     if (op == "plugin.export.dialog") { emit pluginExportRequested(args.value("scope","project").toString(),args.value("plugin").toString()); return QVariantMap{{"opened",true}}; }
     if (op == "plugin.directory") { if (!QDesktopServices::openUrl(QUrl::fromLocalFile(pluginState().value("directory").toString()))) throw Error("无法打开插件文件夹"); return QVariantMap{{"opened",true}}; }
     if (op == "plugin.settings") { emit pluginSettingsRequested(); return QVariantMap{{"opened",true}}; }
-    if (op == "update.state") return QVariantMap{{"supported",!maintenanceTool().isEmpty()},{"version","0.4.0"}};
+    if (op == "update.state") return QVariantMap{{"supported",!maintenanceTool().isEmpty()},{"version","0.4.1"}};
     if (op == "update.check") return launchTask(op,[this] { return checkUpdates([this] { return closing_.load(); }); });
     if (op == "update.install") {
         if (dirty_) throw Error("请先保存当前工程，再开始更新");
@@ -111,6 +152,23 @@ QVariant Controller::command(const QString &op, const QVariantMap &args)
         const auto item = uiItem(args.value("id").toString());
         if (item.isEmpty()) throw Error("界面对象不存在");
         return uiPropertySchema(item,catalog_,project_);
+    }
+    if (op == "container.layout") {
+        const auto item = uiItem(args.value("id").toString()); QVariantList children;
+        if (item.isEmpty()) throw Error("界面容器不存在");
+        for (const auto &id : item.value("children").toList()) children.append(uiItem(id.toString()));
+        const auto result = containerLayout(item.value("plugin").toString(),item.value("properties").toMap(),children,
+            args.value("width").toDouble(),args.value("height").toDouble(),args.value("grid",16).toInt());
+        if (result.contains("error")) throw Error(result.value("error").toString());
+        return result;
+    }
+    if (op == "workspace.configure" || op == "workspace.remove") {
+        requireEditable(true);
+        return commit(editProject(project_,catalog_,op,args),"工作区属性已更新");
+    }
+    if (op == "workspace.list") {
+        if (!workspaces_) throw Error("工作区尚未建立");
+        return workspaces_->available();
     }
     if (op == "editor.state" || op == "editor.configure") return editorView(op,args);
     if (op == "window.configure") return configureWindow(args);
@@ -237,6 +295,11 @@ QVariant Controller::command(const QString &op, const QVariantMap &args)
     if (op == "node.configure") {
         const auto id = args.value("node").toString(); const auto design = nodeDesign(id); if (design.isEmpty()) throw Error("节点不存在：" + id);
         const bool running = engine_->observation().value("running").toBool(); const bool persist = args.value("persist",!readOnly_).toBool();
+        const auto plan = nodeConfigurationPlan(project_,catalog_,id,args.value("changes").toMap());
+        if (plan.value("requires_confirmation").toBool()) {
+            if (running || !persist) throw Error("改变已连接端口需要先暂停，并修改工程设计");
+            if (!args.value("confirmed").toBool() || args.value("revision") != plan.value("revision")) return plan;
+        }
         if (running || !persist) {
             if (busy_) throw Error("工程操作尚未完成");
             if (persist && readOnly_) throw Error("只读模式不能保存运行参数到设计");
@@ -299,7 +362,11 @@ QVariant Controller::command(const QString &op, const QVariantMap &args)
                 : path.endsWith(".crpl",Qt::CaseInsensitive) ? PluginPackage::open(path) : PluginPackage::fromPython(importPlugin(path));
             const auto installed = plugins_->install(package,path);
             if (installed.value("restart_required").toBool()) { emit pluginsChanged(); tell("插件更新已保存，重启 CoRig 后生效"); return installed; }
-        } else if (op == "plugin.enable") plugins_->setEnabled(args.value("plugin").toString(),args.value("enabled").toBool(),project_);
+        } else if (op == "plugin.enable") {
+            if (args.contains("plugin") == args.contains("plugins")) throw Error("请提供 plugin 或 plugins 其中一个");
+            const auto ids = args.contains("plugins") ? args.value("plugins").toStringList() : QStringList{args.value("plugin").toString()};
+            plugins_->setEnabled(ids,args.value("enabled").toBool(),project_);
+        }
         else {
             const auto id = args.value("package",args.value("plugin")).toString();
             const auto package = plugins_->find(id,project_); plugins_->remove(package.id(),project_);
@@ -311,7 +378,36 @@ QVariant Controller::command(const QString &op, const QVariantMap &args)
     }
     if (op == "library.state") return libraryPreferences();
     if (op == "library.search") return catalogEntries(args.value("query").toString(),args.value("category").toStringList(),args.value("scope","all").toString());
-    if (op == "library.preview") { const auto plugin = args.value("plugin").toString(); return QVariantMap{{"definition",catalog_.definition(plugin)},{"geometry",previewGeometry(plugin)}}; }
+    if (op == "library.preview") {
+        const auto scope = args.value("scope","project").toString();
+        if (scope != "project" && scope != "library") throw Error("预览范围需要 project 或 library");
+        // Local management must never substitute an embedded project version
+        // or hide a disabled node. Previewing does not create an engine node.
+        const auto selected = scope == "library" ? plugins_->catalog({},true) : catalog_;
+        const auto plugin = args.value("plugin").toString(); const auto spec = selected.definition(plugin);
+        QVariantMap result{{"definition",spec},{"config",checkedProperties(spec.value("properties").toMap(),{})}};
+        try {
+            const auto config = selected.checkedConfig(plugin,{}); result["config"] = config;
+            if (spec.value("kind","node") == "node") result["geometry"] = nodeGeometry({{"plugin",plugin},{"config",config}},selected);
+            else result["geometry"] = QVariantMap{{"width",180},{"height",104},{"kind",spec.value("kind")},{"ports",QVariantList{}},{"center",QVariantList{0,0,180,104}}};
+        } catch (const Error &error) {
+            // A native version already loaded by the project can require a
+            // restart. Keep its installed description and QML inspectable.
+            result["geometry"] = QVariantMap{{"width",180},{"height",104},{"ports",QVariantList{}},
+                {"center",QVariantList{0,0,180,104}},{"error",error.message}};
+        }
+        if (!spec.value("qml").toString().isEmpty()) {
+            const auto stored = selected.package(plugin); const auto file = spec.value("qml").toString(); stored.file(file);
+            result["presentation_url"] = QUrl::fromLocalFile(QDir(stored.materialize()).filePath(file)).toString();
+        }
+        QVariantMap urls; const auto views = spec.value("views").toMap();
+        if (!views.isEmpty()) {
+            const auto package = selected.package(plugin); const QDir folder(package.materialize());
+            for (auto i = views.cbegin(); i != views.cend(); ++i)
+                urls.insert(i.key(),QUrl::fromLocalFile(folder.filePath(i.value().toMap().value("qml").toString())).toString());
+        }
+        result["view_urls"] = urls; return result;
+    }
     if (op == "library.favorite") {
         const auto id = args.value("plugin").toString(); catalog_.definition(id); auto items = settings_->value("library/favorites").toStringList(); items.removeAll(id); if (args.value("enabled").toBool()) items.append(id); settings_->setValue("library/favorites",items); emit preferencesChanged(); return libraryPreferences();
     }

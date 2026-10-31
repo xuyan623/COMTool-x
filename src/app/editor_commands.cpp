@@ -39,7 +39,9 @@ void ensurePending(QVariantList &items, const QString &root)
 void moveUi(QVariantList &items, const QString &id, const QString &parent, int before = -1)
 {
     const auto source = record(items,id), target = record(items,parent);
-    if (source.isEmpty() || target.isEmpty() || !target.value("plugin").toString().startsWith("layout.")) throw Error("放置目标必须是现有容器");
+    // All validated containers carry their own children list, including user
+    // plugins; their IDs do not need to use the built-in layout prefix.
+    if (source.isEmpty() || target.isEmpty() || !target.contains("children")) throw Error("放置目标必须是现有容器");
     QSet<QString> descendants;
     std::function<void(QString)> collect = [&](const QString &key) { if (descendants.contains(key)) return; descendants.insert(key); for (const auto &child : record(items,key).value("children").toList()) collect(child.toString()); };
     collect(id); if (descendants.contains(parent)) throw Error("容器不能放进自身或自己的子容器");
@@ -190,12 +192,13 @@ EditResult editEditorProject(QVariantMap project, const Catalog &catalog, const 
     if (op == "editor.add") {
         const auto plugin = args.value("plugin").toString(); const auto id = args.value("id",newId(page == "graph" ? "node" : "ui")).toString();
         if (page == "graph") {
-            if (plugin.startsWith("layout.")) throw Error("容器只用于界面设计");
+            if (catalog.kind(plugin) != "node") throw Error("该插件用于界面或工作区，不能添加到功能设计");
             nodes.append(QVariantMap{{"id",id},{"plugin",plugin},{"title",catalog.definition(plugin).value("name")},{"config",catalog.checkedConfig(plugin,{})},{"position",QVariantList{80.,80.}},{"orientation",0},{"placed",false}}); engine = true;
         } else {
             QVariantMap item{{"id",id},{"properties",QVariantMap{{"x",32.},{"y",32.},{"width",320.},{"height",180.}}}};
-            if (plugin.startsWith("layout.")) { if (!QStringList{"layout.row","layout.column","layout.grid","layout.tabs"}.contains(plugin)) throw Error("未知容器"); item["plugin"] = plugin; item["children"] = QVariantList{}; item["properties"] = QVariantMap{{"title",""},{"x",32.},{"y",32.},{"width",480.},{"height",300.}}; }
-            else { const auto spec = catalog.definition(plugin); const auto views = declaredViews(spec); if (views.isEmpty()) throw Error("该插件没有界面视图，请在功能设计添加"); const auto node = newId("node"); item["node"] = node; item["view"] = views.first(); item["binding"] = QVariantMap{{"id",node},{"plugin",plugin},{"title",spec.value("name")},{"config",catalog.checkedConfig(plugin,{})}}; item["properties"] = QVariantMap{{"title",spec.value("name")},{"x",32.},{"y",32.},{"width",320.},{"height",220.}}; }
+            if (catalog.kind(plugin) == "container") { item["plugin"] = plugin; item["children"] = QVariantList{}; item["properties"] = QVariantMap{{"title",""},{"x",32.},{"y",32.},{"width",480.},{"height",300.}}; }
+            else { if (catalog.kind(plugin) != "node") throw Error("工作区请通过 workspace.open 打开"); const auto spec = catalog.definition(plugin); const auto views = declaredViews(spec); if (views.isEmpty()) throw Error("该插件没有界面视图，请在功能设计添加"); const auto node = newId("node"); item["node"] = node; item["view"] = views.first(); item["binding"] = QVariantMap{{"id",node},{"plugin",plugin},{"title",spec.value("name")},{"config",catalog.checkedConfig(plugin,{})}}; item["properties"] = QVariantMap{{"title",spec.value("name")},{"x",32.},{"y",32.},{"width",320.},{"height",220.}}; }
+            item["properties"] = checkedUiProperties(item,catalog,project,item.value("properties").toMap());
             items.append(item); moveUi(items,id,"pending");
         }
         edit.selected = id; edit.result = QVariantMap{{"id",id},{"pending",true}};
@@ -223,9 +226,14 @@ EditResult editEditorProject(QVariantMap project, const Catalog &catalog, const 
     } else if (op == "editor.replace") {
         const auto plugin = args.value("plugin").toString();
         for (const auto &id : ids) {
-            if (page == "graph") { const auto at = indexOf(nodes,id); auto node = nodes[at].toMap(); node["plugin"] = plugin; node["config"] = catalog.checkedConfig(plugin,{}); node["title"] = catalog.definition(plugin).value("name"); nodes[at] = node; engine = true; }
-            else { const auto at = indexOf(items,id); auto item = items[at].toMap(); if (item.contains("children")) { if (!plugin.startsWith("layout.")) throw Error("含子对象的容器只能替换为其他容器"); item["plugin"] = plugin; }
-                else { const auto spec = catalog.definition(plugin); const auto views = declaredViews(spec); if (views.isEmpty()) throw Error("替换插件需要界面视图"); auto node = item.value("binding").toMap(); node["id"] = item.value("node"); node["plugin"] = plugin; node["title"] = spec.value("name"); node["config"] = catalog.checkedConfig(plugin,{}); item["binding"] = node; item["view"] = views.first(); }
+            if (page == "graph") { if (catalog.kind(plugin) != "node") throw Error("功能设计只能使用计算节点"); const auto at = indexOf(nodes,id); auto node = nodes[at].toMap(); node["plugin"] = plugin; node["config"] = catalog.checkedConfig(plugin,{}); node["title"] = catalog.definition(plugin).value("name"); nodes[at] = node; engine = true; }
+            else { const auto at = indexOf(items,id); auto item = items[at].toMap(); if (item.contains("children")) { if (catalog.kind(plugin) != "container") throw Error("含子对象的容器只能替换为其他容器"); item["plugin"] = plugin; }
+                else { if (catalog.kind(plugin) != "node") throw Error("普通视图只能替换为节点视图"); const auto spec = catalog.definition(plugin); const auto views = declaredViews(spec); if (views.isEmpty()) throw Error("替换插件需要界面视图"); auto node = item.value("binding").toMap(); node["id"] = item.value("node"); node["plugin"] = plugin; node["title"] = spec.value("name"); node["config"] = catalog.checkedConfig(plugin,{}); item["binding"] = node; item["view"] = views.first(); }
+                // A replacement starts with the new plugin's property defaults;
+                // shared placement survives, obsolete business fields do not.
+                QVariantMap kept;
+                for (const auto &key : {"x","y","width","height","stretch","row","column","rowspan","colspan"}) if (item.value("properties").toMap().contains(key)) kept[key] = item.value("properties").toMap().value(key);
+                item["properties"] = checkedUiProperties(item,catalog,project,kept);
                 items[at] = item;
             }
         }

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
+// Shared engine actions; the window footer displays their status once.
 RowLayout {
     id:root
     property string prefix:"execution"
@@ -14,13 +15,5 @@ RowLayout {
     IconButton{objectName:root.prefix+".node";symbol:"node";text:"节点单步（F11）";enabled:!!App.runtime.debug&&!App.runtime.running&&!App.executionPending&&!App.busy;onClicked:root.step("node")}
     IconButton{objectName:root.prefix+".reset";symbol:"reset";text:"重置：恢复初始状态（Ctrl+Shift+F5）";enabled:!App.executionPending&&!App.busy;onClicked:App.invoke("runtime.reset",{})}
     IconButton{objectName:root.prefix+".end";symbol:"end";text:"结束会话：释放连接（Shift+F5）";enabled:!!App.runtime.active;onClicked:App.invoke("runtime.stop",{})}
-    ComboBox{id:source;objectName:root.prefix+".source";visible:!!App.runtime.debug;Layout.preferredWidth:140;model:root.sources;textRole:"name";valueRole:"id";enabled:!App.runtime.running&&!App.executionPending&&!(App.runtime.cursor||{}).next_node}
-    Label{
-        objectName:root.prefix+".status";Layout.maximumWidth:180;elide:Text.ElideRight
-        text:(App.runtime.debug?"调试　":"普通运行　")+(App.executionPending?"执行操作中":App.runtime.running?"运行中":App.runtime.active?"已暂停":"就绪")
-        color:Theme.muted;font.pixelSize:12
-        ToolTip.visible:statusHover.hovered
-        ToolTip.text:(App.runtime.cursor||{}).next_node?"批次 "+App.runtime.cursor.batch+"，下一节点 "+App.runtime.cursor.next_node:"当前没有未完成批次"
-        HoverHandler{id:statusHover}
-    }
+    ComboBox{id:source;objectName:root.prefix+".source";visible:!!App.runtime.debug;Layout.preferredWidth:140;Layout.preferredHeight:32;model:root.sources;textRole:"name";valueRole:"id";enabled:!App.runtime.running&&!App.executionPending&&!(App.runtime.cursor||{}).next_node}
 }

@@ -37,6 +37,7 @@ private slots:
     void enableAndRemovalPreserveReferences();
     void folderClassificationAndOptionalDependencies();
     void localInventoryExcludesProjectCopies();
+    void matchingVersionDoesNotConflictOnRebuild();
 };
 
 void PluginTest::zipAndPythonRoundTrip()
@@ -110,13 +111,21 @@ void PluginTest::enableAndRemovalPreserveReferences()
 {
     QTemporaryDir directory; QSettings settings(directory.filePath("settings.ini"),QSettings::IniFormat);
     PluginStore store(directory.filePath("plugins"),settings); auto project = usedProject("function.sin");
-    QVERIFY_THROWS_EXCEPTION(Error,store.setEnabled("function.sin",false,project));
+    QVERIFY_THROWS_EXCEPTION(Error,store.setEnabled({"function.sin"},false,project));
+    QVERIFY_THROWS_EXCEPTION(Error,store.setEnabled({"function.cos","function.sin"},false,project));
+    QVERIFY(!store.catalog({}).definition("function.cos").isEmpty());
+    QVERIFY_THROWS_EXCEPTION(Error,store.setEnabled({"function.cos","missing.plugin"},false,emptyProject()));
+    QVERIFY(!store.catalog({}).definition("function.cos").isEmpty());
+    store.setEnabled({"function.cos","function.exp"},false,emptyProject());
+    QVERIFY_THROWS_EXCEPTION(Error,store.catalog({}).definition("function.cos"));
+    QVERIFY_THROWS_EXCEPTION(Error,store.catalog({}).definition("function.exp"));
+    store.setEnabled({"function.cos","function.exp"},true,emptyProject());
     QVERIFY_THROWS_EXCEPTION(Error,store.remove("org.corig.function.sin",project));
     const auto embedded = store.catalog(project).embed(project);
-    store.setEnabled("function.sin",false,emptyProject());
+    store.setEnabled({"function.sin"},false,emptyProject());
     QVERIFY_THROWS_EXCEPTION(Error,store.catalog(emptyProject()).definition("function.sin"));
     validateProject(embedded,store.catalog(embedded));
-    store.setEnabled("function.sin",true,emptyProject());
+    store.setEnabled({"function.sin"},true,emptyProject());
     store.remove("org.corig.function.sin",emptyProject());
     QCOMPARE(store.catalog(emptyProject()).describe().size(),77);
     validateProject(embedded,store.catalog(embedded));
@@ -165,14 +174,38 @@ void PluginTest::localInventoryExcludesProjectCopies()
     QCOMPARE(localState.value("packages").toList().first().toMap().value("version").toString(),QString("2.0.0"));
     QCOMPARE(store.tree(project,"library").value("plugins").toList().first().toMap().value("version").toString(),QString("2.0.0"));
     QCOMPARE(store.tree(project,"project").value("plugins").toList().first().toMap().value("version").toString(),QString("1.0.0"));
-    store.setEnabled("user.test.gain",false,emptyProject());
+    store.setEnabled({"user.test.gain"},false,emptyProject());
     QVERIFY(!store.state(project).value("plugins").toList().first().toMap().value("enabled").toBool());
     QVERIFY(store.state(project).value("plugins").toList().first().toMap().value("in_use").toBool());
+    // Management previews retain the installed version while execution still
+    // follows the project's dependency selection and local enable preference.
+    QCOMPARE(store.catalog({},true).definition("user.test.gain").value("version").toString(),QString("2.0.0"));
+    QCOMPARE(store.catalog(project).definition("user.test.gain").value("version").toString(),QString("1.0.0"));
+    QVERIFY_THROWS_EXCEPTION(Error,store.catalog({}).definition("user.test.gain"));
     store.remove(localPackage.id(),emptyProject());
     QVERIFY(store.state(project).value("packages").toList().isEmpty());
     QVERIFY(store.tree(project,"library").value("tree").toList().isEmpty());
     QCOMPARE(store.tree(project,"project").value("plugins").toList().size(),1);
     validateProject(project,store.catalog(project));
+}
+
+void PluginTest::matchingVersionDoesNotConflictOnRebuild()
+{
+    // Identical declared versions describe the same compatibility contract.
+    // A rebuild may change container bytes without asking the user to choose.
+    QTemporaryDir projectFolder, installedFolder;
+    QSettings projectSettings(projectFolder.filePath("project.ini"),QSettings::IniFormat);
+    PluginStore projectStore(projectFolder.filePath("plugins"),projectSettings);
+    const auto original = pythonPackage("2.0.0",3);
+    projectStore.install(original,"gain.crpl");
+    auto project = emptyProject("重建兼容");
+    project["nodes"] = QVariantList{QVariantMap{{"id","node"},{"plugin","user.test.gain"},{"position",QVariantList{0.,0.}},{"config",QVariantMap{}}}};
+    project = projectStore.catalog(project).embed(project,true);
+    const auto rebuilt = pythonPackage("2.0.0",3);
+    QSettings installedSettings(installedFolder.filePath("installed.ini"),QSettings::IniFormat);
+    PluginStore installedStore(installedFolder.filePath("plugins"),installedSettings);
+    installedStore.install(rebuilt,"gain.crpl");
+    QVERIFY(installedStore.readiness(project).isEmpty());
 }
 
 QTEST_GUILESS_MAIN(PluginTest)

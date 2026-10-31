@@ -8,6 +8,7 @@
 #include <QJSValue>
 #include <QMimeData>
 #include <QJsonDocument>
+#include <QFile>
 #include <cmath>
 #include "app/controller.h"
 #include "app/workspaces.h"
@@ -32,6 +33,9 @@ private slots:
     void publicEditorPresentationRoundTrip();
     void externalControlEditsReachRealNodes();
     void switchesPressedFeedbackAndCombinedEngineControl();
+    void localPluginDetailsStayVisibleWhenDisabled();
+    void propertyDraftsAndPortsAreAtomic();
+    void qmlContainersAndWorkspacesTravelWithProject();
 private:
     QVariant run(const QString &op, const QVariantMap &args = {});
     QQuickItem *findItem(const QString &name, QQuickItem *from = nullptr);
@@ -77,7 +81,9 @@ void WorkbenchUiTest::cleanup()
 QVariant WorkbenchUiTest::run(const QString &op, const QVariantMap &args)
 {
     auto result = app_->invoke(op,args);const auto map = result.toMap();
-    if (map.contains("error")) { QTest::qFail(qPrintable(map.value("error").toString()),__FILE__,__LINE__);return {}; }
+    // Checked query results may carry an intentionally empty error field.
+    // Only an actual message is a command failure.
+    if (!map.value("error").toString().isEmpty()) { QTest::qFail(qPrintable(map.value("error").toString()),__FILE__,__LINE__);return {}; }
     const auto job = map.value("job").toString();if (job.isEmpty()) return result;
     QElapsedTimer timer;timer.start();
     while (timer.elapsed()<10000) {
@@ -327,6 +333,164 @@ void WorkbenchUiTest::switchesPressedFeedbackAndCombinedEngineControl()
     run("controls.click",{{"id","execution.run"}}); QTRY_VERIFY(!app_->runtime().value("running").toBool());
     QCOMPARE(findItem("execution.run")->property("symbol").toString(),QString("run"));
     run("controls.click",{{"id","execution.run"}}); QTRY_VERIFY(app_->runtime().value("running").toBool());
+}
+
+void WorkbenchUiTest::localPluginDetailsStayVisibleWhenDisabled()
+{
+    run("project.new",{{"discard",true}});
+    const auto before = app_->project();
+    run("plugin.settings");
+    run("controls.set",{{"id","plugins.search"},{"property","text"},{"value","control.slider"}});
+    QTRY_VERIFY(findItem("plugins.tree.package.org.corig.control.slider"));
+    run("controls.click",{{"id","plugins.tree.package.org.corig.control.slider"}});
+    QTRY_VERIFY(findItem("plugins.node_preview.control.slider"));
+    auto preview = run("library.preview",{{"plugin","control.slider"},{"scope","library"}}).toMap();
+    QVERIFY(!preview.value("definition").toMap().value("description").toString().isEmpty());
+    QVERIFY(!preview.value("geometry").toMap().value("ports").toList().isEmpty());
+    QVERIFY(!preview.value("view_urls").toMap().isEmpty());
+    QTRY_VERIFY(!mapProperty(findItem("plugins.node_preview.control.slider"),"geometry").contains("error"));
+    QTRY_COMPARE(mapProperty(findItem("plugins.ui_preview.control.slider"),"spec").value("id").toString(),QString("control.slider"));
+    run("controls.click",{{"id","plugins.enabled.package.org.corig.control.slider"}});
+    QTRY_VERIFY(app_->definition("control.slider").isEmpty());
+    QTRY_COMPARE(findItem("plugins.enabled.folder.控件")->property("checkState").toInt(),int(Qt::PartiallyChecked));
+    QTRY_VERIFY(findItem("plugins.description.control.slider"));
+    QTRY_VERIFY(findItem("plugins.node_preview.control.slider") && !mapProperty(findItem("plugins.node_preview.control.slider"),"geometry").contains("error"));
+    preview = run("library.preview",{{"plugin","control.slider"},{"scope","library"}}).toMap();
+    QCOMPARE(preview.value("definition").toMap().value("id").toString(),QString("control.slider"));
+    QCOMPARE(app_->project(),before);
+    QVERIFY(!app_->runtime().value("active").toBool());
+    // The searched tree only shows one leaf, but its category checkbox still
+    // applies to the complete subtree, including filtered/collapsed children.
+    run("controls.click",{{"id","plugins.enabled.folder.控件"}});
+    QTRY_COMPARE(findItem("plugins.enabled.folder.控件")->property("checkState").toInt(),int(Qt::Checked));
+    run("controls.click",{{"id","plugins.enabled.folder.控件"}});
+    QTRY_VERIFY(app_->definition("control.number").isEmpty());
+    QTRY_VERIFY(app_->definition("control.text").isEmpty());
+    QTRY_VERIFY(app_->definition("control.slider").isEmpty());
+    QTRY_COMPARE(findItem("plugins.enabled.folder.控件")->property("checkState").toInt(),int(Qt::Unchecked));
+    run("controls.click",{{"id","plugins.enabled.folder.控件"}});
+    QTRY_VERIFY(!app_->definition("control.number").isEmpty());
+    QTRY_VERIFY(!app_->definition("control.text").isEmpty());
+    QCOMPARE(app_->project(),before);
+    run("controls.click",{{"id","plugins.close"}});
+}
+
+void WorkbenchUiTest::propertyDraftsAndPortsAreAtomic()
+{
+    run("graph.node.add",{{"id","split"},{"plugin","data.fork"},{"config",QVariantMap{{"data_type","number"},{"outputs",QVariantList{"a","b","c"}}}}});
+    run("graph.wire.add",{{"id","keep"},{"source",QVariantList{"source","value"}},{"target",QVariantList{"split","in"}}});
+    run("graph.wire.add",{{"id","affected"},{"source",QVariantList{"split","c"}},{"target",QVariantList{"target","x"}}});
+    run("graph.select",{{"id","split"}});
+    run("property.stage",{{"scope","node"},{"target","split"},{"changes",QVariantMap{{"outputs",QVariantList{"a","b"}}}}});
+    const auto before = app_->project();
+    const auto guard = app_->invoke("graph.select",{{"id","target"}}).toMap();
+    QVERIFY(guard.value("requires_draft_resolution").toBool()); QCOMPARE(app_->selected(),QString("split"));
+    QTRY_VERIFY(findItem("property.leave.cancel") && findItem("property.leave.cancel")->isVisible() && findItem("property.leave.cancel")->isEnabled());
+    run("controls.click",{{"id","property.leave.cancel"}});
+    QCOMPARE(app_->selected(),QString("split")); QCOMPARE(app_->project(),before);
+
+    const auto plan = app_->invoke("property.commit",{{"scope","node"},{"target","split"}}).toMap();
+    QVERIFY2(!plan.contains("error"),qPrintable(plan.value("error").toString()));
+    QCOMPARE(plan.value("affected_wires").toList().size(),1); QVERIFY(plan.value("requires_confirmation").toBool());
+    QCOMPARE(app_->project(),before);
+    QTRY_VERIFY(findItem("property.ports.cancel") && findItem("property.ports.cancel")->isVisible() && findItem("property.ports.cancel")->isEnabled());
+    run("controls.click",{{"id","property.ports.cancel"}});
+    QVERIFY(run("property.get",{{"scope","node"},{"target","split"}}).toMap().value("dirty").toBool());
+    run("property.commit",{{"scope","node"},{"target","split"},{"confirmed",true},{"revision",plan.value("revision")}});
+    QCOMPARE(app_->project().value("wires").toList().size(),1);
+    // The confirmed commit changes the project itself. Testing inside this
+    // function would record each assertion against the originally entered one,
+    // so the final verification uses the same public query directly.
+    QVERIFY(!app_->invoke("property.get",{{"scope","node"},{"target","split"}}).toMap().value("dirty").toBool());
+    run("history.undo");
+    QCOMPARE(app_->project().value("wires"),before.value("wires"));
+    QCOMPARE(app_->nodeDesign("split").value("config").toMap().value("outputs").toList(),(QVariantList{"a","b","c"}));
+
+    // A changed candidate or design cannot reuse a prior destructive preview.
+    const auto stale = run("node.configure.plan",{{"node","split"},{"changes",QVariantMap{{"outputs",QVariantList{"a","b"}}}}}).toMap();
+    run("graph.node.move",{{"id","target"},{"position",QVariantList{600.,80.}}});
+    const auto refreshed = app_->command("node.configure",{{"node","split"},{"changes",QVariantMap{{"outputs",QVariantList{"a","b"}}}},{"confirmed",true},{"revision",stale.value("revision")}}).toMap();
+    QVERIFY(refreshed.value("requires_confirmation").toBool()); QVERIFY(refreshed.value("revision") != stale.value("revision"));
+    QCOMPARE(app_->project().value("wires").toList().size(),2);
+
+    run("graph.select",{{"id","source"}});
+    QTRY_VERIFY(findItem("property.base"));
+    QVERIFY(!findItem("property.node_title")->isVisible());
+    run("property.text",{{"scope","node"},{"target","source"},{"field","value"},{"text","-"}});
+    QVERIFY_THROWS_EXCEPTION(corig::Error,app_->command("property.commit",{{"scope","node"},{"target","source"}}));
+    // A rejected commit is an expected validation result, not a transport
+    // failure: the shared session must retain both text and its reason.
+    const auto rejected = app_->invoke("property.get",{{"scope","node"},{"target","source"}}).toMap();
+    QVERIFY(rejected.value("dirty").toBool());
+    QVERIFY(!rejected.value("error").toString().isEmpty());
+    QCOMPARE(rejected.value("text_draft").toMap().value("value").toString(),QString("-"));
+    app_->invoke("graph.select",{{"id","target"}});
+    QTRY_VERIFY(findItem("property.leave.cancel") && findItem("property.leave.cancel")->isVisible() && findItem("property.leave.cancel")->isEnabled());
+    run("controls.click",{{"id","property.leave.cancel"}});
+    QCOMPARE(app_->selected(),QString("source"));
+    run("property.text",{{"scope","node"},{"target","source"},{"field","value"},{"text","3.5"}});
+    app_->invoke("graph.select",{{"id","target"}});
+    QTRY_VERIFY(findItem("property.leave.cancel") && findItem("property.leave.cancel")->isVisible() && findItem("property.leave.cancel")->isEnabled());
+    run("controls.click",{{"id","property.leave.cancel"}});
+    QCOMPARE(app_->selected(),QString("source"));
+    // The dialog only decides whether to leave. Applying the accepted text
+    // goes through the same public commit entry used by GUI and automation.
+    run("property.commit",{{"scope","node"},{"target","source"}});
+    QCOMPARE(app_->nodeDesign("source").value("config").toMap().value("value").toDouble(),3.5);
+    QVERIFY(!run("property.get",{{"scope","node"},{"target","source"}}).toMap().value("dirty").toBool());
+    app_->invoke("graph.select",{{"id","target"}});
+    QCOMPARE(app_->selected(),QString("target"));
+}
+
+void WorkbenchUiTest::qmlContainersAndWorkspacesTravelWithProject()
+{
+    // Package the shipped public example exactly as a third-party author does.
+    const QString directory = QStringLiteral(CORIG_SOURCE_DIR "/sdk/examples/qml_workspace/");
+    QFile manifestFile(directory+"plugin.json"); QVERIFY(manifestFile.open(QIODevice::ReadOnly));
+    auto manifest = QJsonDocument::fromJson(manifestFile.readAll()).toVariant().toMap(); QMap<QString,QByteArray> files;
+    for (const auto &entry : manifest.take("files").toList()) {
+        QFile file(directory+entry.toString()); QVERIFY(file.open(QIODevice::ReadOnly)); files[entry.toString()] = file.readAll();
+    }
+    const auto package = corig::PluginPackage::create(manifest,files); const auto path = folder_->filePath("ui-tools.crpl"); package.save(path);
+    run("plugin.import",{{"path",path}});
+    QVERIFY(app_->pythonPath().isEmpty());
+    const auto count = app_->project().value("nodes").toList().size();
+    run("ui.container.add",{{"id","custom"},{"plugin","user.example.ribbon"},{"properties",QVariantMap{{"x",32.},{"y",32.},{"width",640.},{"height",320.}}}});
+    run("ui.view.add",{{"id","first"},{"node","source"},{"view","control"},{"parent","custom"}});
+    run("ui.view.add",{{"id","second"},{"node","text"},{"view","control"},{"parent","custom"}});
+    QCOMPARE(app_->project().value("nodes").toList().size(),count);
+    run("workspace.open",{{"page","layout"}});
+    QTRY_VERIFY(findItem("ui.first")&&findItem("ui.second"));
+    QTRY_VERIFY(findItem("ui.first")->parentItem()->x()<findItem("ui.second")->parentItem()->x());
+    run("property.commit",{{"scope","ui"},{"target","custom"},{"changes",QVariantMap{{"reverse",true}}}});
+    QTRY_VERIFY(findItem("ui.first")->parentItem()->x()>findItem("ui.second")->parentItem()->x());
+    const auto geometry = run("container.layout",{{"id","custom"},{"width",608.},{"height",288.},{"grid",16}}).toMap().value("rectangles").toList();
+    QCOMPARE(geometry.size(),2); QCOMPARE(geometry[0].toMap().value("x").toDouble(),findItem("ui.first")->parentItem()->x());
+    run("history.undo"); QTRY_VERIFY(findItem("ui.first")->parentItem()->x()<findItem("ui.second")->parentItem()->x());
+
+    run("workspace.open",{{"page","user.example.overview"}});
+    const auto workspace = qobject_cast<corig::Workspaces *>(app_->workspaces()); const auto original = workspace->page("user.example.overview");
+    QVERIFY(original); QTRY_VERIFY(findItem("overview.heading"));
+    run("workspace.configure",{{"page","user.example.overview"},{"changes",QVariantMap{{"heading","保存的总览"}}}});
+    QTRY_COMPARE(findItem("overview.heading")->property("text").toString(),QString("保存的总览"));
+    const auto main = run("app.state").toMap().value("workspaces").toMap().value("windows").toList().first().toMap().value("id").toString();
+    run("workspace.detach",{{"page","user.example.overview"},{"x",200},{"y",120}});
+    QCOMPARE(workspace->page("user.example.overview"),original);
+    run("workspace.move",{{"page","user.example.overview"},{"window",main}});
+    const auto saved = folder_->filePath("qml-project.crpj"); run("project.save",{{"path",saved},{"include_plugins",true}});
+    const auto stored = corig::loadProject(saved);
+    QVERIFY(stored.value("workspaces").toMap().contains("user.example.overview"));
+    bool included = false; for (const auto &entry : stored.value("plugin_packages").toList()) included |= entry.toMap().value("id") == package.id();
+    QVERIFY(included);
+    QVERIFY_THROWS_EXCEPTION(corig::Error,app_->command("plugin.enable",{{"plugin","user.example.ribbon"},{"enabled",false}}));
+    run("project.new",{{"discard",true}});
+    QVERIFY(!workspace->page("user.example.overview"));
+    run("plugin.remove",{{"package",package.id()}});
+    run("project.open",{{"path",saved}});
+    run("workspace.open",{{"page","user.example.overview"}});
+    QTRY_VERIFY(findItem("overview.heading"));
+    QCOMPARE(findItem("overview.heading")->property("text").toString(),QString("保存的总览"));
+    QVERIFY(app_->pythonPath().isEmpty()); QVERIFY(run("project.validate").toMap().value("valid").toBool());
 }
 
 QTEST_MAIN(WorkbenchUiTest)
