@@ -91,6 +91,14 @@ def main():
         client.call('preferences.set', {'theme': 'dark'})
         client.call('python.probe', {'dependencies': ['math', 'json']})
         client.call('update.state')
+        client.call('job.list')
+        limits = client.call('resources.get')
+        original = limits['ports']
+        changed = dict(limits); changed['ports'] = original - 1
+        client.call('resources.set', {'limits': changed})
+        check(client.call('resources.get')['ports'] == original - 1, 'resource limits round-trip through the real process')
+        client.call('resources.set', {'reset': True})
+        check(client.call('resources.get')['ports'] == original, 'resource limits restore their tested defaults')
         client.call('plugin.state')
         client.call('plugin.tree', {'scope':'library'})
         client.call('plugin.settings')
@@ -106,6 +114,14 @@ def main():
         check(len(registry) == 78, 'plugins, properties, actions and UI declarations are discoverable')
 
         client.call('project.new', {'name': 'AI 协作完整流程'})
+        # Workspace and container extension routes are exercised through the
+        # public document commands, including the same checked cleanup path.
+        client.call('ui.container.add', {'id': 'ai_container', 'parent': 'root', 'plugin': 'layout.row'})
+        client.call('container.layout', {'id': 'ai_container', 'width': 400, 'height': 120, 'grid': 16})
+        client.call('ui.item.remove', {'id': 'ai_container'})
+        client.call('workspace.list')
+        client.call('workspace.list')
+
         client.call('project.rename', {'name': 'AI 协作验收'})
         for ident, plugin, position in [('input', 'control.number', [40, 40]), ('alternate', 'control.number', [40, 300]),
                                          ('math', 'function.exp', [400, 40]), ('result', 'display.value', [800, 40])]:
@@ -144,6 +160,7 @@ def main():
         plan = client.call('editor.plan', {'page': 'graph', 'ids': [copied], 'operation': 'remove'})
         client.call('editor.remove', {'page': 'graph', 'ids': [copied], 'confirmed': True, 'revision': plan['revision']})
         client.call('graph.node.remove', {'id': 'spare'})
+        client.call('node.configure.plan', {'node': 'input', 'changes': {'value': 1.5}})
         client.call('node.configure', {'node': 'input', 'changes': {'value': 1.25}})
         client.call('history.undo')
         client.call('history.redo')
@@ -222,13 +239,26 @@ def main():
         client.call('project.options', {'include_plugins':True})
         client.call('project.save', {'path': str(saved)})
         client.call('project.export', {'path':str(output/'AiDesign-export.crpj')})
+        view_id = next(i['id'] for i in client.call('project.get')['ui']['items'] if i.get('node') == 'input')
+        staged = client.call('property.get', {'scope':'ui','target':view_id})
+        client.call('property.stage', {'scope':'ui','target':view_id,'changes':{'title':'AI 属性草稿'}})
+        check(client.call('property.get', {'scope':'ui','target':view_id})['dirty'], 'AI stages a UI draft through the shared property session')
+        client.call('property.commit', {'scope':'ui','target':view_id})
+        check(client.call('property.get', {'scope':'ui','target':view_id})['values']['title'] == 'AI 属性草稿', 'AI commits the staged appearance through the same checked entry')
+        client.call('property.text', {'scope':'ui','target':view_id,'field':'title','text':'AI 文本草稿'})
+        client.call('property.discard', {'scope':'ui','target':view_id})
+        check(not client.call('property.get', {'scope':'ui','target':view_id})['dirty'], 'AI discards text without changing the design')
+        client.call('property.drafts')
         client.call('plugin.tree', {'scope':'project'})
         client.call('plugin.export', {'plugin':'control.number','path':str(output/'ControlNumber.crpl')})
         client.call('plugin.export.dialog', {'scope':'project'})
         client.call('controls.click', {'id':'plugin_export.close'})
 
+        # Property edits above are part of the design under test; persist them
+        # before comparing the reopened document.
+        client.call('project.save', {'path': str(saved)})
         project = client.call('project.get')
-        client.call('project.open', {'path': str(saved)})
+        client.call('project.open', {'path': str(saved), 'discard': True})
         reopened = client.call('project.get')
         # Per-open version choices are transient; compare all saved content.
         reopened.pop('plugin_selections', None)
@@ -315,6 +345,9 @@ Item {
         client.call('capture', {'target': 'runtime', 'path': str(output / 'user-controls.png')})
         client.call('runtime.stop')
         client.call('project.save', {'path': str(output / 'UserControls.crpj')})
+        # Every declared task is discoverable while the worker session that
+        # owns it is still active; inspect it before stopping the session.
+        check(isinstance(client.call('job.list'), list), 'background task list is queryable during the worker session')
         client.call('graph.node.remove', {'id': 'user'})
         client.call('ui.item.remove', {'id': view['id']})
         client.call('plugin.remove', {'plugin': manifest['id']})
@@ -359,7 +392,11 @@ Item {
         missing = sorted(set(schema['commands']) - client.covered)
         # Restart, OS folder opening and actual installation maintenance have
         # dedicated process/installer checks; never pretend they ran here.
-        separate = {'app.restart','plugin.directory','update.check','update.install'}
+        # These routes need an external process or a third-party workspace
+        # package. They are exercised by the native/installer/example suites;
+        # this AI run must not pretend it opened the OS folder or installed.
+        separate = {'app.restart','plugin.directory','update.check','update.install',
+                    'job.cancel','workspace.configure','workspace.remove'}
         check(set(missing) <= separate, 'every design/plugin command completed successfully: ' + str(len(client.covered)))
         report = {'count': len(checks), 'checks': checks, 'command_count': len(schema['commands']),
                   'covered_commands': sorted(client.covered), 'missing_commands': missing, 'separate_environment_commands': sorted(separate),

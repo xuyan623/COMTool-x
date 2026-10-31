@@ -109,7 +109,11 @@ position 为秒，direction 为 -1/1，倍速为 0.125～16。截断打开时，
 
 `plugin.state` 只报告本地插件文件夹的包、版本、相对路径、节点启用设置、当前工程引用及待重启状态，不合并工程副本。`plugin.tree(scope=library)` 是本地目录树，`scope=project` 是当前工程所用包及其实际选定版本。树的 folder 节点提供 children，plugin 叶节点提供包 id、version 和 relative_path。包在根目录归“其他”；外部文件或目录调整重启后重新扫描。
 
-`plugin.settings` 打开本地树状管理窗口，支持搜索、展开/折叠及选中插件后启停；`plugin.directory` 打开本地插件文件夹。导入由插件库或 plugin.import 完成；工程副本在工程导出和打开版本选择流程处理。本地设置与工程内激活是分开的，不能用工程内版本覆盖本地状态查询。
+`plugin.settings` 打开本地树状管理窗口，支持搜索、展开/折叠及选中插件后启停。右侧提供用途介绍、功能节点、界面预览、端口与默认参数，多视图可切换；`plugin.directory` 打开本地插件文件夹。导入由插件库或 plugin.import 完成；工程副本在工程导出和打开版本选择流程处理。本地设置与工程内激活是分开的，不能用工程内版本覆盖本地状态查询。
+
+`library.preview(plugin, scope)` 返回 definition、config、geometry 和 view_urls。scope 默认为 project，使用工程当前选定且启用的插件；library 使用本机安装版本，包括停用节点。预览读取默认参数和打包的真实 QML，不创建运行节点。原生版本已加载冲突时，geometry.error 提示重启，仍返回本机介绍与界面资源。
+
+管理树的插件和分类复选框控制本地启用状态，分类覆盖其完整子树，包含折叠或搜索隐藏的插件。`plugin.enable` 接受单个 plugin 或 plugins 节点 ID 数组（二者选一）和 enabled；整批先检查是否存在及工程引用，任何一个不允许停用时整批保持原状。分类显示全启用、部分启用、全停用三种状态。
 
 `project.options` 查询或修改 include_plugins；修改会标记未保存。project.save 沿用设置，project.export 可单独指定并保持当前工程路径不变。携带时写入用到的全部官方/用户包和资源；不携带时保留 plugin_dependencies，包括 id、version、sha256 和 relative_path。目录关系仅存在工程中，插件包内不保存分类。
 
@@ -119,116 +123,141 @@ plugin.export 的单包参数为 plugin/path；批量参数为 plugins（包ID�
 
 update.state 查询安装维护支持；update.check 返回 job，完成后 available/updates 来自真实维护工具。update.install 在工程已保存后启动安装维护并退出应用，完成安装由维护工具负责。app.restart 保留数据目录、工程路径与指定的插件版本选择。正式更新源需部署后才能在线使用；生成本地仓库不代表已经发布。
 
+## 插件属性面板、草稿与扩展类型
+
+`property.get(scope,target)` 返回绑定、schema、values、draft、text_draft、dirty、pending、error 和 editor。scope 为 node、ui 或 workspace；target 是节点 ID、界面对象 ID 或工作区插件 ID。editor 是插件提供的自定义 QML 面板 URL；为空时使用默认表单。`property.stage` 写入完整字段值，`property.text` 保留尚未解析的数值或 JSON 原文，提交时才解析；无效文本会保留草稿和失败原因。`property.commit` 支持 confirmed 与 revision：返回 requires_confirmation 和 affected_wires 时表示端口变化会断开连线，原草稿保持；带同一 revision、confirmed=true 再提交，属性变化与断线作为一步撤销。`property.discard` 放弃草稿，`property.drafts` 列出所有未应用草稿。
+
+节点配置的 `node.configure.plan(node,changes)` 预演端口与连线影响，不修改工程。GUI 在切换选择、切换工作区、关闭工程或退出前检查草稿，提示应用、放弃或取消；异步提交完成前保持 pending。插件可用 property_commit=batch 决定一次提交，宿主记录一步撤销。
+
+插件包 `implementation` 支持 native、python 和 qml。声明 `kind=node` 为计算节点；`kind=container` 使用 layout_script 和可选 qml；`kind=workspace` 使用 qml。纯 QML 包用于容器和工作区，不生成占位计算节点。容器 `container.layout(plugin,properties,children,width,height,grid)` 查询同一布局结果；`workspace.list` 列出当前工作区配置，`workspace.configure` 提交配置，`workspace.remove` 移除配置。工作区配置保存在 `project.workspaces`，完整插件随工程携带。
+
+Python 插件按包使用独立工作进程；同包节点各自持有 namespace 和 state，生产者通过 `ServiceContext` 发布，异步动作返回可查询、可取消的 `python.background` 任务。`job.list` 列出任务，`job.cancel(id)` 请求协作取消；不可协作时终止该包进程。`resources.get` 查询资源额度，`resources.set(limits,reset)` 调整或恢复。`node.configure.plan` 与 resources 都可由 GUI 和 AI/API 共用。
+
 ## 命令字段
 
 以下表格由本次原生实例的 schema 生成；节点/视图动作内层 args 以 registry 或 view.actions 为准。
 
 | 命令 | 参数 |
 |---|---|
-| `app.quit` | `discard` |
-| `app.restart` | `discard`, `path`, `plugin_selections` |
+| `app.quit` | discard |
+| `app.restart` | discard, path, plugin_selections |
 | `app.state` |  |
-| `batch` | `commands` |
-| `capture` | `target`, `path`, `width`, `height` |
+| `batch` | commands |
+| `capture` | target, path, width, height |
 | `clipboard.read` |  |
-| `controls.click` | `id`, `page` |
-| `controls.commit` | `id`, `page` |
-| `controls.focus` | `id`, `page` |
-| `controls.get` | `id`, `page` |
-| `controls.key` | `id`, `page`, `key`, `text`, `modifiers` |
-| `controls.list` | `page` |
-| `controls.pointer` | `id`, `page`, `type`, `x`, `y`, `button`, `buttons`, `delta_x`, `delta_y`, `modifiers` |
-| `controls.set` | `id`, `page`, `property`, `value` |
-| `editor.add` | `id`, `page`, `plugin` |
-| `editor.configure` | `page`, `zoom`, `pan_x`, `pan_y`, `left_width`, `right_width`, `fit`, `animation` |
-| `editor.copy` | `page`, `ids` |
-| `editor.paste` | `page`, `payload` |
-| `editor.place` | `page`, `id`, `ids`, `position`, `parent`, `index` |
-| `editor.plan` | `page`, `ids`, `operation`, `plugin` |
-| `editor.remove` | `page`, `id`, `ids`, `confirmed`, `revision` |
-| `editor.reorder` | `page`, `id`, `index` |
-| `editor.replace` | `page`, `id`, `ids`, `plugin`, `confirmed`, `revision` |
-| `editor.state` | `page` |
-| `editor.withdraw` | `page`, `id`, `ids` |
+| `container.layout` | id, width, height, grid |
+| `controls.click` | id, page |
+| `controls.commit` | id, page |
+| `controls.focus` | id, page |
+| `controls.get` | id, page |
+| `controls.key` | id, page, key, text, modifiers |
+| `controls.list` | page |
+| `controls.pointer` | id, page, type, x, y, button, buttons, delta_x, delta_y, modifiers |
+| `controls.set` | id, page, property, value |
+| `editor.add` | id, page, plugin |
+| `editor.configure` | page, zoom, pan_x, pan_y, left_width, right_width, fit, animation |
+| `editor.copy` | page, ids |
+| `editor.paste` | page, payload |
+| `editor.place` | page, id, ids, position, parent, index |
+| `editor.plan` | page, ids, operation, plugin |
+| `editor.remove` | page, id, ids, confirmed, revision |
+| `editor.reorder` | page, id, index |
+| `editor.replace` | page, id, ids, plugin, confirmed, revision |
+| `editor.state` | page |
+| `editor.withdraw` | page, id, ids |
 | `graph.activity` |  |
-| `graph.connection.options` | `node`, `port` |
+| `graph.connection.options` | node, port |
 | `graph.fit` |  |
-| `graph.node.add` | `id`, `plugin`, `title`, `config`, `position`, `orientation`, `placed` |
-| `graph.node.move` | `id`, `position` |
-| `graph.node.patch` | `id`, `changes` |
-| `graph.node.remove` | `id`, `ids` |
-| `graph.node.rotate` | `id`, `degrees` |
+| `graph.node.add` | id, plugin, title, config, position, orientation, placed |
+| `graph.node.move` | id, position |
+| `graph.node.patch` | id, changes |
+| `graph.node.remove` | id, ids |
+| `graph.node.rotate` | id, degrees |
 | `graph.overlaps` |  |
-| `graph.select` | `id`, `kind`, `ids` |
-| `graph.wire.add` | `id`, `source`, `target`, `routing`, `color`, `width`, `points` |
-| `graph.wire.handles` | `id`, `x`, `y` |
-| `graph.wire.patch` | `id`, `changes` |
-| `graph.wire.remove` | `id` |
+| `graph.select` | id, kind, ids |
+| `graph.wire.add` | id, source, target, routing, color, width, points |
+| `graph.wire.handles` | id, x, y |
+| `graph.wire.patch` | id, changes |
+| `graph.wire.remove` | id |
 | `history.redo` |  |
 | `history.undo` |  |
 | `io.ports` |  |
-| `job.get` | `id` |
-| `library.configure` | `view`, `size` |
-| `library.favorite` | `plugin`, `enabled` |
-| `library.preview` | `plugin` |
-| `library.search` | `query`, `category`, `scope` |
+| `job.cancel` | id |
+| `job.get` | id |
+| `job.list` |  |
+| `library.configure` | view, size |
+| `library.favorite` | plugin, enabled |
+| `library.preview` | plugin, scope |
+| `library.search` | query, category, scope |
 | `library.state` |  |
 | `log.clear` |  |
-| `log.configure` | `detail` |
-| `log.export` | `path`, `node`, `level`, `text`, `batch` |
-| `log.query` | `after`, `limit`, `node`, `level`, `text`, `batch` |
-| `node.action` | `node`, `action`, `args` |
-| `node.configure` | `node`, `changes`, `persist` |
-| `node.state` | `node`, `detailed` |
+| `log.configure` | detail |
+| `log.export` | path, node, level, text, batch |
+| `log.query` | after, limit, node, level, text, batch |
+| `node.action` | node, action, args |
+| `node.configure` | node, changes, persist, confirmed, revision |
+| `node.configure.plan` | node, changes |
+| `node.state` | node, detailed |
 | `plugin.directory` |  |
-| `plugin.enable` | `plugin`, `enabled` |
-| `plugin.export` | `plugin`, `path`, `plugins`, `directory`, `overwrite`, `scope` |
-| `plugin.export.dialog` | `scope`, `plugin` |
-| `plugin.import` | `path`, `manifest` |
-| `plugin.remove` | `plugin`, `package` |
+| `plugin.enable` | plugin, plugins, enabled |
+| `plugin.export` | plugin, path, plugins, directory, overwrite, scope |
+| `plugin.export.dialog` | scope, plugin |
+| `plugin.import` | path, manifest |
+| `plugin.remove` | plugin, package |
 | `plugin.settings` |  |
 | `plugin.state` |  |
-| `plugin.tree` | `scope` |
-| `preferences.set` | `theme`, `python`, `read_only` |
-| `project.export` | `path`, `include_plugins` |
+| `plugin.tree` | scope |
+| `preferences.set` | theme, python, read_only |
+| `project.export` | path, include_plugins |
 | `project.get` |  |
-| `project.new` | `name`, `discard` |
-| `project.open` | `path`, `discard`, `plugin_selections` |
-| `project.options` | `include_plugins` |
-| `project.rename` | `name` |
-| `project.save` | `path`, `include_plugins` |
+| `project.new` | name, discard |
+| `project.open` | path, discard, plugin_selections |
+| `project.options` | include_plugins |
+| `project.rename` | name |
+| `project.save` | path, include_plugins |
 | `project.validate` |  |
-| `python.probe` | `dependencies` |
+| `property.commit` | scope, target, changes, confirmed, revision |
+| `property.discard` | scope, target |
+| `property.drafts` |  |
+| `property.get` | scope, target |
+| `property.stage` | scope, target, changes |
+| `property.text` | scope, target, field, text |
+| `python.probe` | dependencies |
 | `registry` |  |
-| `runtime.debug` | `enabled` |
-| `runtime.emit` | `node`, `outputs` |
+| `resources.get` |  |
+| `resources.set` | limits, reset |
+| `runtime.debug` | enabled |
+| `runtime.emit` | node, outputs |
 | `runtime.pause` |  |
 | `runtime.reset` |  |
-| `runtime.start` | `debug` |
+| `runtime.start` | debug |
 | `runtime.state` |  |
-| `runtime.step` | `mode`, `source` |
+| `runtime.step` | mode, source |
 | `runtime.stop` |  |
 | `schema` |  |
-| `sync.apply` | `direction`, `keys`, `revision` |
-| `sync.plan` | `direction` |
-| `ui.container.add` | `id`, `parent`, `plugin`, `properties` |
-| `ui.item.move` | `id`, `parent`, `index` |
-| `ui.item.patch` | `id`, `properties` |
-| `ui.item.remove` | `id` |
-| `ui.item.schema` | `id` |
+| `sync.apply` | direction, keys, revision |
+| `sync.plan` | direction |
+| `ui.container.add` | id, parent, plugin, properties |
+| `ui.item.move` | id, parent, index |
+| `ui.item.patch` | id, properties |
+| `ui.item.remove` | id |
+| `ui.item.schema` | id |
 | `ui.update` |  |
-| `ui.view.add` | `id`, `parent`, `node`, `view`, `properties` |
-| `ui.view.bind` | `id`, `node`, `view` |
+| `ui.view.add` | id, parent, node, view, properties |
+| `ui.view.bind` | id, node, view |
 | `update.check` |  |
 | `update.install` |  |
 | `update.state` |  |
-| `view.actions` | `node`, `view` |
-| `view.call` | `node`, `view`, `action`, `args` |
-| `view.read` | `node`, `view`, `args` |
-| `window.close` | `window`, `discard` |
-| `window.configure` | `window`, `x`, `y`, `width`, `height`, `state`, `focus` |
-| `window.pin` | `window`, `enabled` |
-| `workspace.close` | `page`, `discard` |
-| `workspace.detach` | `page`, `x`, `y` |
-| `workspace.move` | `page`, `window`, `index` |
-| `workspace.open` | `page`, `window` |
+| `view.actions` | node, view |
+| `view.call` | node, view, action, args |
+| `view.read` | node, view, args |
+| `window.close` | window, discard |
+| `window.configure` | window, x, y, width, height, state, focus |
+| `window.pin` | window, enabled |
+| `workspace.close` | page, discard |
+| `workspace.configure` | page, changes |
+| `workspace.detach` | page, x, y |
+| `workspace.list` |  |
+| `workspace.move` | page, window, index |
+| `workspace.open` | page, window |
+| `workspace.remove` | page |

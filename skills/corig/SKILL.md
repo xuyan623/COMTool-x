@@ -59,6 +59,12 @@ controls.list 可按 page 发现具名及未命名 QML 控件，记录包含 nod
 
 官方与用户统一使用 .crpl；官方每节点一包。分类来自插件文件夹相对目录，根目录归“其他”，不写入包内；外部目录或文件调整后重启生效。本机版本使用本机目录，工程副本使用 .crpj 单独记录的路径。plugin.state 只查询本地安装、启用、工程引用及重启状态，不合并工程内副本；plugin.tree(scope=library) 只查本地文件夹，scope=project 只查工程使用的包。插件管理是本地目录树和状态视图，不提供导入、导出或移除按钮；插件库负责导入，文件菜单负责工程插件导出；plugin.enable/remove 对在用插件报告引用并阻止操作。
 
+属性编辑统一走 property.get/stage/text/commit/discard/drafts，scope 为 node、ui 或 workspace，target 为节点、界面对象或工作区 ID。插件自定义面板 URL 在 property.editor；无面板时使用默认表单。输入中的数值或 JSON 用 property.text 暂存，提交时才解析；校验失败保留 text_draft 与 error。property.commit 返回 requires_confirmation 和 affected_wires 时，草稿保持，带同一 revision、confirmed=true 重试，配置和断线一起提交并共用一步撤销。切换选择、工作区、关闭工程或退出前先检查 property.drafts，提示应用、放弃或取消；pending 完成前不要重复提交。
+
+插件包 implementation 支持 native、python、qml。纯 qml 包只能声明 container 或 workspace，不能伪装计算节点。container.layout 查询布局脚本结果；workspace.list/configure/remove 管理工作区配置，配置保存在 project.workspaces。视图 bridge 按界面实例隔离配置、属性、草稿和动作。node.configure.plan 可预演端口与连线影响。
+
+Python 插件按包使用独立工作进程，同包节点 state 与 namespace 独立。自定义校验通过 hooks.configure/view_configure，动态端口通过 hooks.ports；生产者用 service.background，异步动作返回 python.background 任务，可在 job.list 查看并用 job.cancel 请求取消，不可协作时终止该包进程。resources.get/set 查询和调整资源额度。不要用业务校验失败当成工作进程故障，也不要把事件提交当成设备执行结果。
+
 plugin.export(plugins,directory,scope) 批量导出并保留目录；目标已存在时先返回 requires_confirmation 和 conflicts，不写入文件。GUI 同样支持全选、全不选、反选和分类选择。覆盖现有文件需要明确确认再传 overwrite=true。工程打开冲突由用户选择 plugin_selections 中的 project/local；requires_plugins 报告缺失依赖，requires_restart 报告需重启的 C++ 包，不能视作已打开。
 
 安装版数据默认在 Windows 本地应用数据目录，portable.ini 的便携版使用程序目录；--data-dir 优先。update.state 查询维护支持，update.check 等待真实任务结果，update.install 启动维护工具前必须保存工程。正式更新源需先部署，未部署或不可达时如实报告。app.restart 保留数据目录和工程路径。不要替用户切换插件版本或覆盖未保存工程。

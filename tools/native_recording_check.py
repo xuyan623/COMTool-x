@@ -155,11 +155,21 @@ def main():
     client.call('controls.pointer', {'id': 'control.start', 'type': 'release'})
     wait_for('rec', lambda s: s['recording'])
     check(state('timer')['enabled'], 'one boolean button update starts both recorder and countdown through distribution')
-    client.call('node.action', {'node': 'timer', 'action': 'start', 'args': {'interval_ms': 160}})
-    time.sleep(.06)
+    # One button press feeds both the recorder and the countdown plugin. Give
+    # the countdown a window long enough to observe it being restarted, then let
+    # it run down so the completion assertion still measures real behaviour.
+    client.call('node.action', {'node': 'timer', 'action': 'start', 'args': {'interval_ms': 1000}})
+    before = state('rec')['records']
+    time.sleep(.45)
+    dropped = state('timer')['remaining_seconds']
     client.call('controls.click', {'id': 'control.start'})
-    time.sleep(.08)
-    check(state('rec')['recording'], 'repeated start restarts countdown without clearing the current capture')
+    deadline = time.monotonic() + 2
+    while time.monotonic() < deadline and state('timer')['remaining_seconds'] <= dropped:
+        time.sleep(.01)
+    after = state('rec')
+    restarted = state('timer')['remaining_seconds']
+    check(after['recording'] and after['records'] >= before and restarted > dropped,
+          'repeated start restarts the countdown without clearing the current capture')
     wait_for('rec', lambda s: not s['recording'])
     check(state('rec')['records'] > 0, 'countdown completion pauses recording through its boolean output')
     client.call('runtime.pause')

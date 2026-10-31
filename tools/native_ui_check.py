@@ -45,7 +45,7 @@ class Client:
                         if result.get("job"):
                             return job.get("result")
                         break
-                    if job["state"] in ("failed", "missing"):
+                    if job["state"] in ("failed", "cancelled", "missing"):
                         raise RuntimeError(operation + ": " + job.get("error", "job failed"))
                     time.sleep(.01)
                 else:

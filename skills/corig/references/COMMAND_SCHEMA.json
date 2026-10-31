@@ -34,6 +34,14 @@
     "clipboard.read": {
       "arguments": []
     },
+    "container.layout": {
+      "arguments": [
+        "id",
+        "width",
+        "height",
+        "grid"
+      ]
+    },
     "controls.click": {
       "arguments": [
         "id",
@@ -276,10 +284,18 @@
     "io.ports": {
       "arguments": []
     },
+    "job.cancel": {
+      "arguments": [
+        "id"
+      ]
+    },
     "job.get": {
       "arguments": [
         "id"
       ]
+    },
+    "job.list": {
+      "arguments": []
     },
     "library.configure": {
       "arguments": [
@@ -295,7 +311,8 @@
     },
     "library.preview": {
       "arguments": [
-        "plugin"
+        "plugin",
+        "scope"
       ]
     },
     "library.search": {
@@ -346,7 +363,15 @@
       "arguments": [
         "node",
         "changes",
-        "persist"
+        "persist",
+        "confirmed",
+        "revision"
+      ]
+    },
+    "node.configure.plan": {
+      "arguments": [
+        "node",
+        "changes"
       ]
     },
     "node.state": {
@@ -361,6 +386,7 @@
     "plugin.enable": {
       "arguments": [
         "plugin",
+        "plugins",
         "enabled"
       ]
     },
@@ -451,6 +477,45 @@
     "project.validate": {
       "arguments": []
     },
+    "property.commit": {
+      "arguments": [
+        "scope",
+        "target",
+        "changes",
+        "confirmed",
+        "revision"
+      ]
+    },
+    "property.discard": {
+      "arguments": [
+        "scope",
+        "target"
+      ]
+    },
+    "property.drafts": {
+      "arguments": []
+    },
+    "property.get": {
+      "arguments": [
+        "scope",
+        "target"
+      ]
+    },
+    "property.stage": {
+      "arguments": [
+        "scope",
+        "target",
+        "changes"
+      ]
+    },
+    "property.text": {
+      "arguments": [
+        "scope",
+        "target",
+        "field",
+        "text"
+      ]
+    },
     "python.probe": {
       "arguments": [
         "dependencies"
@@ -458,6 +523,15 @@
     },
     "registry": {
       "arguments": []
+    },
+    "resources.get": {
+      "arguments": []
+    },
+    "resources.set": {
+      "arguments": [
+        "limits",
+        "reset"
+      ]
     },
     "runtime.debug": {
       "arguments": [
@@ -617,12 +691,21 @@
         "discard"
       ]
     },
+    "workspace.configure": {
+      "arguments": [
+        "page",
+        "changes"
+      ]
+    },
     "workspace.detach": {
       "arguments": [
         "page",
         "x",
         "y"
       ]
+    },
+    "workspace.list": {
+      "arguments": []
     },
     "workspace.move": {
       "arguments": [
@@ -636,11 +719,16 @@
         "page",
         "window"
       ]
+    },
+    "workspace.remove": {
+      "arguments": [
+        "page"
+      ]
     }
   },
   "values": {
     "bytes": "{type:bytes,base64:...,length:N}",
     "samples": "{time:seconds,values:{name:number}}"
   },
-  "version": "0.4.0"
+  "version": "0.4.1"
 }
