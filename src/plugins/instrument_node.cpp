@@ -189,7 +189,7 @@ public:
     {
         setDecoder();
     }
-    NodeResult start(const BatchContext &) override { return NodeResult::output({{"resize",QVariantMap{{"columns",screen_.columns()},{"rows",screen_.rows()}}}}); }
+    NodeResult start(const BatchContext &context) override { Node::start(context); return NodeResult::output({{"resize",QVariantMap{{"columns",screen_.columns()},{"rows",screen_.rows()}}}}); }
     void configure(Node &prepared) override
     {
         const bool encoding = config_.value("encoding") != prepared.config().value("encoding");
