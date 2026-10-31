@@ -12,7 +12,6 @@
 #include <QJsonDocument>
 #include <QRegularExpression>
 #include <QSaveFile>
-#include <QStandardPaths>
 #include <QtEndian>
 #include <QtCore/private/qzipreader_p.h>
 #include <QtCore/private/qzipwriter_p.h>
@@ -248,9 +247,10 @@ QByteArray PluginPackage::file(const QString &name) const
 
 QString PluginPackage::materialize() const
 {
-    const auto root = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/plugin-packages/" + hash();
-    // Immutable content-addressed directories keep loaded DLLs separate from
-    // installed packages; replacing a package takes effect on the next launch.
+    // Unpacked plugin files live beside the program, never in the system cache:
+    // CoRig keeps everything it creates inside its own directory. Content
+    // addressed folders keep a loaded DLL separate from a replaced package.
+    const auto root = QCoreApplication::applicationDirPath() + "/cache/plugin-packages/" + hash();
     for (auto i = files_.cbegin(); i != files_.cend(); ++i) {
         const auto path = root + '/' + checkedPath(i.key());
         QFile existing(path);
