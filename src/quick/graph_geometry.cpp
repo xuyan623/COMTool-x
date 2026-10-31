@@ -2,6 +2,8 @@
 #include <QFont>
 #include <QFontMetricsF>
 #include <QSet>
+#include <QDir>
+#include <QUrl>
 #include <cmath>
 
 namespace corig {
@@ -73,7 +75,11 @@ QVariantMap nodeGeometry(const QVariantMap &node, const Catalog &catalog)
     if (kind == "source.constant") { const auto values = node.value("config").toMap().value("values").toMap(); symbol = values.size()==1 ? QString::number(values.first().toDouble(),'g',5) : "{…}"; }
     QString icon = kind.startsWith("io.") ? "connection" : kind == "control.button" ? "button" : kind == "control.text" ? "text-input" : kind.startsWith("control.") ? "sliders" : kind == "plot.curves" ? "wave" : kind == "plot.attitude" ? "attitude" : kind.startsWith("source.") ? "clock" : kind.startsWith("protocol.") ? "decode" : kind == "data.fork" ? "fork" : kind == "data.gate" || kind == "data.select" ? "switch" : kind == "terminal.ansi" || kind == "debug.console" ? "terminal" : "wave";
     if (kind == "display.value") icon = "display";
-    return {{"width",width},{"height",height},{"ports",points},{"title",title},{"type",kind},{"title_y",0.},{"vertical",vertical},{"center",center},{"input_area",inputArea},{"output_area",outputArea},{"symbol",symbol},{"icon",icon},{"radius",8.}};
+    const auto graph = definition.value("graph").toMap();
+    if (graph.contains("symbol")) symbol = graph.value("symbol").toString();
+    QString iconUrl; const auto resource = graph.value("icon").toString();
+    if (!resource.isEmpty()) { const auto package = catalog.package(kind); package.file(resource); iconUrl = QUrl::fromLocalFile(QDir(package.materialize()).filePath(resource)).toString(); }
+    return {{"width",width},{"height",height},{"ports",points},{"title",title},{"type",kind},{"title_y",0.},{"vertical",vertical},{"center",center},{"input_area",inputArea},{"output_area",outputArea},{"symbol",symbol},{"icon",icon},{"icon_url",iconUrl},{"radius",8.}};
 }
 
 QPointF portPosition(const QVariantMap &node, const QVariantMap &geometry, const QString &port)
