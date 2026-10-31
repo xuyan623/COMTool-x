@@ -4,7 +4,7 @@
     "name": "串口",
     "category": "通信",
     "description": "串口收发、流控、RTS/DTR、断线重连",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "tx",
@@ -168,7 +168,7 @@
     "name": "TCP / UDP",
     "category": "通信",
     "description": "TCP 客户端/多客户端服务端、UDP 收发",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "tx",
@@ -285,7 +285,7 @@
     "name": "SSH",
     "category": "通信",
     "description": "密码/密钥登录、交互式终端、窗口尺寸传递",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "tx",
@@ -401,7 +401,7 @@
     "name": "数据解码器",
     "category": "协议",
     "description": "选择 命名 ASCII/二进制、FireWater 或 JustFloat；每个完整数值帧形成一个采样批次",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "bytes",
@@ -542,7 +542,7 @@
     "name": "Python 协议",
     "category": "协议",
     "description": "decode/encode(inputs,state)：inputs 包含 data/time/discontinuity；返回 bytes、采样帧或帧列表",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "in",
@@ -611,7 +611,7 @@
     "name": "数据编码",
     "category": "协议",
     "description": "将输入编码为文本、HEX 或 JSON",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "value",
@@ -676,7 +676,7 @@
     "name": "文本解码",
     "category": "协议",
     "description": "增量字符解码",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "bytes",
@@ -714,7 +714,7 @@
     "name": "数值输入",
     "category": "控件",
     "description": "可编辑数值，按范围校验后发布数值事件",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "value",
@@ -784,7 +784,7 @@
     "name": "滑块",
     "category": "控件",
     "description": "可编辑数值，按范围校验后发布数值事件",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "value",
@@ -854,7 +854,7 @@
     "name": "文本输入",
     "category": "控件",
     "description": "用户与 API 共用同一控件操作",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "value",
@@ -905,7 +905,7 @@
     "name": "开关值",
     "category": "控件",
     "description": "用户与 API 共用同一控件操作",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "value",
@@ -952,7 +952,7 @@
     "name": "下拉选项",
     "category": "控件",
     "description": "用户与 API 共用同一控件操作",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "value",
@@ -1006,7 +1006,7 @@
     "name": "按钮",
     "category": "控件",
     "description": "每次点击发布一条布尔 true；复杂操作由下游插件完成",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "trigger",
@@ -1045,7 +1045,7 @@
     "name": "数值 / 文本显示",
     "category": "控件",
     "description": "显示输入的最新值",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "value",
@@ -1082,7 +1082,7 @@
     "name": "收发调试",
     "category": "调试",
     "description": "文本/HEX、编码、时间戳、历史、快捷指令、定时发送和文件收发",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "rx",
@@ -1265,7 +1265,7 @@
     "name": "信号录制",
     "category": "调试",
     "description": "单路原样传递并按需录制；暂停片段拼接，历史独立保存",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [],
     "properties": {
       "data_type": {
@@ -1328,7 +1328,7 @@
     "name": "定时触发",
     "category": "信号源",
     "description": "周期触发或单次倒计时；外部开始信号重新计时，引擎暂停冻结计时",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "start",
@@ -1409,7 +1409,7 @@
     "name": "时间",
     "category": "信号源",
     "description": "自主推进运行时间或读取系统时间；输出名称、时钟和单位分别配置，暂停不累计运行时间",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [],
     "properties": {
       "period_ms": {
@@ -1453,7 +1453,7 @@
     "name": "常量",
     "category": "信号源",
     "description": "持续输出固定数值，可配置多个命名输出；无固定周期，按调度速度驱动下游",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [],
     "properties": {
       "values": {
@@ -1482,7 +1482,7 @@
     "name": "通道提取",
     "category": "数据处理",
     "description": "从一组采样中提取多个独立数值，并输出以秒表示的采样时间；缺少通道不覆盖其此前值",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "samples",
@@ -1523,7 +1523,7 @@
     "name": "数据分发",
     "category": "数据处理",
     "description": "把同一份数据交给多个下游，不修改数据",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [],
     "properties": {
       "data_type": {
@@ -1566,7 +1566,7 @@
     "name": "通断开关",
     "category": "数据处理",
     "description": "enabled 为真时连接数据，为假时等同删除输出导线；不会清空下游处理历史",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "enabled",
@@ -1606,7 +1606,7 @@
     "name": "二选一开关",
     "category": "数据处理",
     "description": "select 为真选择 A，为假选择 B；未连接的数值输入为零",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "select",
@@ -1646,7 +1646,7 @@
     "name": "正弦",
     "category": "三角函数",
     "description": "计算 sin(x)，输入 x 使用弧度。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -1679,7 +1679,7 @@
     "name": "余弦",
     "category": "三角函数",
     "description": "计算 cos(x)，输入 x 使用弧度。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -1712,7 +1712,7 @@
     "name": "正切",
     "category": "三角函数",
     "description": "计算 tan(x)，输入 x 使用弧度。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -1745,7 +1745,7 @@
     "name": "反正弦",
     "category": "三角函数",
     "description": "计算反正弦，输入范围 [-1,1]，输出弧度。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -1778,7 +1778,7 @@
     "name": "反余弦",
     "category": "三角函数",
     "description": "计算反余弦，输入范围 [-1,1]，输出弧度。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -1811,7 +1811,7 @@
     "name": "反正切",
     "category": "三角函数",
     "description": "计算反正切，输出弧度。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -1844,7 +1844,7 @@
     "name": "绝对值",
     "category": "数学运算",
     "description": "去掉输入的正负号，返回绝对值。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -1877,7 +1877,7 @@
     "name": "平方根",
     "category": "数学运算",
     "description": "计算非负输入的平方根。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -1910,7 +1910,7 @@
     "name": "指数",
     "category": "数学运算",
     "description": "计算自然常数 e 的 x 次幂。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -1943,7 +1943,7 @@
     "name": "自然对数",
     "category": "数学运算",
     "description": "计算正数的自然对数 ln(x)。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -1976,7 +1976,7 @@
     "name": "常用对数",
     "category": "数学运算",
     "description": "计算正数以 10 为底的对数。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -2009,7 +2009,7 @@
     "name": "向下取整",
     "category": "数学运算",
     "description": "向下取整到不大于输入的整数。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -2042,7 +2042,7 @@
     "name": "向上取整",
     "category": "数学运算",
     "description": "向上取整到不小于输入的整数。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -2075,7 +2075,7 @@
     "name": "取反",
     "category": "数学运算",
     "description": "将输入变号，输出 -x。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -2108,7 +2108,7 @@
     "name": "弧度转角度",
     "category": "数学运算",
     "description": "将弧度换算成角度。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -2141,7 +2141,7 @@
     "name": "角度转弧度",
     "category": "数学运算",
     "description": "将角度换算成弧度。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -2174,7 +2174,7 @@
     "name": "符号",
     "category": "数学运算",
     "description": "根据输入的正负或零返回 1、-1 或 0。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -2207,7 +2207,7 @@
     "name": "加法",
     "category": "数学运算",
     "description": "将所有数值输入相加。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "out",
@@ -2242,7 +2242,7 @@
     "name": "减法",
     "category": "数学运算",
     "description": "计算 a - b，需要两个数值输入。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "out",
@@ -2277,7 +2277,7 @@
     "name": "乘法",
     "category": "数学运算",
     "description": "将所有数值输入相乘。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "out",
@@ -2312,7 +2312,7 @@
     "name": "除法",
     "category": "数学运算",
     "description": "计算 a / b，除数 b 不能为零。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "out",
@@ -2347,7 +2347,7 @@
     "name": "最小值",
     "category": "数学运算",
     "description": "取所有数值输入中的最小值。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "out",
@@ -2382,7 +2382,7 @@
     "name": "最大值",
     "category": "数学运算",
     "description": "取所有数值输入中的最大值。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "out",
@@ -2417,7 +2417,7 @@
     "name": "幂",
     "category": "数学运算",
     "description": "计算 a 的 b 次幂，需要两个数值输入。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "out",
@@ -2452,7 +2452,7 @@
     "name": "双参数反正切",
     "category": "数学运算",
     "description": "计算 atan2(a,b)，输出弧度。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "out",
@@ -2487,7 +2487,7 @@
     "name": "大于",
     "category": "数学运算",
     "description": "比较 a 是否大于 b，输出布尔值。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "out",
@@ -2522,7 +2522,7 @@
     "name": "小于",
     "category": "数学运算",
     "description": "比较 a 是否小于 b，输出布尔值。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "out",
@@ -2557,7 +2557,7 @@
     "name": "等于",
     "category": "数学运算",
     "description": "比较 a 是否等于 b，输出布尔值。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "out",
@@ -2592,7 +2592,7 @@
     "name": "限幅",
     "category": "数学运算",
     "description": "把 x 限制在 minimum 与 maximum 之间。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -2639,7 +2639,7 @@
     "name": "线性映射",
     "category": "数学运算",
     "description": "按输入、输出区间端点进行线性换算，允许外推。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -2700,7 +2700,7 @@
     "name": "正弦波",
     "category": "波形函数",
     "description": "将外部时间转换为正弦波，振幅、频率和相位由输入提供。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "t",
@@ -2775,7 +2775,7 @@
     "name": "方波",
     "category": "波形函数",
     "description": "将外部时间转换为方波，振幅、频率和相位由输入提供。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "t",
@@ -2857,7 +2857,7 @@
     "name": "三角波",
     "category": "波形函数",
     "description": "将外部时间转换为三角波，振幅、频率和相位由输入提供。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "t",
@@ -2932,7 +2932,7 @@
     "name": "锯齿波",
     "category": "波形函数",
     "description": "将外部时间转换为锯齿波，振幅、频率和相位由输入提供。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "t",
@@ -3007,7 +3007,7 @@
     "name": "斜坡",
     "category": "波形函数",
     "description": "输出 slope × t + offset，t 是显式输入的时间。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "t",
@@ -3068,7 +3068,7 @@
     "name": "随机数",
     "category": "波形函数",
     "description": "按输入更新产生均匀或正态随机数，可用种子复现序列。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "t",
@@ -3128,7 +3128,7 @@
     "name": "积分",
     "category": "历史处理",
     "description": "按显式时间累计输入的面积，支持梯形和前向欧拉积分。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -3209,7 +3209,7 @@
     "name": "微分",
     "category": "历史处理",
     "description": "按显式时间计算输入数值的变化率。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -3281,7 +3281,7 @@
     "name": "滑动平均",
     "category": "历史处理",
     "description": "对最近 N 次采样求平均，平滑波动与噪声。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -3340,7 +3340,7 @@
     "name": "一阶低通",
     "category": "历史处理",
     "description": "按截止频率平滑高频变化，保留缓慢变化的信号。",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "x",
@@ -3419,7 +3419,7 @@
     "name": "数学表达式",
     "category": "自定义函数",
     "description": "多个命名输入与公式输出；可用 sin、cos、pi 等数学名称",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [],
     "properties": {
       "inputs": {
@@ -3453,7 +3453,7 @@
     "name": "Python 函数",
     "category": "自定义函数",
     "description": "process(inputs,state)；隔离执行，多输入多输出，state 显式保留",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [],
     "properties": {
       "inputs": {
@@ -3507,7 +3507,7 @@
     "name": "实时曲线",
     "category": "绘图",
     "description": "C++ 实时曲线：多通道、缩放平移、通道列表、显隐颜色、暂停跟随、FFT、CSV/PNG/SVG",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "samples",
@@ -3669,7 +3669,7 @@
     "name": "3D 姿态仪",
     "category": "绘图",
     "description": "极简飞机或 STL/OBJ 几何模型；欧拉角/四元数独立输入，未连接为零，坐标轴和显示约定可配置",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [],
     "properties": {
       "mode": {
@@ -4020,7 +4020,7 @@
     "name": "交互终端",
     "category": "调试",
     "description": "ANSI/VT、颜色、历史滚动、复制选择、粘贴、控制键和 SSH 窗口尺寸",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "rx",
@@ -4170,7 +4170,7 @@
     "name": "与门",
     "category": "逻辑",
     "description": "所有输入为真时为真",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "a",
@@ -4215,7 +4215,7 @@
     "name": "或门",
     "category": "逻辑",
     "description": "至少一个输入为真时为真",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "a",
@@ -4260,7 +4260,7 @@
     "name": "非门",
     "category": "逻辑",
     "description": "对输入取反",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "a",
@@ -4298,7 +4298,7 @@
     "name": "与非门",
     "category": "逻辑",
     "description": "与门结果取反",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "a",
@@ -4343,7 +4343,7 @@
     "name": "或非门",
     "category": "逻辑",
     "description": "或门结果取反",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "a",
@@ -4388,7 +4388,7 @@
     "name": "异或门",
     "category": "逻辑",
     "description": "两个输入不同时为真",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "a",
@@ -4433,7 +4433,7 @@
     "name": "同或门",
     "category": "逻辑",
     "description": "两个输入相同时为真",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "a",
@@ -4478,7 +4478,7 @@
     "name": "边沿触发",
     "category": "逻辑",
     "description": "选定布尔变化发生时发布一条 true；初始状态为 false",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "in",
@@ -4534,7 +4534,7 @@
     "name": "信号回放",
     "category": "调试",
     "description": "未截断时实时直通；截断后按进度和倍速回放独立文件",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [],
     "properties": {
       "data_type": {
@@ -4652,7 +4652,7 @@
     "name": "字节记录",
     "category": "调试",
     "description": "记录原始字节或带时间戳的 HEX；原样继续传递",
-    "version": "3.0",
+    "version": "0.3",
     "ports": [
       {
         "id": "bytes",

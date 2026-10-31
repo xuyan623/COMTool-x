@@ -272,7 +272,7 @@ QVariantMap Controller::commit(EditResult edit, const QString &label, bool remem
 
 QVariantMap Controller::appState() const
 {
-    return {{"application","CoRig"},{"version","0.4.1"},{"project",project_.value("name")},{"path",projectPath_},{"dirty",dirty_},{"read_only",readOnly_},
+    return {{"application","CoRig"},{"version","0.4.2"},{"project",project_.value("name")},{"path",projectPath_},{"dirty",dirty_},{"read_only",readOnly_},
         {"busy",busy_},{"runtime",engine_->observation()},{"workspaces",workspaces_ ? workspaces_->state() : QVariantMap{}},
         {"python",pythonPath()},{"theme",theme_},{"view_observations",observedViews_},{"selection",QVariantMap{{"id",selected_},{"kind",selectedKind_},{"nodes",selectedNodes_}}}};
 }
