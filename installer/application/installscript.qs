@@ -1,30 +1,23 @@
-// The installer owns program files and OS integration. User projects, imported
-// plugins and settings live outside TargetDir and are never install operations.
+// CoRig keeps program files, plugins and personal projects in one folder, so
+// the installer only ever owns program files. The scope page pins the default
+// target to a writable per-user location; the folder page may still select
+// another writable disk.
 function Component()
 {
-    if (!installer.containsValue("AllUsers")) installer.setValue("AllUsers", "false");
     if (installer.isInstaller() && !installer.isCommandLineInstance()) {
         installer.addWizardPage(component, "InstallScope", QInstaller.TargetDirectory);
-        var page = component.userInterface("InstallScope");
-        page.CurrentUser.checked = installer.value("AllUsers") !== "true";
-        page.AllUsers.checked = installer.value("AllUsers") === "true";
-        page.AllUsers.toggled.connect(function(allUsers) {
-            installer.setValue("AllUsers", allUsers ? "true" : "false");
-            var base = allUsers ? installer.value("ApplicationsDirX64") : installer.environmentVariable("LOCALAPPDATA") + "/Programs";
-            installer.setValue("TargetDir", base + "/CoRig");
-        });
-        if (installer.value("AllUsers") !== "true")
-            installer.setValue("TargetDir", installer.environmentVariable("LOCALAPPDATA") + "/Programs/CoRig");
+        installer.setValue("TargetDir", installer.environmentVariable("LOCALAPPDATA") + "/Programs/CoRig");
     }
 }
 
 Component.prototype.createOperations = function()
 {
-    if (installer.value("AllUsers") === "true" && !installer.gainAdminRights())
-        throw new Error("安装到所有用户需要管理员权限。");
     component.createOperations();
     if (systemInfo.productType !== "windows") return;
-    var menu = installer.value("AllUsers") === "true" ? "@AllUsersStartMenuProgramsPath@/CoRig" : "@UserStartMenuProgramsPath@/CoRig";
+    // Updating must never rewrite the folders that hold user content.
+    component.addOperation("Mkdir", "@TargetDir@/project");
+    component.addOperation("Mkdir", "@TargetDir@/plugins");
+    var menu = "@UserStartMenuProgramsPath@/CoRig";
     if (installer.value("CreateShortcuts", "true") === "true") {
         component.addOperation("CreateShortcut", "@TargetDir@/CoRig.exe", menu + "/联调 CoRig.lnk", "workingDirectory=@TargetDir@", "iconPath=@TargetDir@/CoRig.exe");
         component.addOperation("CreateShortcut", "@TargetDir@/CoRigMaintenanceTool.exe", menu + "/更新与卸载 CoRig.lnk", "workingDirectory=@TargetDir@");

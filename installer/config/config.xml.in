@@ -7,7 +7,6 @@
     <ProductUrl>https://github.com/xuyan623/CoRig</ProductUrl>
     <StartMenuDir>CoRig</StartMenuDir>
     <TargetDir>@HomeDir@/AppData/Local/Programs/CoRig</TargetDir>
-    <AdminTargetDir>@ApplicationsDirX64@/CoRig</AdminTargetDir>
     <MaintenanceToolName>CoRigMaintenanceTool</MaintenanceToolName>
     <MaintenanceToolIniFile>CoRigMaintenanceTool.ini</MaintenanceToolIniFile>
     <RemoveTargetDir>false</RemoveTargetDir>
