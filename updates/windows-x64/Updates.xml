@@ -11,10 +11,10 @@
   <Default>true</Default>
   <Dependencies>org.corig.runtime-6.12.0</Dependencies>
   <Script>installscript.qs</Script>
-  <UpdateFile CompressedSize="9868352" OS="Any" UncompressedSize="31813253"/>
+  <UpdateFile CompressedSize="9878579" OS="Any" UncompressedSize="31857652"/>
   <DownloadableArchives>docs.7z,examples.7z,licenses.7z,skills.7z,verification.7z,content.7z</DownloadableArchives>
-  <UserInterfaces>InstallScope.ui</UserInterfaces>
-  <SHA1>5468b81f942e25abdd8faf48e4c3f63806d8d732</SHA1>
+  <UserInterfaces>InstallScope.ui,UninstallOptions.ui</UserInterfaces>
+  <SHA1>2656e5105f4543421217a28496cfc22e3bd6629f</SHA1>
  </PackageUpdate>
  <PackageUpdate>
   <Name>org.corig.official</Name>
@@ -24,9 +24,9 @@
   <ReleaseDate>2026-10-31</ReleaseDate>
   <Default>true</Default>
   <Dependencies>org.corig.application</Dependencies>
-  <UpdateFile CompressedSize="1558138" OS="Any" UncompressedSize="114404740"/>
+  <UpdateFile CompressedSize="1558118" OS="Any" UncompressedSize="114404740"/>
   <DownloadableArchives>plugins.7z</DownloadableArchives>
-  <SHA1>80add4935419a5ca9c6d30af95a44f3d0ae84003</SHA1>
+  <SHA1>c5e44999471df70dd5d0e9fe1a44f07a29007ced</SHA1>
  </PackageUpdate>
  <PackageUpdate>
   <Name>org.corig.runtime</Name>
@@ -36,9 +36,9 @@
   <ReleaseDate>2026-10-31</ReleaseDate>
   <Default>true</Default>
   <Dependencies/>
-  <UpdateFile CompressedSize="18204174" OS="Any" UncompressedSize="75512743"/>
-  <DownloadableArchives>cache.7z,generic.7z,iconengines.7z,imageformats.7z,networkinformation.7z,platforms.7z,qml.7z,qmltooling.7z,tls.7z,content.7z</DownloadableArchives>
-  <SHA1>a40b405128bd8cd90484f1655f3909f2de04113e</SHA1>
+  <UpdateFile CompressedSize="18203132" OS="Any" UncompressedSize="75512703"/>
+  <DownloadableArchives>generic.7z,iconengines.7z,imageformats.7z,networkinformation.7z,platforms.7z,qml.7z,qmltooling.7z,tls.7z,content.7z</DownloadableArchives>
+  <SHA1>a14475fc46416587eda880e8ee66d700da57c878</SHA1>
  </PackageUpdate>
  <PackageUpdate>
   <Name>org.corig.sdk</Name>
@@ -48,10 +48,10 @@
   <ReleaseDate>2026-10-31</ReleaseDate>
   <Default>false</Default>
   <Dependencies>org.corig.application</Dependencies>
-  <UpdateFile CompressedSize="612016" OS="Any" UncompressedSize="7314219"/>
+  <UpdateFile CompressedSize="612022" OS="Any" UncompressedSize="7313707"/>
   <DownloadableArchives>CoRigSdk.7z</DownloadableArchives>
-  <SHA1>d5d28d0e8037686123b46177149f9236e1c09ed0</SHA1>
+  <SHA1>5b368b58db89d205555aee057e783ed1c49d00a3</SHA1>
  </PackageUpdate>
- <SHA1>d316ccf89ee9bdcf283f21e1400cbe9dfd6f2658</SHA1>
- <MetadataName>2026-10-31-2146_meta.7z</MetadataName>
+ <SHA1>151b996cfc01ac6468b63190cb488c33465022a1</SHA1>
+ <MetadataName>2026-10-31-2318_meta.7z</MetadataName>
 </Updates>
