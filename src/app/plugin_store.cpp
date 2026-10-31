@@ -33,29 +33,77 @@ QList<PluginPackage> projectPackages(const QVariantMap &project)
 PluginStore::PluginStore(QString directory, QSettings &settings, Catalog::PythonCall python) : directory_(std::move(directory)), settings_(settings), python_(std::move(python))
 {
     if (!QDir().mkpath(directory_)) throw Error("无法创建插件库目录");
-    const QDir folder(directory_);
+    // The library directory is the whole inventory. Identity comes from the
+    // declared package ID, so a package keeps working wherever the user filed
+    // it and a rebuild never creates a second copy of one ID.
     const auto scanned = packagesInDirectory(directory_);
-    for (auto i = scanned.cbegin(); i != scanned.cend(); ++i) {
-        const auto package = i.value();
-        if (installed_.contains(package.id())) throw Error("插件库存在同 ID 的多个文件，请保留一份：" + locations_.value(package.id()) + "、" + i.key());
-        installed_.insert(package.id(),package); locations_.insert(package.id(),i.key());
-    }
-    const auto disabled = settings_.value("plugins/disabled").toStringList();
-    disabled_ = QSet<QString>(disabled.begin(),disabled.end());
-    const auto removed = settings_.value("plugins/removed").toStringList();
-    const bool initialized = settings_.value("plugins/initialized",false).toBool();
-    const auto bundled = packagesInDirectory(QCoreApplication::applicationDirPath() + "/plugins");
-    for (auto i = bundled.cbegin(); i != bundled.cend(); ++i) {
-        const auto package = i.value();
-        const bool missingFirstInstall = !initialized && !installed_.contains(package.id());
-        const bool upgrade = installed_.contains(package.id()) && QVersionNumber::fromString(package.version()) > QVersionNumber::fromString(installed_.value(package.id()).version());
-        if (!removed.contains(package.id()) && (missingFirstInstall || upgrade)) {
-            const auto location = locations_.value(package.id(),i.key());
-            package.save(folder.filePath(location)); installed_.insert(package.id(),package); locations_.insert(package.id(),location);
-        }
-    }
+    for (auto i = scanned.cbegin(); i != scanned.cend(); ++i) addScanned(i.key(),i.value());
+    seedBundled();
+    disabled_ = QSet<QString>(settings_.value("plugins/disabled").toStringList().begin(),settings_.value("plugins/disabled").toStringList().end());
+    recheckLoaded();
     settings_.setValue("plugins/initialized",true);
 }
+
+void PluginStore::seedBundled()
+{
+    // A custom data directory may start without the packages shipped beside the
+    // executable. Copy by ID only: same version means the user copy wins, and a
+    // newer bundled build replaces an older local one atomically.
+    const auto bundledRoot = QCoreApplication::applicationDirPath() + "/plugins";
+    if (QDir(directory_).canonicalPath() == QDir(bundledRoot).canonicalPath()) return;
+    const auto bundled = packagesInDirectory(bundledRoot);
+    const auto removed = settings_.value("plugins/removed").toStringList();
+    const bool initialized = settings_.value("plugins/initialized",false).toBool();
+    for (auto i = bundled.cbegin(); i != bundled.cend(); ++i) {
+        const auto package = i.value();
+        if (removed.contains(package.id())) continue;
+        const bool known = installed_.contains(package.id());
+        const bool newer = known && QVersionNumber::fromString(package.version()) > QVersionNumber::fromString(installed_.value(package.id()).version());
+        if (known && (!newer || !initialized)) continue;
+        const auto location = known ? locations_.value(package.id()) : i.key();
+        package.save(QDir(directory_).filePath(PluginPackage::checkedPath(location)));
+        installed_.insert(package.id(),package); locations_.insert(package.id(),location); packageIds_.insert(location,package.id());
+    }
+}
+
+void PluginStore::addScanned(const QString &relative, const PluginPackage &package)
+{
+    const auto previous = locations_.value(package.id());
+    // A package moved by the user keeps its identity; drop the stale copy so a
+    // later scan cannot resurrect two files for one ID.
+    if (!previous.isEmpty() && previous != relative) QFile::remove(QDir(directory_).filePath(previous));
+    installed_.insert(package.id(),package); locations_.insert(package.id(),relative); packageIds_.insert(relative,package.id());
+}
+
+void PluginStore::recheckLoaded()
+{
+    // Loaded native modules cannot be unloaded. Surface them as pending instead
+    // of reporting the on-disk version as already live.
+    pending_.clear();
+    for (auto i = installed_.cbegin(); i != installed_.cend(); ++i) {
+        const auto loaded = loadedNativeHash(i.key());
+        if (!loaded.isEmpty() && loaded != i.value().hash()) pending_.insert(i.key(),i.value());
+    }
+}
+
+void PluginStore::rescan()
+{
+    QWriteLocker lock(&lock_);
+    const auto scanned = packagesInDirectory(directory_);
+    QSet<QString> present;
+    for (auto i = scanned.cbegin(); i != scanned.cend(); ++i) { present.insert(i.key()); addScanned(i.key(),i.value()); }
+    // Files the user removed outside the program leave the library immediately.
+    for (auto i = locations_.begin(); i != locations_.end();) {
+        if (present.contains(i.value())) { ++i; continue; }
+        const auto id = i.key();
+        if (!loadedNativeHash(id).isEmpty()) { ++i; continue; }
+        installed_.remove(id); i = locations_.erase(i);
+    }
+    packageIds_.clear();
+    for (auto i = locations_.cbegin(); i != locations_.cend(); ++i) packageIds_.insert(i.value(),i.key());
+    recheckLoaded();
+}
+
 
 Catalog PluginStore::catalog(const QVariantMap &project, bool includeDisabled) const
 {
@@ -149,10 +197,12 @@ QVariantMap PluginStore::install(const PluginPackage &package, const QString &fi
         if (restart) checkedProperties(spec.value("properties").toMap(),{});
         else trial.checkedConfig(spec.value("id").toString(),{});
     }
+    // Identity is the package ID, so importing a newer build replaces the file
+    // wherever it currently lives instead of creating a second copy.
     const auto location = locations_.value(package.id(),fileName.isEmpty() ? package.id()+".crpl" : QFileInfo(fileName).completeBaseName()+".crpl");
     const auto destination = QDir(directory_).filePath(PluginPackage::checkedPath(location));
     if (QFileInfo::exists(destination) && !installed_.contains(package.id())) throw Error("目标目录已经有同名插件包，请先重命名：" + location);
-    package.save(destination); locations_.insert(package.id(),location);
+    package.save(destination); locations_.insert(package.id(),location); packageIds_.insert(location,package.id());
     if (restart) pending_.insert(package.id(),package); else installed_.insert(package.id(),package);
     auto removed = settings_.value("plugins/removed").toStringList(); removed.removeAll(package.id()); settings_.setValue("plugins/removed",removed);
     return {{"id",package.id()},{"version",package.version()},{"restart_required",restart}};

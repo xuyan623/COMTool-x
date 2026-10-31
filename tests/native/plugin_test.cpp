@@ -8,6 +8,7 @@
 #include "core/project.h"
 #include "core/native_plugin.h"
 #include "app/plugin_store.h"
+#include <algorithm>
 #include <cmath>
 
 using namespace corig;
@@ -170,21 +171,39 @@ void PluginTest::localInventoryExcludesProjectCopies()
     settings.setValue("plugins/initialized",true);
     PluginStore store(directory.filePath("plugins"),settings); store.install(localPackage);
     const auto localState = store.state(project);
-    QCOMPARE(localState.value("packages").toList().size(),1);
-    QCOMPARE(localState.value("packages").toList().first().toMap().value("version").toString(),QString("2.0.0"));
-    QCOMPARE(store.tree(project,"library").value("plugins").toList().first().toMap().value("version").toString(),QString("2.0.0"));
-    QCOMPARE(store.tree(project,"project").value("plugins").toList().first().toMap().value("version").toString(),QString("1.0.0"));
+    // The local library also seeds the packages shipped beside the executable;
+    // this check only cares that the project copy does not replace the local one.
+    const auto localPackages = localState.value("packages").toList();
+    const auto localGain = std::find_if(localPackages.cbegin(),localPackages.cend(),
+        [](const QVariant &entry) { return entry.toMap().value("id").toString() == "user.test.gain"; });
+    QVERIFY(localGain != localPackages.cend());
+    QCOMPARE(localGain->toMap().value("version").toString(),QString("2.0.0"));
+    const auto entryVersion = [](const QVariantList &entries) {
+        const auto found = std::find_if(entries.cbegin(),entries.cend(),[](const QVariant &entry) {
+            return entry.toMap().value("id").toString() == "user.test.gain"; });
+        return found == entries.cend() ? QString{} : found->toMap().value("version").toString(); };
+    QCOMPARE(entryVersion(store.tree(project,"library").value("plugins").toList()),QString("2.0.0"));
+    QCOMPARE(entryVersion(store.tree(project,"project").value("plugins").toList()),QString("1.0.0"));
     store.setEnabled({"user.test.gain"},false,emptyProject());
-    QVERIFY(!store.state(project).value("plugins").toList().first().toMap().value("enabled").toBool());
-    QVERIFY(store.state(project).value("plugins").toList().first().toMap().value("in_use").toBool());
+    const auto gainEntry = [&] {
+        const auto entries = store.state(project).value("plugins").toList();
+        return *std::find_if(entries.cbegin(),entries.cend(),[](const QVariant &entry) {
+            return entry.toMap().value("id").toString() == "user.test.gain"; }); };
+    QVERIFY(!gainEntry().toMap().value("enabled").toBool());
+    QVERIFY(gainEntry().toMap().value("in_use").toBool());
     // Management previews retain the installed version while execution still
     // follows the project's dependency selection and local enable preference.
     QCOMPARE(store.catalog({},true).definition("user.test.gain").value("version").toString(),QString("2.0.0"));
     QCOMPARE(store.catalog(project).definition("user.test.gain").value("version").toString(),QString("1.0.0"));
     QVERIFY_THROWS_EXCEPTION(Error,store.catalog({}).definition("user.test.gain"));
     store.remove(localPackage.id(),emptyProject());
-    QVERIFY(store.state(project).value("packages").toList().isEmpty());
-    QVERIFY(store.tree(project,"library").value("tree").toList().isEmpty());
+    // Seeded official packages remain; only the removed user package disappears.
+    const auto remaining = store.state(project).value("packages").toList();
+    QVERIFY(std::none_of(remaining.cbegin(),remaining.cend(),[](const QVariant &entry) {
+        return entry.toMap().value("id").toString() == "user.test.gain"; }));
+    const auto libraryTree = store.tree(project,"library").value("tree").toList();
+    QVERIFY(std::none_of(libraryTree.cbegin(),libraryTree.cend(),[](const QVariant &entry) {
+        return entry.toMap().value("id").toString() == "user.test.gain"; }));
     QCOMPARE(store.tree(project,"project").value("plugins").toList().size(),1);
     validateProject(project,store.catalog(project));
 }
