@@ -6,6 +6,7 @@
 #include <QPluginLoader>
 #include <QSysInfo>
 #include <QCryptographicHash>
+#include <QVersionNumber>
 
 namespace corig {
 namespace {
@@ -26,12 +27,16 @@ QString loadedNativeHash(const QString &packageId)
 void validateNativePackage(const PluginPackage &package)
 {
     const auto native = package.manifest().value("native").toMap();
-    if (native.value("sdk").toInt() != 1 || native.value("qt").toString() != QString::number(QT_VERSION_MAJOR) + '.' + QString::number(QT_VERSION_MINOR)
+    const auto qt = QVersionNumber::fromString(native.value("qt").toString());
+    if (native.value("sdk").toInt() != PluginSdkVersion || qt.majorVersion() != QT_VERSION_MAJOR || qt.minorVersion() > QT_VERSION_MINOR
         || native.value("architecture").toString() != QSysInfo::buildCpuArchitecture()
         || native.value("os").toString() != QSysInfo::kernelType())
         throw Error("C++ 插件与当前 CoRig SDK、Qt 或系统架构不匹配：" + package.id());
 #ifdef _MSC_VER
-    if (native.value("compiler").toString() != "msvc" || native.value("compiler_version").toInt() != _MSC_VER)
+    // Microsoft documents compatibility within the v14 ABI family. Actual
+    // DLL loading still verifies that its runtime dependencies are available.
+    const auto compiler = native.value("compiler_version").toInt();
+    if (native.value("compiler").toString() != "msvc" || compiler < 1900 || compiler >= 2000)
         throw Error("C++ 插件编译器与当前 CoRig SDK 不匹配：" + package.id());
 #endif
 #ifdef QT_DEBUG

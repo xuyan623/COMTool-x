@@ -1,4 +1,5 @@
 #include "project.h"
+#include "resource_policy.h"
 #include <QCborValue>
 #include <QCryptographicHash>
 #include <QFile>
@@ -81,6 +82,7 @@ void validateProject(const QVariantMap &project, const Catalog &catalog)
         const auto id = n.value("id").toString();
         if (id.isEmpty() || ports.contains(id)) throw Error("节点 id 为空或重复");
         const auto type = n.value("plugin").toString();
+        if (catalog.kind(type) != "node") throw Error("功能设计只能使用计算节点："+type);
         const auto config = catalog.checkedConfig(type, n.value("config").toMap());
         QHash<QString, Port> resolved;
         for (const auto &port : catalog.ports(type, config)) resolved.insert(port.id, port);
@@ -125,6 +127,9 @@ void validateProject(const QVariantMap &project, const Catalog &catalog)
     for (const auto &entry : ui.value("items").toList()) {
         const auto item = entry.toMap(); const auto id = item.value("id").toString();
         if (id.isEmpty() || items.contains(id)) throw Error("界面对象 id 为空或重复");
+        const auto plugin = item.value("plugin").toString();
+        if (!plugin.isEmpty() && (catalog.kind(plugin) != "container" || !item.contains("children"))) throw Error("界面布局需要容器插件和 children 列表："+id);
+        if (plugin.isEmpty() && item.contains("children")) throw Error("普通视图不能包含子对象："+id);
         items.insert(id, item);
     }
     if (!items.contains(ui.value("root").toString())) throw Error("界面缺少根容器");
@@ -141,6 +146,11 @@ void validateProject(const QVariantMap &project, const Catalog &catalog)
     };
     visit(ui.value("root").toString());
     if (visited.size() != items.size()) throw Error("界面树存在未归属对象");
+    const auto workspaces = project.value("workspaces").toMap();
+    for (auto i = workspaces.cbegin(); i != workspaces.cend(); ++i) {
+        if (catalog.kind(i.key()) != "workspace") throw Error("工程引用的插件不是工作区："+i.key());
+        catalog.checkedConfig(i.key(),i.value().toMap());
+    }
 }
 
 QVariantMap loadProject(const QString &path)
@@ -175,7 +185,7 @@ QString importResource(QVariantMap &project, const QString &path)
 {
     if (path.isEmpty() || path.startsWith("asset://")) return path;
     QFile file(path);
-    if (!file.open(QIODevice::ReadOnly) || file.size() > 128 * 1024 * 1024) throw Error("资源无法读取或超过 128 MiB：" + path);
+    if (!file.open(QIODevice::ReadOnly) || file.size() > resourceLimit("resource_mib") * 1024 * 1024) throw Error("资源无法读取或超过 resource_mib 额度：" + path);
     const auto bytes = file.readAll();
     const auto key = QString::fromLatin1(QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex().left(20)) + "/" + QFileInfo(path).fileName();
     auto assets = project.value("resources").toMap(); assets.insert(key, bytes); project.insert("resources", assets);

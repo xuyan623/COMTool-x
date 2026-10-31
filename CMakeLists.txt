@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(CoRig VERSION 0.4.0 LANGUAGES C CXX)
+project(CoRig VERSION 0.4.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -15,18 +15,20 @@ add_library(corig_core SHARED
     src/core/recording.cpp src/core/recording.h
     src/core/plugin_package.cpp src/core/plugin_package.h
     src/core/paths.cpp src/core/paths.h
+    src/core/resource_policy.cpp src/core/resource_policy.h
+    src/core/plugin_script.cpp src/core/plugin_script.h
 )
 set_target_properties(corig_core PROPERTIES OUTPUT_NAME CoRigSdk WINDOWS_EXPORT_ALL_SYMBOLS ON)
 target_compile_definitions(corig_core PRIVATE CORIG_CORE_BUILD)
 target_include_directories(corig_core PUBLIC src)
-target_link_libraries(corig_core PUBLIC Qt6::Core PRIVATE Qt6::CorePrivate)
+target_link_libraries(corig_core PUBLIC Qt6::Core PRIVATE Qt6::CorePrivate Qt6::Qml)
 qt_add_executable(CoRig-pack src/app/pack.cpp)
 target_link_libraries(CoRig-pack PRIVATE corig_core)
 include(CMakePackageConfigHelpers)
 configure_package_config_file(sdk/cmake/CoRigSdkConfig.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/sdk-config/CoRigSdkConfig.cmake"
     INSTALL_DESTINATION lib/cmake/CoRigSdk)
 write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/sdk-config/CoRigSdkConfigVersion.cmake"
-    VERSION 1.0.0 COMPATIBILITY SameMajorVersion)
+    VERSION 2.0.0 COMPATIBILITY SameMajorVersion)
 set(SDK_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/sdk/CoRigSdk")
 add_custom_target(corig_sdk ALL
     COMMAND ${CMAKE_COMMAND} -E make_directory "${SDK_OUTPUT}/include/core" "${SDK_OUTPUT}/bin" "${SDK_OUTPUT}/lib/cmake/CoRigSdk"
@@ -39,7 +41,7 @@ add_custom_target(corig_sdk ALL
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_LINKER_FILE:corig_core>" "${SDK_OUTPUT}/lib"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/sdk-config/CoRigSdkConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/sdk-config/CoRigSdkConfigVersion.cmake" "${CMAKE_CURRENT_SOURCE_DIR}/sdk/cmake/CoRigPlugin.cmake" "${SDK_OUTPUT}/lib/cmake/CoRigSdk"
     DEPENDS corig_core CoRig-pack VERBATIM)
-foreach(header export value catalog plugin_package node native_plugin)
+foreach(header export value catalog plugin_package node native_plugin resource_policy plugin_script)
     add_custom_command(TARGET corig_sdk POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/src/core/${header}.h" "${SDK_OUTPUT}/include/core/${header}.h" VERBATIM)
 endforeach()
@@ -88,6 +90,7 @@ endforeach()
     target_link_libraries(corig_design PUBLIC corig_core Qt6::Gui)
 if(CORIG_BUILD_APP)
     add_library(corig_app STATIC src/app/controller.cpp src/app/controller_commands.cpp src/app/ui_commands.cpp src/app/controller.h
+        src/app/property_session.cpp src/app/property_session.h
         src/app/plugin_store.cpp src/app/plugin_store.h
         src/app/updates.cpp src/app/updates.h
         src/app/api_server.cpp src/app/api_server.h src/app/workspaces.cpp src/app/workspaces.h)
@@ -129,6 +132,7 @@ if(CORIG_BUILD_APP)
     add_test(NAME editor COMMAND corig_editor_test)
     qt_add_executable(corig_workbench_ui_test tests/native/workbench_ui_test.cpp)
     target_link_libraries(corig_workbench_ui_test PRIVATE corig_app corig_quick Qt6::Test Qt6::QuickControls2)
+    target_compile_definitions(corig_workbench_ui_test PRIVATE CORIG_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
     set_target_properties(corig_workbench_ui_test corig_editor_test PROPERTIES WIN32_EXECUTABLE FALSE)
     qt_add_resources(corig_workbench_ui_test workbench_qml PREFIX "/qt/qml/CoRig" BASE "src/qml" FILES ${CORIG_QML_FILES})
     qt_add_resources(corig_workbench_ui_test workbench_module PREFIX "/qt/qml/CoRig" BASE "tests/native" FILES tests/native/qmldir)

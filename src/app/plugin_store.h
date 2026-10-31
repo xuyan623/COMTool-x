@@ -9,18 +9,19 @@
 namespace corig {
 class PluginStore {
 public:
-    PluginStore(QString directory, QSettings &settings);
-    Catalog catalog(const QVariantMap &project) const;
+    PluginStore(QString directory, QSettings &settings, Catalog::PythonCall python = {});
+    Catalog catalog(const QVariantMap &project, bool includeDisabled = false) const;
     QVariantMap readiness(const QVariantMap &project) const;
     QVariantMap state(const QVariantMap &project) const;
     QVariantMap install(const PluginPackage &package, const QString &fileName = {});
-    void setEnabled(const QString &plugin, bool enabled, const QVariantMap &project);
+    void setEnabled(const QStringList &plugins, bool enabled, const QVariantMap &project);
     void remove(const QString &package, const QVariantMap &project);
     PluginPackage find(const QString &id, const QVariantMap &project) const;
     QVariantMap tree(const QVariantMap &project, const QString &scope) const;
 private:
     QString directory_;
     QSettings &settings_;
+    Catalog::PythonCall python_;
     mutable QReadWriteLock lock_;
     QMap<QString,PluginPackage> installed_;
     QMap<QString,QString> locations_;

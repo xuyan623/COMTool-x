@@ -1,5 +1,6 @@
 #include "engine.h"
 #include "project.h"
+#include "resource_policy.h"
 #include <QDateTime>
 #include <QJsonDocument>
 #include <QSaveFile>
@@ -40,7 +41,7 @@ void Engine::receive(const QString &node, const Values &outputs)
     {
         std::lock_guard guard(queueMutex_);
         // Refuse overload explicitly instead of silently losing unobserved data.
-        if (inputQueue_.size() >= 65536 || queuedBytes_ + bytes > 32 * 1024 * 1024) {
+        if (inputQueue_.size() >= static_cast<quint64>(resourceLimit("event_queue_count")) || queuedBytes_ + bytes > resourceLimit("event_queue_mib") * 1024 * 1024) {
             overflowError_ = "接收队列超过处理容量，已暂停；请降低输入速率或缩短处理链";
             accepting_ = false;
         } else { inputQueue_.push_back({node,outputs,false}); queuedBytes_ += bytes; }
@@ -115,6 +116,16 @@ void Engine::applyProject(const QVariantMap &project)
             candidates.emplace(id,makeNode(design,candidateCatalog,scopedHost));
     }
     if (batch_) { record("info","暂停期间修改了设计，未完成批次已中止，已执行状态保留"); batch_.reset(); }
+    // Accept retained-node updates before moving any ownership. A rejected
+    // Python configuration must not destroy unrelated live node instances.
+    for (const auto &item : project.value("nodes").toList()) {
+        const auto design = item.toMap(); const auto id = design.value("id").toString();
+        if (!design.value("placed",true).toBool()) continue;
+        auto old = nodes_.find(id); auto prepared = candidates.find(id);
+        if (old != nodes_.end() && prepared != candidates.end() && old->second->kind() == design.value("plugin").toString()
+            && catalog_.definition(old->second->kind()).value("package_hash") == candidateCatalog.definition(old->second->kind()).value("package_hash"))
+            old->second->configure(*prepared->second);
+    }
     std::map<QString,std::unique_ptr<Node>> next;
     for (const auto &item : project.value("nodes").toList()) {
         const auto design = item.toMap(); const auto id = design.value("id").toString();
@@ -122,12 +133,13 @@ void Engine::applyProject(const QVariantMap &project)
         auto old = nodes_.find(id); auto prepared = candidates.find(id);
         if (old != nodes_.end() && old->second->kind() == design.value("plugin").toString()
             && catalog_.definition(old->second->kind()).value("package_hash") == candidateCatalog.definition(old->second->kind()).value("package_hash")) {
-            if (prepared != candidates.end()) old->second->configure(*prepared->second);
             next.emplace(id,std::move(old->second));
         } else next.emplace(id,std::move(prepared->second));
     }
     for (auto &[id,node] : nodes_) if (node) node->stop();
     nodes_ = std::move(next); catalog_ = std::move(candidateCatalog); project_ = project; order_ = candidateOrder;
+    { std::lock_guard guard(queueMutex_);
+      for (auto i = ioStates_.begin(); i != ioStates_.end();) if (!nodes_.contains(i.key())) i = ioStates_.erase(i); else ++i; }
     QHash<QString,Route> oldRoutes;
     for (const auto &route : routes_) oldRoutes.insert(route.id,route);
     routes_.clear(); outgoing_.clear();
@@ -200,7 +212,7 @@ void Engine::beginSession(bool debug)
     for (auto &[id,node] : nodes_) {
         const auto start = node->start(context);
         for (const auto &outputs : start.emissions) pendingFrames_.push_back({id,outputs,false});
-        node->resume();
+        node->pause();
     }
     ++epoch_; rebuildSources(Clock::now()); record("info",debug_ ? "调试会话已就绪" : "运行会话已就绪");
 }
@@ -213,7 +225,8 @@ void Engine::endSession()
     {
         std::lock_guard guard(queueMutex_); inputQueue_.clear(); queuedBytes_ = 0;
     }
-    for (auto &[id,node] : nodes_) node->stop();
+    for (auto &[id,node] : nodes_) try { node->stop(); }
+        catch (const std::exception &error) { record("error",QString::fromUtf8(error.what()),id); }
     if (host_.stopExtensions) host_.stopExtensions();
     ++epoch_; stopRequested_ = false; record("info","运行已结束，连接已释放");
 }
@@ -241,7 +254,7 @@ void Engine::route(const QString &source, const NodeResult &result)
     }
     if (result.separateFrames) {
         for (const auto &outputs : result.emissions) {
-            if (pendingFrames_.size() >= 65536) throw Error("完整采样帧超过队列容量，已暂停");
+            if (pendingFrames_.size() >= static_cast<quint64>(resourceLimit("event_queue_count"))) throw Error("完整采样帧超过 event_queue_count 额度，已暂停");
             pendingFrames_.push_back({source,outputs,false});
         }
     }
@@ -329,6 +342,7 @@ QVariant Engine::dispatch(const Request &request)
         NodeHost validateHost = host_; validateHost.resource = [project](const QString &ref) { return resourceBytes(project,ref); };
         for (const auto &entry : project.value("nodes").toList()) makeNode(entry.toMap(),checked,validateHost);
         endSession(); nodes_.clear(); routes_.clear(); elapsedBase_ = 0.; batchSequence_ = processed_ = failed_ = 0; currentNode_.clear(); nodeErrors_.clear();
+        { std::lock_guard guard(queueMutex_); ioStates_.clear(); }
         applyProject(project); return project;
     }
     if (op == "python.probe") {
@@ -364,6 +378,7 @@ QVariant Engine::dispatch(const Request &request)
     }
     if (op == "runtime.start") {
         if (args.contains("debug")) debug_ = args.value("debug").toBool();
+        if (running_) return QVariantMap{{"running",true}};
         beginSession(debug_);
         if (batch_) batch_->context.stepping = false;
         running_ = true; accepting_ = true; resumedAt_ = Clock::now();
@@ -384,6 +399,7 @@ QVariant Engine::dispatch(const Request &request)
     if (op == "runtime.stop") { endSession(); return QVariantMap{{"active",false}}; }
     if (op == "runtime.reset") {
         const auto design = args.value("project",project_).toMap(); endSession(); nodes_.clear(); routes_.clear(); elapsedBase_ = 0.; processed_ = failed_ = 0;
+        { std::lock_guard guard(queueMutex_); ioStates_.clear(); }
         currentNode_.clear(); nodeErrors_.clear(); applyProject(design); record("info","运行状态已重置"); return QVariantMap{{"reset",true}};
     }
     if (op == "runtime.step") {
@@ -417,7 +433,13 @@ QVariant Engine::dispatch(const Request &request)
     if (op == "node.state" || op == "view.read") {
         const auto id = args.value("node").toString();
         if (!nodes_.contains(id)) throw Error("节点不存在：" + id);
-        return op == "node.state" ? nodes_.at(id)->snapshot(args.value("detailed",true).toBool()) : nodes_.at(id)->view(args.value("view").toString(),args.value("args").toMap());
+        auto result = op == "node.state" ? nodes_.at(id)->snapshot(args.value("detailed",true).toBool()) : nodes_.at(id)->view(args.value("view").toString(),args.value("args").toMap());
+        if (catalog_.definition(nodes_.at(id)->kind()).value("implementation") == "python") {
+            std::lock_guard guard(queueMutex_); auto state = result.value("state").toMap();
+            const auto observed = ioStates_.value(id); for (auto i = observed.cbegin(); i != observed.cend(); ++i) state[i.key()] = i.value();
+            result["state"] = state;
+        }
+        return result;
     }
     if (op == "node.action") {
         const auto id = args.value("node").toString(), action = args.value("action").toString();
@@ -438,6 +460,9 @@ QVariant Engine::dispatch(const Request &request)
         QVariant result;
         const BatchContext context{batchSequence_,elapsed(Clock::now()),!running_,false};
         const auto emission = nodes_.at(id)->action(action,arguments,context,result);
+        if (action == "reset_state" && catalog_.definition(nodes_.at(id)->kind()).value("implementation") == "python") {
+            std::lock_guard guard(queueMutex_); ioStates_.remove(id);
+        }
         if (!emission.emissions.isEmpty() || !emission.disconnected.isEmpty() || emission.rescheduleSource) {
             if (batch_) { record("info","节点动作中止了未完成的单步批次",id); batch_.reset(); }
             beginBatch({id,{},false},!running_);
@@ -480,7 +505,13 @@ void Engine::publishObservation(Clock::time_point now, bool force)
     { std::lock_guard guard(queueMutex_); io = ioStates_; }
     for (const auto &[id,node] : nodes_) {
         auto state = node->snapshot(false);
-        if (io.contains(id)) state["state"] = io.value(id);
+        if (io.contains(id)) {
+            if (catalog_.definition(node->kind()).value("implementation") == "python") {
+                auto details = state.value("state").toMap(); const auto observed = io.value(id);
+                for (auto i = observed.cbegin(); i != observed.cend(); ++i) details[i.key()] = i.value();
+                state["state"] = details;
+            } else state["state"] = io.value(id);
+        }
         nodeStates.insert(id,state);
     }
     for (const auto &wire : routes_) wires.insert(wire.id,QVariantMap{{"count",QVariant::fromValue(wire.count)},{"step_count",QVariant::fromValue(wire.steps)},{"connected",wire.connected}});

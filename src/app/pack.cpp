@@ -1,5 +1,6 @@
 // SDK command-line packer: builds the exact .crpl format accepted by the GUI.
-// Compiler metadata comes from the matching SDK tool, never from user guesses.
+// The build helper supplies the compiler version; Qt's actual plugin metadata
+// supplies the Qt version and build mode, independently of the packer's build.
 #include "core/native_plugin.h"
 #include <QCoreApplication>
 #include <QDirIterator>
@@ -15,14 +16,15 @@ QByteArray read(const QString &path)
 {
     QFile input(path); if (!input.open(QIODevice::ReadOnly)) throw Error("无法读取：" + path); return input.readAll();
 }
-QVariantMap nativeInfo(const QString &library, const QString &binary)
+QVariantMap nativeInfo(const QString &library, const QString &binary, int compilerVersion = 0)
 {
     const auto metadata = QPluginLoader(binary).metaData().toVariantMap();
     if (metadata.value("IID") != CoRigNativePlugin_iid) throw Error("动态库没有声明 CoRig NativePlugin 接口：" + binary);
-    QVariantMap info{{"library",library},{"sdk",1},{"qt",QString::number(QT_VERSION_MAJOR) + '.' + QString::number(QT_VERSION_MINOR)},
+    const auto qt = metadata.value("version").toInt();
+    QVariantMap info{{"library",library},{"sdk",PluginSdkVersion},{"qt",QString::number(qt>>16) + '.' + QString::number((qt>>8)&255)},
         {"architecture",QSysInfo::buildCpuArchitecture()},{"os",QSysInfo::kernelType()}};
 #ifdef _MSC_VER
-    info["compiler"] = "msvc"; info["compiler_version"] = _MSC_VER;
+    info["compiler"] = "msvc"; info["compiler_version"] = compilerVersion ? compilerVersion : _MSC_VER;
 #else
     info["compiler"] = "gcc";
 #endif
@@ -68,14 +70,14 @@ int main(int argc, char **argv)
                 auto name = spec.value("name").toString(); name.replace(QRegularExpression("[\\\\/:*?\"<>|]"),"_");
                 const auto relative = category.join('/') + '/' + id + ".crpl";
                 manifest = {{"format","corig-plugin"},{"package_api",1},{"id","org.corig." + id},{"name",spec.value("name")},
-                    {"version","0.4.0"},{"official",true},{"implementation","native"},{"native",nativeInfo(library,args[3])},
+                    {"version",spec.value("version","1.0")},{"official",true},{"implementation","native"},{"native",nativeInfo(library,args[3])},
                     {"plugins",QVariantList{spec}}};
                 if (id.startsWith("io.")) manifest["capabilities"] = QStringList{"io"};
                 PluginPackage::create(manifest,packageFiles).save(QDir(args[5]).filePath(relative));
                 ++count;
             }
             std::printf("Packaged %d official node files\n",count); return 0;
-        } else if (args.size() == 5 && args[1] == "pack") {
+        } else if ((args.size() == 5 || (args.size() == 7 && args[5] == "--compiler-version")) && args[1] == "pack") {
             const auto root = QFileInfo(args[2]).absolutePath();
             manifest = QJsonDocument::fromJson(read(args[2])).toVariant().toMap();
             for (const auto &entry : manifest.take("files").toList()) {
@@ -84,11 +86,13 @@ int main(int argc, char **argv)
             }
             if (manifest.value("implementation") == "native") {
                 const auto library = "bin/" + QFileInfo(args[3]).fileName(); files.insert(library,read(args[3]));
-                manifest["native"] = nativeInfo(library,args[3]);
+                bool valid = true; const auto compiler = args.size() == 7 ? args[6].toInt(&valid) : 0;
+                if (!valid || (compiler && (compiler < 1900 || compiler >= 2000))) throw Error("需要有效的 MSVC v14 编译器版本");
+                manifest["native"] = nativeInfo(library,args[3],compiler);
             }
             output = args[4];
         } else {
-            std::fputs("CoRig-pack pack <plugin.json> <plugin.dll or -> <output.crpl>\n",stderr); return 2;
+            std::fputs("CoRig-pack pack <plugin.json> <plugin.dll or -> <output.crpl> [--compiler-version N]\n",stderr); return 2;
         }
         const auto package = PluginPackage::create(manifest,files); package.save(output);
         std::printf("%s %s -> %s\n",package.id().toUtf8().constData(),package.version().toUtf8().constData(),output.toUtf8().constData());

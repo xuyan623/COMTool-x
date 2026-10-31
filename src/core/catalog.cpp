@@ -1,5 +1,7 @@
 #include "catalog.h"
 #include "native_plugin.h"
+#include "resource_policy.h"
+#include "plugin_script.h"
 #include <QFile>
 #include <QDir>
 #include <QCoreApplication>
@@ -10,6 +12,22 @@
 #include <algorithm>
 
 namespace corig {
+
+namespace {
+void checkSavedProperty(const QVariant &value, const QString &name, int depth = 0)
+{
+    if (depth > 128) throw Error(name+" 的数据嵌套过深");
+    if (!value.isValid() || value.isNull()) return;
+    const auto type = value.metaType().id();
+    if (type == QMetaType::QVariantMap) {
+        const auto map = value.toMap(); for (auto i = map.cbegin(); i != map.cend(); ++i) checkSavedProperty(i.value(),name+"."+i.key(),depth+1);
+    } else if (type == QMetaType::QVariantList || type == QMetaType::QStringList) {
+        for (const auto &item : value.toList()) checkSavedProperty(item,name,depth+1);
+    } else if (type == QMetaType::QString || type == QMetaType::Bool || type == QMetaType::QByteArray) return;
+    else if (type == QMetaType::Double || type == QMetaType::Float || type == QMetaType::Int || type == QMetaType::UInt || type == QMetaType::LongLong || type == QMetaType::ULongLong) finiteNumber(value,name);
+    else throw Error(name+" 包含不能保存的数据类型");
+}
+}
 
 QVariantMap Port::describe() const
 {
@@ -23,13 +41,17 @@ QVariantMap checkedProperties(const QVariantMap &schema, const QVariantMap &chan
         if (!result.contains(i.key())) result.insert(i.key(), i.value().toMap().value("default"));
     for (auto i = changes.cbegin(); i != changes.cend(); ++i) { if (!schema.contains(i.key())) throw Error("不支持的参数：" + i.key()); result[i.key()] = i.value(); }
     for (auto i = result.cbegin(); i != result.cend(); ++i) {
+        if (!schema.contains(i.key())) throw Error("不支持的参数："+i.key());
         const auto spec = schema.value(i.key()).toMap();
         const auto type = spec.value("type").toString();
+        if (!QStringList{"string","boolean","number","integer","json","object","array"}.contains(type)) throw Error("参数类型未声明或不受支持："+i.key());
         const auto value = i.value();
         if (!value.isValid() || value.isNull()) { if (spec.value("required").toBool()) throw Error("缺少必填参数：" + i.key()); continue; }
         const auto id = value.metaType().id();
         if ((type == "string" && id != QMetaType::QString) || (type == "boolean" && id != QMetaType::Bool))
             throw Error(i.key() + " 参数类型不正确");
+        if ((type == "object" && id != QMetaType::QVariantMap) || (type == "array" && id != QMetaType::QVariantList && id != QMetaType::QStringList)) throw Error(i.key()+" 参数类型不正确");
+        checkSavedProperty(value,i.key());
         if (type == "number" || type == "integer") {
             const auto n = finiteNumber(value, i.key());
             if (type == "integer" && n != std::floor(n)) throw Error(i.key() + " 需要整数");
@@ -48,12 +70,12 @@ QVariantMap checkedProperties(const QVariantMap &schema, const QVariantMap &chan
 
 Catalog::Catalog() : Catalog(packagesInDirectory(QCoreApplication::applicationDirPath() + "/plugins")) {}
 
-Catalog::Catalog(const QList<PluginPackage> &packages)
+Catalog::Catalog(const QList<PluginPackage> &packages, PythonCall python) : python_(std::move(python))
 {
     for (const auto &package : packages) addPackage(package);
 }
 
-Catalog::Catalog(const QMap<QString,PluginPackage> &packages)
+Catalog::Catalog(const QMap<QString,PluginPackage> &packages, PythonCall python) : python_(std::move(python))
 {
     for (auto i = packages.cbegin(); i != packages.cend(); ++i) addPackage(i.value(),false,i.key());
 }
@@ -73,6 +95,7 @@ void Catalog::addPackage(const PluginPackage &package, bool replace, const QStri
     }
     for (const auto &entry : package.definitions()) {
         auto spec = entry.toMap(); const auto id = spec.value("id").toString();
+        if (spec.value("implementation") == "python") spec["package_directory"] = package.materialize();
         spec["category_path"] = parts; spec["package_path"] = location;
         if (next.contains(id)) throw Error("插件标识已被使用：" + id);
         next.insert(id,spec);
@@ -99,7 +122,11 @@ void Catalog::applyProject(const QVariantMap &project)
         const auto choice = choices.value(id).toString();
         const bool local = packages_.contains(id), attached = embedded.contains(id);
         if (!local && !attached) throw Error("工程缺少插件：" + id + " " + expected.value("version").toString());
-        const bool different = local && packages_.value(id).hash() != expected.value("sha256").toString();
+        // Version, not container bytes, decides compatibility. Identical
+        // versions may differ in ZIP metadata or rebuild timestamps; an
+        // explicit project/local decision still covers a genuinely different
+        // version even when the file was rebuilt from the same sources.
+        const bool different = local && packages_.value(id).version() != expected.value("version").toString();
         if (different && choice != "project" && choice != "local") throw Error("请选择工程内或本机插件版本：" + id);
         if (choice == "project" && !attached) throw Error("工程没有携带此插件，请导入需要的版本：" + id);
         if (attached && (!local || choice == "project")) addPackage(embedded.value(id),true,paths.value(id));
@@ -136,9 +163,13 @@ QVariantMap Catalog::embed(const QVariantMap &project, bool includePlugins) cons
     for (const auto &entry : project.value("nodes").toList()) used.insert(entry.toMap().value("plugin").toString());
     for (const auto &entry : project.value("ui").toMap().value("items").toList()) {
         const auto item = entry.toMap();
+        const auto container = item.value("plugin").toString();
+        if (!container.isEmpty() && definitions_.contains(container)) used.insert(container);
         const auto snapshot = item.value("binding").toMap();
         if (!snapshot.value("plugin").toString().isEmpty()) used.insert(snapshot.value("plugin").toString());
     }
+    const auto workspaces = project.value("workspaces").toMap();
+    for (auto i = workspaces.cbegin(); i != workspaces.cend(); ++i) used.insert(i.key());
     QMap<QString,PluginPackage> selected;
     for (const auto &plugin : used) { const auto p = package(plugin); selected.insert(p.id(),p); }
     QVariantList embedded, dependencies;
@@ -159,11 +190,19 @@ QVariantMap Catalog::definition(const QString &id) const
     return definitions_.value(id);
 }
 
+QString Catalog::kind(const QString &id) const
+{
+    static const QSet<QString> containers{"layout.canvas","layout.row","layout.column","layout.grid","layout.tabs"};
+    if (containers.contains(id)) return "container";
+    return definition(id).value("kind","node").toString();
+}
+
 QVariantList Catalog::describe() const
 {
     QVariantList result;
     for (auto i = definitions_.cbegin(); i != definitions_.cend(); ++i) {
         auto spec = i.value();
+        if (spec.value("kind","node") != "node") { result.append(spec); continue; }
         QVariantList resolved;
         try {
             const auto config = checkedConfig(i.key(), {});
@@ -182,11 +221,48 @@ QVariantList Catalog::describe() const
 QVariantMap Catalog::checkedConfig(const QString &id, const QVariantMap &changes, const QVariantMap &previous) const
 {
     const auto spec = definition(id);
+    checkResourceRequirements(package(id).manifest().value("requirements").toMap(),id);
+    if (kind(id) != "node") return checkedPresentation(id,kind(id),spec.value("properties").toMap(),changes,previous);
     auto config = spec.value("implementation") == "native"
         ? nativePlugin(package(id)).configuration(spec,changes,previous)
         : checkedProperties(spec.value("properties").toMap(),changes,previous);
+    if (!spec.value("hooks").toMap().value("configure").toString().isEmpty()) {
+        const auto returned = hook(id,"configure",config,{{"scope","node"},{"previous",previous},{"schema",spec.value("properties")}});
+        if (returned.metaType().id() != QMetaType::QVariantMap) throw Error("configure 必须返回配置对象："+id);
+        config = checkedProperties(spec.value("properties").toMap(),returned.toMap());
+    }
     ports(id, config);
     return config;
+}
+
+QVariant Catalog::hook(const QString &id, const QString &name, const QVariantMap &config, const QVariantMap &context) const
+{
+    const auto spec = definition(id); const auto hooks = spec.value("hooks").toMap();
+    const auto entry = hooks.value(name).toString(); const auto script = hooks.value("script").toString();
+    auto details = context; details["plugin"] = id;
+    if (!script.isEmpty()) return pluginScript(package(id),script,entry,{config,details});
+    if (spec.value("implementation") != "python" || !python_) throw Error("此插件校验需要已配置的 Python 环境："+id);
+    const auto stored = package(id);
+    return python_({{"package",stored.id()},{"node","metadata."+id},{"op","metadata"},{"metadata",true},
+        {"directory",stored.materialize()},{"code_file",spec.value("code_file")},{"entry",entry},
+        {"dependencies",spec.value("dependencies")},{"config",config},{"context",details}}).value("result");
+}
+
+QVariantMap Catalog::checkedPresentation(const QString &id, const QString &scope, const QVariantMap &schema,
+                                         const QVariantMap &changes, const QVariantMap &previous) const
+{
+    auto spec = definition(id); auto candidate = checkedProperties(schema,changes,previous);
+    if (spec.value("implementation") == "native") {
+        spec["properties"] = schema;
+        candidate = nativePlugin(package(id)).presentationConfiguration(scope,spec,candidate,previous);
+    }
+    const auto name = scope == "view" ? QString("view_configure") : QString("configure");
+    if (!spec.value("hooks").toMap().value(name).toString().isEmpty()) {
+        const auto returned = hook(id,name,candidate,{{"scope",scope},{"previous",previous},{"schema",schema}});
+        if (returned.metaType().id() != QMetaType::QVariantMap) throw Error(name+" 必须返回属性对象："+id);
+        candidate = returned.toMap();
+    }
+    return checkedProperties(schema,candidate);
 }
 
 QVector<Port> Catalog::ports(const QString &id, const QVariantMap &config) const
@@ -198,10 +274,17 @@ QVector<Port> Catalog::ports(const QString &id, const QVariantMap &config) const
         result.append({p.value("id").toString(), spec.value("official").toBool() ? p.value("id").toString() : p.value("label").toString(), p.value("direction").toString(), p.value("data_type").toString(), p.value("unit").toString()});
     }
     if (spec.value("implementation") == "native") result = nativePlugin(package(id)).ports(spec,config,std::move(result));
+    if (!spec.value("hooks").toMap().value("ports").toString().isEmpty()) {
+        QVariantList declared; for (const auto &port : result) declared.append(port.describe());
+        const auto returned = hook(id,"ports",config,{{"scope","ports"},{"declared",declared}});
+        if (returned.metaType().id() != QMetaType::QVariantList) throw Error("ports 必须返回端口数组："+id);
+        result.clear();
+        for (const auto &item : returned.toList()) { const auto p = item.toMap(); result.append({p.value("id").toString(),p.value("label",p.value("id")).toString(),p.value("direction").toString(),p.value("data_type").toString(),p.value("unit").toString()}); }
+    }
     static const QRegularExpression identifier("^[A-Za-z_][A-Za-z0-9_.-]*$");
     static const QSet<QString> types{"number","bytes","string","boolean","object","samples","any"};
     QSet<QString> seen;
-    if (result.size() > 128) throw Error("一个节点最多支持 128 个端口");
+    if (result.size() > resourceLimit("ports")) throw Error(QString("节点端口数量超过当前 ports=%1 额度").arg(resourceLimit("ports")));
     for (const auto &port : result) {
         if (!identifier.match(port.id).hasMatch() || seen.contains(port.id) || !types.contains(port.type)
             || (port.direction != "in" && port.direction != "out")) throw Error("端口声明无效或重复：" + port.id);

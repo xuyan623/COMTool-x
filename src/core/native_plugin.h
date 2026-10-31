@@ -6,6 +6,7 @@
 #include <QtPlugin>
 
 namespace corig {
+inline constexpr int PluginSdkVersion = 2;
 struct PluginEvents {
     std::function<void(const QString &,const Values &)> receive;
     std::function<void(const QString &,const QVariantMap &)> observe;
@@ -27,6 +28,11 @@ public:
     virtual QVariantMap configuration(const QVariantMap &definition, const QVariantMap &changes, const QVariantMap &previous) const
     { return checkedProperties(definition.value("properties").toMap(),changes,previous); }
     virtual QVector<Port> ports(const QVariantMap &, const QVariantMap &, QVector<Port> declared) const { return declared; }
+    // Presentation and functional schemas are distinct. Public editor paths
+    // receive the same normalized data and plugin-supplied business checks.
+    virtual QVariantMap presentationConfiguration(const QString &, const QVariantMap &definition,
+                                                   const QVariantMap &changes, const QVariantMap &previous) const
+    { return checkedProperties(definition.value("properties").toMap(),changes,previous); }
     // Algorithm-only plugins do not need an asynchronous device service.
     virtual std::unique_ptr<PluginService> createService(const PluginEvents &) { return {}; }
 };
@@ -37,5 +43,5 @@ CORIG_API void validateNativePackage(const PluginPackage &package);
 CORIG_API std::unique_ptr<Node> makePythonNode(QVariantMap design, QVariantMap definition, QVector<Port> ports, NodeHost host);
 }
 
-#define CoRigNativePlugin_iid "org.corig.NativePlugin/1.0"
+#define CoRigNativePlugin_iid "org.corig.NativePlugin/2.0"
 Q_DECLARE_INTERFACE(corig::NativePlugin, CoRigNativePlugin_iid)

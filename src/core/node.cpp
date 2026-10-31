@@ -57,7 +57,7 @@ void Node::configure(Node &prepared)
 }
 
 double Node::sourceInterval() const { return -1.; }
-NodeResult Node::start(const BatchContext &) { return {}; }
+NodeResult Node::start(const BatchContext &) { resumed_ = true; return {}; }
 void Node::resume() { resumed_ = true; }
 void Node::pause() {}
 void Node::stop() {}

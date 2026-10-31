@@ -28,7 +28,7 @@ function(corig_add_plugin target)
     # step. Nothing changes the user's PATH or selected Python environment.
     add_custom_command(TARGET ${target} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E env --modify "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>" --
-            "${CoRigSdk_PACKER}" pack "${manifest}" "$<TARGET_FILE:${target}>" "${CMAKE_CURRENT_BINARY_DIR}/${target}.crpl"
+            "${CoRigSdk_PACKER}" pack "${manifest}" "$<TARGET_FILE:${target}>" "${CMAKE_CURRENT_BINARY_DIR}/${target}.crpl" --compiler-version "${MSVC_VERSION}"
         VERBATIM)
     set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS "${resources}")
 endfunction()

@@ -32,7 +32,7 @@ static void messageHandler(QtMsgType type, const QMessageLogContext &, const QSt
 int main(int argc, char **argv)
 {
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
-    QGuiApplication application(argc,argv); QCoreApplication::setOrganizationName("CoRig"); QCoreApplication::setApplicationName("CoRig"); QCoreApplication::setApplicationVersion("0.4.0");
+    QGuiApplication application(argc,argv); QCoreApplication::setOrganizationName("CoRig"); QCoreApplication::setApplicationName("CoRig"); QCoreApplication::setApplicationVersion("0.4.1");
     application.setApplicationDisplayName(QStringLiteral("联调 · CoRig"));
     application.setQuitOnLastWindowClosed(false);
     QCommandLineParser parser; parser.setApplicationDescription("联调 · CoRig 工程调试工作台"); parser.addHelpOption(); parser.addVersionOption();

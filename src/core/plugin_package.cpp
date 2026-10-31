@@ -1,4 +1,5 @@
 #include "plugin_package.h"
+#include "resource_policy.h"
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -19,8 +20,6 @@
 
 namespace corig {
 namespace {
-constexpr qint64 ArchiveLimit = 128 * 1024 * 1024;
-constexpr qint64 ExpandedLimit = 512 * 1024 * 1024;
 QMutex packageCacheMutex;
 QCache<QByteArray,PluginPackage> packageCache(128 * 1024);
 QCache<QByteArray,QByteArray> binaryFiles(64 * 1024);
@@ -75,8 +74,11 @@ QString PluginPackage::checkedPath(const QString &name)
 
 PluginPackage PluginPackage::read(const QByteArray &archive)
 {
-    if (archive.isEmpty() || archive.size() > ArchiveLimit) throw Error("插件包为空或超过 128 MiB");
-    const auto archiveKey = QCryptographicHash::hash(archive,QCryptographicHash::Sha256);
+    const auto archiveLimit = resourceLimit("archive_mib") * 1024 * 1024;
+    const auto expandedLimit = resourceLimit("expanded_mib") * 1024 * 1024;
+    if (archive.isEmpty() || archive.size() > archiveLimit) throw Error(QString("插件包为空或超过当前 %1 MiB 额度").arg(resourceLimit("archive_mib")));
+    const auto archiveKey = QCryptographicHash::hash(archive,QCryptographicHash::Sha256)
+        + QCryptographicHash::hash(QJsonDocument::fromVariant(resourceLimits()).toJson(QJsonDocument::Compact),QCryptographicHash::Sha256);
     { QMutexLocker lock(&packageCacheMutex); if (const auto cached = packageCache.object(archiveKey)) return *cached; }
     QBuffer input; input.setData(archive); input.open(QIODevice::ReadOnly);
     QZipReader zip(&input);
@@ -84,14 +86,14 @@ PluginPackage PluginPackage::read(const QByteArray &archive)
     qint64 total = 0;
     QSet<QString> names;
     const auto entries = zip.fileInfoList();
-    if (entries.isEmpty() || entries.size() > 4096) throw Error("插件 ZIP 内容为空或文件数量过多");
+    if (entries.isEmpty() || entries.size() > resourceLimit("package_files")) throw Error("插件 ZIP 内容为空或超过文件数量额度");
     for (const auto &entry : entries) {
         if (entry.isSymLink || (!entry.isDir && !entry.isFile)) throw Error("插件包不能包含符号链接或特殊文件");
         if (entry.isDir) { checkedPath(entry.filePath.endsWith('/') ? entry.filePath.chopped(1) : entry.filePath); continue; }
         const auto name = checkedPath(entry.filePath);
         if (names.contains(name.toCaseFolded())) throw Error("插件包包含重名文件：" + name);
         names.insert(name.toCaseFolded());
-        if (entry.size < 0 || entry.size > ExpandedLimit - total) throw Error("插件解压大小超过 512 MiB");
+        if (entry.size < 0 || entry.size > expandedLimit - total) throw Error(QString("插件解压大小超过当前 %1 MiB 额度").arg(resourceLimit("expanded_mib")));
         total += entry.size;
         const auto bytes = zip.fileData(name);
         if (bytes.size() != entry.size || zipCrc(bytes) != entry.crc || zip.status() != QZipReader::NoError) throw Error("插件文件损坏：" + name);
@@ -108,7 +110,7 @@ PluginPackage PluginPackage::read(const QByteArray &archive)
         || package.version().isEmpty() || manifest.value("plugins").toList().isEmpty())
         throw Error("插件包声明需要 format=corig-plugin、package_api=1、id、version 和 plugins");
     const auto implementation = manifest.value("implementation").toString();
-    if (implementation != "native" && implementation != "python") throw Error("插件实现类型需要 native 或 python");
+    if (implementation != "native" && implementation != "python" && implementation != "qml") throw Error("插件实现类型需要 native、python 或 qml");
     if (implementation == "native") package.file(manifest.value("native").toMap().value("library").toString());
     package.archive_ = archive;
     package.hash_ = contentHash(package.files_);
@@ -134,7 +136,7 @@ PluginPackage PluginPackage::read(const QByteArray &archive)
 PluginPackage PluginPackage::open(const QString &path)
 {
     QFile input(path);
-    if (!input.open(QIODevice::ReadOnly) || input.size() > ArchiveLimit) throw Error("无法读取插件包：" + path);
+    if (!input.open(QIODevice::ReadOnly) || input.size() > resourceLimit("archive_mib") * 1024 * 1024) throw Error("无法读取插件包或超过 archive_mib 额度：" + path);
     return read(input.readAll());
 }
 
@@ -188,6 +190,12 @@ QVariantList PluginPackage::definitions() const
         if (!QRegularExpression("^[A-Za-z_][A-Za-z0-9_.-]+$").match(identifier).hasMatch()
             || identifiers.contains(identifier) || spec.value("name").toString().isEmpty()) throw Error("插件声明缺少有效且唯一的 id 或 name");
         identifiers.insert(identifier);
+        const auto kind = spec.value("kind","node").toString();
+        if (!QStringList{"node","container","workspace"}.contains(kind)) throw Error("插件 kind 需要 node、container 或 workspace："+identifier);
+        if (manifest_.value("implementation") == "qml" && kind == "node") throw Error("纯 QML 插件用于 container 或 workspace："+identifier);
+        if (kind == "workspace" && QStringList{"graph","layout","runtime","logs","library"}.contains(identifier)) throw Error("工作区 ID 已由内置页面使用："+identifier);
+        spec["kind"] = kind;
+        if (!QStringList{"immediate","batch"}.contains(spec.value("property_commit","immediate").toString())) throw Error("property_commit 需要 immediate 或 batch："+identifier);
         spec["package_id"] = id(); spec["package_hash"] = hash();
         spec["implementation"] = manifest_.value("implementation");
         spec["builtin"] = false;
@@ -199,6 +207,19 @@ QVariantList PluginPackage::definitions() const
         }
         const auto views = spec.value("views").toMap();
         for (auto i = views.cbegin(); i != views.cend(); ++i) file(i.value().toMap().value("qml").toString());
+        for (const auto &scope : {"node","view","container","workspace"}) {
+            const auto editor = spec.value("editors").toMap().value(scope).toString();
+            if (!editor.isEmpty()) file(editor);
+        }
+        if (kind == "workspace") file(spec.value("qml").toString());
+        if (kind == "container") {
+            file(spec.value("layout_script").toString());
+            if (!spec.value("qml").toString().isEmpty()) file(spec.value("qml").toString());
+        }
+        const auto script = spec.value("hooks").toMap().value("script").toString();
+        if (!script.isEmpty()) file(script);
+        const auto icon = spec.value("graph").toMap().value("icon").toString();
+        if (!icon.isEmpty()) file(icon);
         if (manifest_.value("implementation") == "python") {
             spec["plugin_api"] = 3;
             spec["code"] = QString::fromUtf8(file(spec.value("code_file").toString()));

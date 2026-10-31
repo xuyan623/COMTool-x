@@ -13,9 +13,13 @@ QSet<QString> usedPlugins(const QVariantMap &project)
     QSet<QString> used;
     for (const auto &entry : project.value("nodes").toList()) used.insert(entry.toMap().value("plugin").toString());
     for (const auto &entry : project.value("ui").toMap().value("items").toList()) {
-        const auto binding = entry.toMap().value("binding").toMap();
+        const auto item = entry.toMap(); const auto binding = item.value("binding").toMap();
         if (binding.contains("plugin")) used.insert(binding.value("plugin").toString());
+        const auto container = item.value("plugin").toString();
+        if (!container.isEmpty() && !QStringList{"layout.canvas","layout.row","layout.column","layout.grid","layout.tabs"}.contains(container)) used.insert(container);
     }
+    const auto workspaces = project.value("workspaces").toMap();
+    for (auto i = workspaces.cbegin(); i != workspaces.cend(); ++i) used.insert(i.key());
     return used;
 }
 QList<PluginPackage> projectPackages(const QVariantMap &project)
@@ -26,7 +30,7 @@ QList<PluginPackage> projectPackages(const QVariantMap &project)
 }
 }
 
-PluginStore::PluginStore(QString directory, QSettings &settings) : directory_(std::move(directory)), settings_(settings)
+PluginStore::PluginStore(QString directory, QSettings &settings, Catalog::PythonCall python) : directory_(std::move(directory)), settings_(settings), python_(std::move(python))
 {
     if (!QDir().mkpath(directory_)) throw Error("无法创建插件库目录");
     const QDir folder(directory_);
@@ -53,16 +57,18 @@ PluginStore::PluginStore(QString directory, QSettings &settings) : directory_(st
     settings_.setValue("plugins/initialized",true);
 }
 
-Catalog PluginStore::catalog(const QVariantMap &project) const
+Catalog PluginStore::catalog(const QVariantMap &project, bool includeDisabled) const
 {
     QReadLocker lock(&lock_);
     QMap<QString,PluginPackage> located;
     for (auto i = installed_.cbegin(); i != installed_.cend(); ++i) located.insert(locations_.value(i.key()),i.value());
-    Catalog result(located); result.applyProject(project);
+    Catalog result(located,python_); result.applyProject(project);
     // Opening a self-contained project activates its declared dependencies for
     // that project; a local library preference cannot strand an embedded copy.
     const auto required = usedPlugins(project);
-    for (const auto &id : disabled_) if (!required.contains(id)) result.remove(id);
+    // Management previews inspect installed declarations even when disabled.
+    // Execution and normal library discovery keep the local enable preference.
+    if (!includeDisabled) for (const auto &id : disabled_) if (!required.contains(id)) result.remove(id);
     return result;
 }
 
@@ -79,7 +85,11 @@ QVariantMap PluginStore::readiness(const QVariantMap &project) const
         for (const auto &entry : dependencies) {
             const auto expected = entry.toMap(); const auto id = expected.value("id").toString();
             if (!installed_.contains(id) && !attached.contains(id)) { missing.append(QVariantMap{{"id",id},{"version",expected.value("version")}}); continue; }
-            if (!installed_.contains(id) || installed_.value(id).hash() == expected.value("sha256").toString()) continue;
+            // A package version is its compatibility identity. Rebuilding an
+            // unchanged version changes bytes but not the contract, so content
+            // hashes only break ties between genuinely different versions.
+            if (!installed_.contains(id)) continue;
+            if (installed_.value(id).version() == expected.value("version").toString()) continue;
             const auto choice = choices.value(id).toString();
             if (choice == "local" || (choice == "project" && attached.contains(id))) continue;
             const auto local = installed_.value(id);
@@ -130,7 +140,7 @@ QVariantMap PluginStore::install(const PluginPackage &package, const QString &fi
 {
     QWriteLocker lock(&lock_);
     auto candidates = installed_; candidates.remove(package.id());
-    Catalog trial(candidates.values()); trial.addPackage(package);
+    Catalog trial(candidates.values(),python_); trial.addPackage(package);
     const auto loaded = loadedNativeHash(package.id());
     const bool restart = !loaded.isEmpty() && loaded != package.hash();
     if (package.manifest().value("implementation") == "native") validateNativePackage(package);
@@ -148,18 +158,29 @@ QVariantMap PluginStore::install(const PluginPackage &package, const QString &fi
     return {{"id",package.id()},{"version",package.version()},{"restart_required",restart}};
 }
 
-void PluginStore::setEnabled(const QString &plugin, bool enabled, const QVariantMap &project)
+void PluginStore::setEnabled(const QStringList &plugins, bool enabled, const QVariantMap &project)
 {
     QWriteLocker lock(&lock_);
-    bool found = false;
-    for (const auto &package : installed_) for (const auto &entry : package.definitions()) found |= entry.toMap().value("id") == plugin;
-    if (!found) throw Error("本机插件不存在：" + plugin);
+    if (plugins.isEmpty()) throw Error("请选择需要启用或停用的插件");
+    QSet<QString> available;
+    for (const auto &package : installed_) for (const auto &entry : package.definitions()) available.insert(entry.toMap().value("id").toString());
+    for (const auto &id : plugins) if (!available.contains(id)) throw Error("本机插件不存在：" + id);
+    const QSet<QString> selected(plugins.begin(),plugins.end());
     QStringList references;
     if (!enabled) for (const auto &entry : project.value("nodes").toList()) {
-        const auto node = entry.toMap(); if (node.value("plugin") == plugin) references.append(node.value("title",node.value("id")).toString());
+        const auto node = entry.toMap(); if (selected.contains(node.value("plugin").toString())) references.append(node.value("title",node.value("id")).toString());
     }
-    if (!enabled && usedPlugins(project).contains(plugin)) throw Error("插件仍被当前工程使用，请先处理引用：" + references.join("、"));
-    if (enabled) disabled_.remove(plugin); else disabled_.insert(plugin);
+    if (!enabled) for (const auto &entry : project.value("ui").toMap().value("items").toList()) {
+        const auto item = entry.toMap(); const auto binding = item.value("binding").toMap();
+        if (selected.contains(binding.value("plugin").toString())) references.append(binding.value("title",item.value("id")).toString());
+        if (selected.contains(item.value("plugin").toString())) references.append(item.value("id").toString());
+    }
+    if (!enabled) for (const auto &id : selected) if (project.value("workspaces").toMap().contains(id)) references.append(id);
+    // Validate the whole subtree before updating any preference, so a used or
+    // unknown plugin cannot leave a category only partly disabled.
+    references.removeDuplicates();
+    if (!references.isEmpty()) throw Error("插件仍被当前工程使用，请先处理引用：" + references.join("、"));
+    for (const auto &id : selected) { if (enabled) disabled_.remove(id); else disabled_.insert(id); }
     settings_.setValue("plugins/disabled",QStringList(disabled_.values()));
 }
 

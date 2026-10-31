@@ -1,9 +1,14 @@
 @PACKAGE_INIT@
 set(CoRigSdk_PREFIX "${PACKAGE_PREFIX_DIR}")
 include(CMakeFindDependencyMacro)
-find_dependency(Qt6 @Qt6Core_VERSION@ EXACT COMPONENTS Core)
-if(NOT MSVC OR NOT MSVC_VERSION EQUAL @MSVC_VERSION@ OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
-    message(FATAL_ERROR "This CoRig SDK requires matching MSVC @MSVC_VERSION@ x64.")
+find_dependency(Qt6 @Qt6Core_VERSION@ COMPONENTS Core)
+if(NOT MSVC OR MSVC_VERSION LESS 1900 OR MSVC_VERSION GREATER_EQUAL 2000 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+    message(FATAL_ERROR "This CoRig SDK requires the MSVC v14 ABI family on x64.")
+endif()
+# Microsoft permits mixing v14 toolsets, provided the linker is at least as
+# recent as every input (including the SDK import library). Do not use EXACT.
+if(NOT CMAKE_CXX_COMPILER_LINKER_VERSION OR CMAKE_CXX_COMPILER_LINKER_VERSION VERSION_LESS "@CMAKE_CXX_COMPILER_LINKER_VERSION@")
+    message(FATAL_ERROR "CoRigSdk requires MSVC linker @CMAKE_CXX_COMPILER_LINKER_VERSION@ or newer. An older compiler may use a newer linker.")
 endif()
 if(NOT TARGET CoRig::Sdk)
     add_library(CoRig::Sdk SHARED IMPORTED)
