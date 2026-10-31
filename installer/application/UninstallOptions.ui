@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>UninstallOptions</class>
+ <widget class="QWidget" name="UninstallOptions">
+  <property name="windowTitle"><string>卸载 CoRig</string></property>
+  <layout class="QVBoxLayout" name="optionsLayout">
+   <item><widget class="QLabel" name="Heading"><property name="text"><string>卸载程序文件后，以下文件夹可能仍保留你在 CoRig 里创建的内容。</string></property><property name="wordWrap"><bool>true</bool></property></widget></item>
+   <item><widget class="QCheckBox" name="KeepUserData"><property name="text"><string>保留个人工程、插件和设置（推荐）</string></property><property name="checked"><bool>true</bool></property></widget></item>
+   <item><widget class="QLabel" name="Components"><property name="text"><string>保留：project\\（个人工程）、plugins\\（含你导入的插件）、settings.ini（本机设置）。勾选后卸载只移除程序文件和官方插件。</string></property><property name="wordWrap"><bool>true</bool></property></widget></item>
+   <item><widget class="QLabel" name="Warning"><property name="text"><string>取消勾选将删除上述全部内容，包括你尚未备份的工程，且无法撤销。</string></property><property name="wordWrap"><bool>true</bool></property></widget></item>
+   <item><spacer name="bottomSpace"><property name="orientation"><enum>Qt::Vertical</enum></property><property name="sizeHint" stdset="0"><size><width>20</width><height>60</height></size></property></spacer></item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

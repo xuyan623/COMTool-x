@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(CORIG_BUILD_APP "Build the Qt Quick desktop application" ON)
-find_package(Qt6 6.12 REQUIRED COMPONENTS Core CorePrivate Test Gui Qml Quick QuickControls2 Network SerialPort Svg Core5Compat)
+find_package(Qt6 6.12 REQUIRED COMPONENTS Core CorePrivate Test Gui Widgets Qml Quick QuickControls2 Network SerialPort Svg Core5Compat)
 qt_standard_project_setup(REQUIRES 6.12)
 
 add_library(corig_core SHARED
@@ -116,6 +116,10 @@ if(CORIG_BUILD_APP)
     qt_add_qml_module(CoRig URI CoRig VERSION 1.0 RESOURCE_PREFIX "/qt/qml" QML_FILES ${CORIG_QML_FILES})
     qt_add_executable(CoRig-cli src/app/cli.cpp)
     target_link_libraries(CoRig-cli PRIVATE corig_core Qt6::Network)
+    # Shipped inside the installation directory so removing CoRig never needs
+    # the maintenance tool or the original setup file.
+    qt_add_executable(CoRig-uninstall src/app/uninstall.cpp)
+    target_link_libraries(CoRig-uninstall PRIVATE corig_core Qt6::Widgets)
 endif()
 if(MSVC)
     target_compile_options(corig_core PUBLIC /utf-8 /W4 /permissive-)

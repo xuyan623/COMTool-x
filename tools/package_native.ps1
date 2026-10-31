@@ -17,15 +17,23 @@ if (!$ArchiveOnly) {
         Remove-Item -LiteralPath $resolvedTarget -Recurse -Force
     }
     New-Item -ItemType Directory -Path $releaseRoot -Force | Out-Null
-    foreach ($program in @('CoRig.exe','CoRig-cli.exe','CoRigSdk.dll')) {
+    foreach ($program in @('CoRig.exe','CoRig-cli.exe','CoRig-uninstall.exe','CoRigSdk.dll')) {
         Copy-Item -LiteralPath (Join-Path $repoRoot "build\native\$program") -Destination $releaseRoot
     }
     # Qt's dependency scanner includes the actual QML imports and the C++
     # runtime. The application and official plugins carry no Python runtime.
-    & (Join-Path $QtPrefix 'bin\windeployqt.exe') --release --qmldir (Join-Path $repoRoot 'src\qml') --no-translations --no-opengl-sw (Join-Path $releaseRoot 'CoRig.exe')
-    if ($LASTEXITCODE -ne 0) { throw 'Qt deployment failed' }
-    & (Join-Path $QtPrefix 'bin\windeployqt.exe') --release --dir $releaseRoot --no-translations --no-opengl-sw (Join-Path $repoRoot 'build\native\corig_official.dll')
-    if ($LASTEXITCODE -ne 0) { throw 'Official plugin Qt deployment failed' }
+    $previousPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    & (Join-Path $QtPrefix 'bin\windeployqt.exe') --release --qmldir (Join-Path $repoRoot 'src\qml') --no-translations --no-opengl-sw (Join-Path $releaseRoot 'CoRig.exe') 2>&1 | Out-Null
+    $deployExit = $LASTEXITCODE
+    $ErrorActionPreference = $previousPreference
+    if ($deployExit -ne 0) { throw 'Qt deployment failed' }
+    $previousPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    & (Join-Path $QtPrefix 'bin\windeployqt.exe') --release --dir $releaseRoot --no-translations --no-opengl-sw (Join-Path $repoRoot 'build\native\corig_official.dll') 2>&1 | Out-Null
+    $deployExit = $LASTEXITCODE
+    $ErrorActionPreference = $previousPreference
+    if ($deployExit -ne 0) { throw 'Official plugin Qt deployment failed' }
     New-Item -ItemType Directory -Path (Join-Path $releaseRoot 'plugins') -Force | Out-Null
     Get-ChildItem -LiteralPath (Join-Path $repoRoot 'build\native\plugins') -Directory | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $releaseRoot 'plugins') -Recurse -Force }
     Set-Content -LiteralPath (Join-Path $releaseRoot 'portable.ini') -Value "[CoRig]`nportable=true" -Encoding ascii

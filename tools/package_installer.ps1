@@ -39,8 +39,8 @@ foreach ($part in $parts) {
     New-Item -ItemType Directory -Path (Join-Path $root 'meta'),(Join-Path $root 'data') -Force | Out-Null
     $extra = ''
     if ($part.Id -eq 'org.corig.application') {
-        Copy-Item -LiteralPath (Join-Path $repoRoot 'installer\application\installscript.qs'),(Join-Path $repoRoot 'installer\application\InstallScope.ui') -Destination (Join-Path $root 'meta')
-        $extra = '<Script>installscript.qs</Script><UserInterfaces><UserInterface>InstallScope.ui</UserInterface></UserInterfaces>'
+        Copy-Item -LiteralPath (Join-Path $repoRoot 'installer\application\installscript.qs'),(Join-Path $repoRoot 'installer\application\InstallScope.ui'),(Join-Path $repoRoot 'installer\application\UninstallOptions.ui') -Destination (Join-Path $root 'meta')
+        $extra = '<Script>installscript.qs</Script><UserInterfaces><UserInterface>InstallScope.ui</UserInterface><UserInterface>UninstallOptions.ui</UserInterface></UserInterfaces>'
     }
     $xml = @"
 <?xml version="1.0" encoding="UTF-8"?>
@@ -48,7 +48,7 @@ foreach ($part in $parts) {
 "@
     Set-Content -LiteralPath (Join-Path $root 'meta\package.xml') -Value $xml -Encoding utf8
 }
-$applicationFiles = @('CoRig.exe','CoRig-cli.exe','CoRigSdk.dll','README.md','LICENSE','THIRD_PARTY_NOTICES.md')
+$applicationFiles = @('CoRig.exe','CoRig-cli.exe','CoRig-uninstall.exe','CoRigSdk.dll','README.md','LICENSE','THIRD_PARTY_NOTICES.md')
 $applicationDirs = @('docs','skills','licenses','examples','verification')
 foreach ($item in Get-ChildItem -LiteralPath $release -Force) {
     if ($item.Name -in @('portable.ini','project','plugins','.sessions','settings.ini')) { continue }
