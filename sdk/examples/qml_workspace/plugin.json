@@ -1,0 +1,25 @@
+{
+  "format":"corig-plugin","package_api":1,
+  "id":"user.example.ui_tools","name":"QML 编辑器扩展","version":"1.0.0","implementation":"qml",
+  "files":["Ribbon.qml","layout.js","Overview.qml","checks.js"],
+  "plugins":[
+    {
+      "id":"user.example.ribbon","kind":"container","name":"可反转分栏","description":"按可配置列数排列真实子视图，反转顺序也保留对象身份与网格。",
+      "layout_script":"layout.js","qml":"Ribbon.qml","property_commit":"batch",
+      "properties":{
+        "columns":{"type":"integer","default":2,"min":1,"max":8,"label":"列数"},
+        "reverse":{"type":"boolean","default":false,"label":"反转排列"},
+        "spacing":{"type":"integer","default":16,"min":0,"max":64,"label":"格间距"},
+        "highlight":{"type":"string","default":"#3C91B8","pattern":"#[0-9A-Fa-f]{6}","label":"边框色"}
+      }
+    },
+    {
+      "id":"user.example.overview","kind":"workspace","name":"实验总览","description":"独立 QML 工作区，可分离到新窗口，配置随工程携带。",
+      "qml":"Overview.qml","property_commit":"batch","hooks":{"script":"checks.js","configure":"validate"},
+      "properties":{
+        "heading":{"type":"string","default":"实验总览","label":"工作区标题"},
+        "note":{"type":"string","default":"","label":"实验记录"}
+      }
+    }
+  ]
+}

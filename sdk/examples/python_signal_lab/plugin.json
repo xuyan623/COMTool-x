@@ -1,0 +1,30 @@
+{
+  "format":"corig-plugin","package_api":1,
+  "id":"user.example.signal_lab","name":"Python 信号实验台","version":"1.0.0","implementation":"python",
+  "files":["signal_lab.py","SignalView.qml","SignalEditor.qml","ViewEditor.qml","signal.svg"],
+  "requirements":{"ports":11,"python_message_mib":1},
+  "plugins":[{
+    "id":"user.example.signal_lab","kind":"node","name":"多路合成信号","description":"真实计算正弦信号、动态输出端口和可取消的异步 RMS 计算，无需设备。",
+    "code_file":"signal_lab.py","source":true,"property_commit":"batch",
+    "graph":{"icon":"signal.svg"},
+    "properties":{
+      "channels":{"type":"integer","default":2,"min":1,"max":8,"label":"输出路数"},
+      "period_ms":{"type":"integer","default":40,"min":10,"max":1000,"runtime_editable":true,"label":"生成间隔 / ms"},
+      "minimum":{"type":"number","default":-1,"runtime_editable":true,"label":"下界"},
+      "maximum":{"type":"number","default":1,"runtime_editable":true,"label":"上界"},
+      "frequency":{"type":"number","default":1,"min":0.01,"max":100,"runtime_editable":true,"label":"频率 / Hz"}
+    },
+    "ports":[],
+    "hooks":{"configure":"validate","ports":"describe_ports","view_configure":"validate_view"},
+    "editors":{"node":"SignalEditor.qml","view":"ViewEditor.qml"},
+    "view_properties":{
+      "display_label":{"type":"string","default":"合成信号","label":"显示名称"},
+      "accent":{"type":"string","default":"#3C91B8","pattern":"#[0-9A-Fa-f]{6}","label":"强调色"}
+    },
+    "actions":{
+      "measure":{"async":true,"requires_running":true,"args":{"steps":{"type":"integer","default":100,"min":1,"max":1000}}},
+      "reset_state":{"requires_paused":true,"requires_running":false,"args":{}}
+    },
+    "views":{"signal":{"qml":"SignalView.qml"}}
+  }]
+}

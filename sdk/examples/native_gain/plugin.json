@@ -15,7 +15,9 @@
         {"id":"x","direction":"in","data_type":"number"},
         {"id":"out","direction":"out","data_type":"number"}
       ],
-      "properties": {"gain":{"type":"number","default":2}},
+      "graph":{"symbol":"× g"},
+      "properties": {"gain":{"type":"number","default":2},"minimum":{"type":"number","default":-1000},"maximum":{"type":"number","default":1000}},
+      "view_properties":{"display_label":{"type":"string","default":"C++ 输出"},"accent":{"type":"string","default":"#3C91B8"}},
       "actions": {"reset":{"args":{}}},
       "views": {"result":{"qml":"Gain.qml"}}
     }

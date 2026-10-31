@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.29)
 project(CoRigNativeGain LANGUAGES CXX)
-find_package(CoRigSdk 1 REQUIRED CONFIG)
+find_package(CoRigSdk 2 REQUIRED CONFIG)
 corig_add_plugin(NativeGain MANIFEST plugin.json SOURCES gain.cpp)
