@@ -10,6 +10,8 @@
     <MaintenanceToolName>CoRigMaintenanceTool</MaintenanceToolName>
     <MaintenanceToolIniFile>CoRigMaintenanceTool.ini</MaintenanceToolIniFile>
     <RemoveTargetDir>false</RemoveTargetDir>
+    <PersistentLocalCache>false</PersistentLocalCache>
+    <DisableAuthorizationFallback>true</DisableAuthorizationFallback>
     <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>
     <AllowSpaceInPath>true</AllowSpaceInPath>
     <RunProgram>@TargetDir@/CoRig.exe</RunProgram>

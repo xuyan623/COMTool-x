@@ -9,6 +9,7 @@
 #include <QQuickStyle>
 #include <QCommandLineParser>
 #include <QFile>
+#include <QFileInfo>
 #include <QDir>
 #include <QDateTime>
 #include <QMutex>
@@ -17,6 +18,10 @@
 #include <QIcon>
 #include <QJsonDocument>
 #include <cstdio>
+#include <QProcess>
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 
 static QString logPath;
 static QMutex logMutex;
@@ -31,6 +36,16 @@ static void messageHandler(QtMsgType type, const QMessageLogContext &, const QSt
 
 int main(int argc, char **argv)
 {
+    try { corig::configureRuntimePaths(); }
+    catch (const std::exception &error) {
+#ifdef Q_OS_WIN
+        const auto message = QString::fromUtf8(error.what());
+        MessageBoxW(nullptr, reinterpret_cast<LPCWSTR>(message.utf16()), L"CoRig 无法启动", MB_OK | MB_ICONERROR);
+#else
+        std::fprintf(stderr, "%s\n", error.what());
+#endif
+        return 1;
+    }
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QGuiApplication application(argc,argv); QCoreApplication::setOrganizationName("CoRig"); QCoreApplication::setApplicationName("CoRig"); QCoreApplication::setApplicationVersion("0.4.2");
     application.setApplicationDisplayName(QStringLiteral("联调 · CoRig"));
@@ -38,20 +53,29 @@ int main(int argc, char **argv)
     QCommandLineParser parser; parser.setApplicationDescription("联调 · CoRig 工程调试工作台"); parser.addHelpOption(); parser.addVersionOption();
     parser.addOption({"data-dir","工程、设置和本地连接信息的目录","directory",corig::defaultDataDirectory()});
     parser.addOption({"plugin-selections","重启后恢复本次工程的插件版本选择","base64-json"});
+    parser.addOption({"update-installer","打开此安装目录的更新工具"});
+    parser.addOption({"configure-installer","配置此安装目录的更新缓存后退出"});
     parser.addPositionalArgument("project","启动后打开的新版工程文件（不会自动运行）"); parser.process(application);
+    if (parser.isSet("configure-installer")) return 0;
+    if (parser.isSet("update-installer")) {
+        const auto root = QCoreApplication::applicationDirPath();
+        const auto tool = root + "/CoRigMaintenanceTool.exe";
+        return QFileInfo::exists(tool) && QProcess::startDetached(tool,
+            {"--cache-path", root + "/cache/installer", "--start-updater"}) ? 0 : 1;
+    }
     const auto directory = QDir(parser.value("data-dir")).absolutePath();
-    // Data lives with the program; create the three user-facing folders once so
-    // an empty project folder is explained instead of silently missing.
-    corig::ensureDataDirectory(directory);
-    logPath = directory + "/native.log"; qInstallMessageHandler(messageHandler);
-    QQuickStyle::setStyle("Basic");
-    application.setFont(QFont("Microsoft YaHei UI",10));
-    application.setWindowIcon(QIcon(":/icon.svg"));
-    qmlRegisterType<corig::WireLayer>("CoRig.Native",1,0,"WireLayer");
-    qmlRegisterType<corig::NodeSurface>("CoRig.Native",1,0,"NodeSurface");
-    qmlRegisterType<corig::NativePlot>("CoRig.Native",1,0,"NativePlot");
-    qmlRegisterType<corig::NativeAttitude>("CoRig.Native",1,0,"NativeAttitude");
     try {
+        // Data lives with the program; create the three user-facing folders once so
+        // an empty project folder is explained instead of silently missing.
+        corig::ensureDataDirectory(directory);
+        logPath = QCoreApplication::applicationDirPath() + "/cache/logs/native.log"; qInstallMessageHandler(messageHandler);
+        QQuickStyle::setStyle("Basic");
+        application.setFont(QFont("Microsoft YaHei UI",10));
+        application.setWindowIcon(QIcon(":/icon.svg"));
+        qmlRegisterType<corig::WireLayer>("CoRig.Native",1,0,"WireLayer");
+        qmlRegisterType<corig::NodeSurface>("CoRig.Native",1,0,"NodeSurface");
+        qmlRegisterType<corig::NativePlot>("CoRig.Native",1,0,"NativePlot");
+        qmlRegisterType<corig::NativeAttitude>("CoRig.Native",1,0,"NativeAttitude");
         const auto projects = parser.positionalArguments();
         const auto choices = QJsonDocument::fromJson(QByteArray::fromBase64(parser.value("plugin-selections").toLatin1())).toVariant().toMap();
         QVariantMap initialCatalog;
@@ -65,5 +89,12 @@ int main(int argc, char **argv)
             else controller.invoke("project.open",{{"path",projects.first()},{"plugin_selections",choices}});
         }
         const auto result = application.exec(); controller.shutdown(); return result;
-    } catch (const std::exception &error) { qCritical("%s",error.what()); return 1; }
+    } catch (const std::exception &error) {
+        qCritical("%s",error.what());
+#ifdef Q_OS_WIN
+        const auto message = QString::fromUtf8(error.what());
+        MessageBoxW(nullptr, reinterpret_cast<LPCWSTR>(message.utf16()), L"CoRig 无法启动", MB_OK | MB_ICONERROR);
+#endif
+        return 1;
+    }
 }

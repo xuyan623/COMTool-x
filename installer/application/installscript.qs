@@ -3,6 +3,12 @@
 // Uninstall asks once whether that user content should survive.
 function Component()
 {
+    // Configure the installed maintenance tool before the optional first app
+    // launch. The setup executable is never required again after installation.
+    installer.installationFinished.connect(function() {
+        if (systemInfo.productType === "windows" && installer.isInstaller())
+            installer.execute(installer.value("TargetDir") + "/CoRig.exe", ["--configure-installer"]);
+    });
     if (installer.isInstaller() && !installer.isCommandLineInstance()) {
         installer.addWizardPage(component, "InstallScope", QInstaller.TargetDirectory);
         installer.setValue("TargetDir", installer.environmentVariable("LOCALAPPDATA") + "/Programs/CoRig");
@@ -47,7 +53,7 @@ Component.prototype.createOperations = function()
     var menu = "@UserStartMenuProgramsPath@/CoRig";
     if (installer.value("CreateShortcuts", "true") === "true") {
         component.addOperation("CreateShortcut", "@TargetDir@/CoRig.exe", menu + "/联调 CoRig.lnk", "workingDirectory=@TargetDir@", "iconPath=@TargetDir@/CoRig.exe");
-        component.addOperation("CreateShortcut", "@TargetDir@/CoRigMaintenanceTool.exe", menu + "/更新 CoRig.lnk", "workingDirectory=@TargetDir@");
+        component.addOperation("CreateShortcut", "@TargetDir@/CoRig.exe", menu + "/更新 CoRig.lnk", "--update-installer", "workingDirectory=@TargetDir@");
         component.addOperation("CreateShortcut", "@TargetDir@/CoRig-uninstall.exe", menu + "/卸载 CoRig.lnk", "workingDirectory=@TargetDir@", "iconPath=@TargetDir@/CoRig.exe");
     }
     if (installer.value("RegisterFileTypes", "true") === "true") {

@@ -1,4 +1,5 @@
 #include "recording.h"
+#include "paths.h"
 #include <QCborValue>
 #include <QDir>
 #include <QFileInfo>
@@ -34,7 +35,9 @@ QByteArray frameHeader(double time, quint32 bytes)
 
 void RecordingWriter::begin(const QString &type)
 {
-    auto candidate = std::make_unique<QTemporaryFile>(QDir::tempPath() + "/CoRig-recording-XXXXXX");
+    const auto directory = defaultDataDirectory() + "/cache/temp";
+    if (!QDir().mkpath(directory)) throw Error("无法创建录制缓存目录：" + directory);
+    auto candidate = std::make_unique<QTemporaryFile>(directory + "/CoRig-recording-XXXXXX");
     if (!candidate->open()) throw Error("无法创建录制缓存：" + candidate->errorString());
     const auto metadata = QCborValue::fromVariant(QVariantMap{{"format","corig-recording"},{"version",1},{"data_type",type}}).toCbor();
     QByteArray length(4,Qt::Uninitialized); qToBigEndian<quint32>(static_cast<quint32>(metadata.size()),length.data());

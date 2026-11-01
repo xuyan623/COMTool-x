@@ -17,7 +17,8 @@ QVariantMap checkUpdates(const std::function<bool()> &cancelled)
 {
     const auto tool = maintenanceTool();
     if (tool.isEmpty()) throw Error("请使用安装版 CoRig 进行安装式更新");
-    QProcess process; process.setProgram(tool); process.setArguments({"check-updates"});
+    QProcess process; process.setProgram(tool);
+    process.setArguments({"--cache-path", QCoreApplication::applicationDirPath() + "/cache/installer", "check-updates"});
     process.start();
     if (!process.waitForStarted(5000)) throw Error("无法启动更新检查：" + process.errorString());
     QElapsedTimer deadline; deadline.start();

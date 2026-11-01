@@ -137,7 +137,7 @@ QVariant Controller::command(const QString &op, const QVariantMap &args)
         if (dirty_) throw Error("请先保存当前工程，再开始更新");
         if (busy_) throw Error("请等待当前工程操作完成");
         const auto tool = maintenanceTool(); if (tool.isEmpty()) throw Error("请使用安装版 CoRig 进行安装式更新");
-        if (!QProcess::startDetached(tool,{"--start-updater"})) throw Error("无法启动安装式更新");
+        if (!QProcess::startDetached(tool,{"--cache-path",QCoreApplication::applicationDirPath() + "/cache/installer","--start-updater"})) throw Error("无法启动安装式更新");
         exitDiscarded_ = true; QTimer::singleShot(50,qApp,&QCoreApplication::quit);
         return QVariantMap{{"updating",true}};
     }
