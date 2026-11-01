@@ -28,6 +28,14 @@ if (!$ArchiveOnly) {
     $deployExit = $LASTEXITCODE
     $ErrorActionPreference = $previousPreference
     if ($deployExit -ne 0) { throw 'Qt deployment failed' }
+    # The standalone uninstaller uses Widgets, which the Quick application does
+    # not depend on. Scan it too so uninstall works without a developer Qt PATH.
+    $previousPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    & (Join-Path $QtPrefix 'bin\windeployqt.exe') --release --no-translations --no-opengl-sw (Join-Path $releaseRoot 'CoRig-uninstall.exe') 2>&1 | Out-Null
+    $deployExit = $LASTEXITCODE
+    $ErrorActionPreference = $previousPreference
+    if ($deployExit -ne 0) { throw 'Uninstaller Qt deployment failed' }
     $previousPreference = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     & (Join-Path $QtPrefix 'bin\windeployqt.exe') --release --dir $releaseRoot --no-translations --no-opengl-sw (Join-Path $repoRoot 'build\native\corig_official.dll') 2>&1 | Out-Null
@@ -69,6 +77,29 @@ foreach ($name in @('native','documentation','plugins','installer')) {
 $pythonFiles = Get-ChildItem -LiteralPath $releaseRoot -Recurse -File | Where-Object { $_.Name -match '^python\d*\.exe$|^python\d*\.dll$|^PySide|^pyqtgraph' -or $_.FullName -match '[\\/]_internal[\\/]' }
 if ($pythonFiles) { throw 'The release unexpectedly contains an old Python runtime' }
 $publishDirectory = Join-Path $repoRoot 'dist'
+# Release validation now writes internal caches beside the executable even with
+# an external data-dir. Remove only generated scratch entries before archiving.
+foreach ($name in @('cache','.sessions','native.log')) {
+    $scratch = Join-Path $releaseRoot $name
+    if (Test-Path -LiteralPath $scratch) {
+        $resolved = (Resolve-Path -LiteralPath $scratch).Path
+        if ([IO.Path]::GetDirectoryName($resolved) -ne [IO.Path]::GetFullPath($releaseRoot) -or
+            ((Get-Item -LiteralPath $resolved -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw 'Unexpected release scratch path'
+        }
+        Remove-Item -LiteralPath $resolved -Recurse -Force
+    }
+}
+# Record individual shipped files rather than assuming ownership of whole Qt,
+# documentation or SDK directories during uninstall. Runtime data is excluded.
+$manifestFiles = @(Get-ChildItem -LiteralPath $releaseRoot -Recurse -File | Where-Object {
+    $relative = $_.FullName.Substring($releaseRoot.Length + 1).Replace('\','/')
+    $relative -notmatch '^(project|cache|\.sessions)/' -and $relative -notin @('settings.ini','native.log','install-manifest.json')
+} | ForEach-Object { $_.FullName.Substring($releaseRoot.Length + 1).Replace('\','/') } | Sort-Object)
+$manifestDirectories = @(Get-ChildItem -LiteralPath $releaseRoot -Recurse -Directory | Where-Object {
+    $_.FullName.Substring($releaseRoot.Length + 1).Replace('\','/') -notmatch '^(project|cache|\.sessions)(/|$)'
+} | ForEach-Object { $_.FullName.Substring($releaseRoot.Length + 1).Replace('\','/') } | Sort-Object)
+@{application='CoRig';version=1;files=$manifestFiles;directories=$manifestDirectories} | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $releaseRoot 'install-manifest.json') -Encoding utf8
 New-Item -ItemType Directory -Path $publishDirectory -Force | Out-Null
 $binaryArchive = Join-Path $publishDirectory 'CoRig-Windows-x64.zip'
 Compress-Archive -LiteralPath $releaseRoot -DestinationPath $binaryArchive -CompressionLevel Optimal -Force

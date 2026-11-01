@@ -119,6 +119,7 @@ if(CORIG_BUILD_APP)
     # Shipped inside the installation directory so removing CoRig never needs
     # the maintenance tool or the original setup file.
     qt_add_executable(CoRig-uninstall src/app/uninstall.cpp)
+    qt_add_resources(CoRig-uninstall uninstall_worker PREFIX "/" BASE "src/app" FILES src/app/uninstall_cleanup.ps1)
     target_link_libraries(CoRig-uninstall PRIVATE corig_core Qt6::Widgets)
 endif()
 if(MSVC)

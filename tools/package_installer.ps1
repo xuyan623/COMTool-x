@@ -48,10 +48,12 @@ foreach ($part in $parts) {
 "@
     Set-Content -LiteralPath (Join-Path $root 'meta\package.xml') -Value $xml -Encoding utf8
 }
-$applicationFiles = @('CoRig.exe','CoRig-cli.exe','CoRig-uninstall.exe','CoRigSdk.dll','README.md','LICENSE','THIRD_PARTY_NOTICES.md')
+# Widgets is needed by the standalone uninstaller introduced in this app
+# payload; app updates must deliver it even when the runtime version is unchanged.
+$applicationFiles = @('CoRig.exe','CoRig-cli.exe','CoRig-uninstall.exe','CoRigSdk.dll','Qt6Widgets.dll','README.md','LICENSE','THIRD_PARTY_NOTICES.md')
 $applicationDirs = @('docs','skills','licenses','examples','verification')
 foreach ($item in Get-ChildItem -LiteralPath $release -Force) {
-    if ($item.Name -in @('portable.ini','project','plugins','.sessions','settings.ini')) { continue }
+    if ($item.Name -in @('portable.ini','project','plugins','.sessions','settings.ini','cache','native.log','install-manifest.json')) { continue }
     $part = if ($item.Name -in $applicationFiles -or $item.Name -in $applicationDirs) { 'org.corig.application' } else { 'org.corig.runtime' }
     Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $packages "$part\data") -Recurse
 }
@@ -61,6 +63,34 @@ Get-ChildItem -LiteralPath (Join-Path $release 'plugins') -Directory | ForEach-O
 $sdk = Join-Path $repoRoot 'build\native\sdk\CoRigSdk'
 if (!(Test-Path -LiteralPath (Join-Path $sdk 'include\corig\plugin.h'))) { throw '请先构建公开插件 SDK' }
 Copy-Item -LiteralPath $sdk -Destination (Join-Path $packages 'org.corig.sdk\data') -Recurse
+# Ship the complete file ownership list with the application component, so an
+# app update also supplies the list for unchanged runtime and optional SDK files.
+$manifestFiles = @(foreach ($part in $parts) {
+    $dataRoot = Join-Path $packages "$($part.Id)\data"
+    Get-ChildItem -LiteralPath $dataRoot -Recurse -File | ForEach-Object {
+        $_.FullName.Substring($dataRoot.Length + 1).Replace('\','/')
+    }
+}) | Sort-Object -Unique
+$manifestDirectories = @(foreach ($part in $parts) {
+    $dataRoot = Join-Path $packages "$($part.Id)\data"
+    Get-ChildItem -LiteralPath $dataRoot -Recurse -Directory | ForEach-Object {
+        $_.FullName.Substring($dataRoot.Length + 1).Replace('\','/')
+    }
+}) | Sort-Object -Unique
+# IFW records one extraction listing per archive in installerResources. These
+# are framework-owned files, but unrelated additions to that folder stay safe.
+foreach ($part in $parts) {
+    $dataRoot = Join-Path $packages "$($part.Id)\data"
+    $resourceRoot = "installerResources/$($part.Id)"
+    $manifestDirectories += @('installerResources', $resourceRoot)
+    if (Get-ChildItem -LiteralPath $dataRoot -File | Select-Object -First 1) {
+        $manifestFiles += "$resourceRoot/$($part.Version)content.txt"
+    }
+    foreach ($directory in Get-ChildItem -LiteralPath $dataRoot -Directory) {
+        $manifestFiles += "$resourceRoot/$($part.Version)$($directory.Name).txt"
+    }
+}
+@{application='CoRig';version=1;files=@($manifestFiles);directories=@($manifestDirectories)} | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $packages 'org.corig.application\data\install-manifest.json') -Encoding utf8
 $xml = Get-Content -LiteralPath (Join-Path $repoRoot 'installer\config\config.xml.in') -Raw
 $xml = $xml.Replace('__VERSION__',$version).Replace('__REPOSITORY__',[Security.SecurityElement]::Escape($RepositoryUrl))
 Set-Content -LiteralPath (Join-Path $config 'config.xml') -Value $xml -Encoding utf8
